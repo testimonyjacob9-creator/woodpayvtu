@@ -599,7 +599,7 @@ async function sendTestNotification(){
       statusEl.textContent = '❌ No push subscription found. Enable notifications first.';
       return;
     }
-    const subs = [{ ...sub, userEmail: FB.auth.currentUser?.email || adminUid }];
+    const subs = [{ ...sub, userEmail: FB.auth.currentUser?.email || adminUid, uid: adminUid }];
 
     const response = await fetch('/.netlify/functions/send-push', {
       method: 'POST',
@@ -684,11 +684,13 @@ async function sendPushNotification(){
 
   if(!title || !body){ statusEl.textContent = 'Fill in title and message first.'; return; }
 
-  // Collect push subscriptions from all users (carry the email along so
-  // server-side logs/errors can be attributed to a real user, not "undefined")
+  // Collect push subscriptions from all users (carry email + uid along so
+  // server-side logs can be attributed to a real user, and so the function
+  // can delete a subscription from Firestore if the push service says it's
+  // dead — instead of it silently failing forever on every future send)
   const subscriptions = ALL_USERS
     .filter(u => u.pushSubscription && u.pushSubscription.endpoint)
-    .map(u => ({ ...u.pushSubscription, userEmail: u.email || u.id }));
+    .map(u => ({ ...u.pushSubscription, userEmail: u.email || u.id, uid: u.id }));
 
   if(!subscriptions.length){
     statusEl.textContent = 'No users have enabled push notifications yet.'; return;
