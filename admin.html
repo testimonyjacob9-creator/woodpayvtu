@@ -599,7 +599,7 @@ async function sendTestNotification(){
       statusEl.textContent = '❌ No push subscription found. Enable notifications first.';
       return;
     }
-    const subs = [sub];
+    const subs = [{ ...sub, userEmail: FB.auth.currentUser?.email || adminUid }];
 
     const response = await fetch('/.netlify/functions/send-push', {
       method: 'POST',
@@ -684,10 +684,11 @@ async function sendPushNotification(){
 
   if(!title || !body){ statusEl.textContent = 'Fill in title and message first.'; return; }
 
-  // Collect push subscriptions from all users
+  // Collect push subscriptions from all users (carry the email along so
+  // server-side logs/errors can be attributed to a real user, not "undefined")
   const subscriptions = ALL_USERS
     .filter(u => u.pushSubscription && u.pushSubscription.endpoint)
-    .map(u => u.pushSubscription);
+    .map(u => ({ ...u.pushSubscription, userEmail: u.email || u.id }));
 
   if(!subscriptions.length){
     statusEl.textContent = 'No users have enabled push notifications yet.'; return;
