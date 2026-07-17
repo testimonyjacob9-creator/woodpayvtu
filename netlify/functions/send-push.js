@@ -10,13 +10,32 @@
 
 const webpush = require('web-push');
 
-const VAPID_PUBLIC  = 'BJDn0ER_blc2Ga4onqhSEfEdO-GtO0QtrTwtW7BDDzNB-lMgeAJXUOh6xctoA5nqpit42hF4m1g8NK1XUuydmrQ';
-const VAPID_PRIVATE = 'RVpf4kLdZCWo_BkdSYa3WzBfixIRRHO_NOERvMdqVZA';
+// Prefer env vars (set in Netlify → Environment variables); fall back to the
+// original hardcoded values so nothing breaks if they're not set yet.
+const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  || 'BJDn0ER_blc2Ga4onqhSEfEdO-GtO0QtrTwtW7BDDzNB-lMgeAJXUOh6xctoA5nqpit42hF4m1g8NK1XUuydmrQ';
+const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || 'RVpf4kLdZCWo_BkdSYa3WzBfixIRRHO_NOERvMdqVZA';
 const VAPID_SUBJECT = 'mailto:vtusurpport@gmail.com';
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 
-exports.handler = async (event) => {
+// Don't keep TCP sockets alive after each push — that's what was causing
+// the function to hang until the platform timeout (30s) instead of
+// returning as soon as the work was actually done.
+const pushOptions = { TTL: 60, agent: new (require('https').Agent)({ keepAlive: false }) };
+
+function sendWithTimeout(sub, payload, ms = 8000) {
+  return Promise.race([
+    webpush.sendNotification(sub, payload, pushOptions),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Push timed out')), ms))
+  ]);
+}
+
+exports.handler = async (event, context) => {
+  // Let the function return as soon as we're done, instead of waiting for
+  // the Node event loop to fully drain (which was the root cause of the
+  // 30s hangs / HTML timeout pages you were seeing).
+  context.callbackWaitsForEmptyEventLoop = false;
+
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
   }
@@ -47,7 +66,7 @@ exports.handler = async (event) => {
 
   for (const sub of subscriptions) {
     try {
-      await webpush.sendNotification(sub, payload);
+      await sendWithTimeout(sub, payload);
       sent++;
       results.push({ email: sub.userEmail || '—', status: 'sent' });
     } catch (e) {
