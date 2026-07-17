@@ -9,6 +9,7 @@
 // }
 
 const webpush = require('web-push');
+const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 
 // Prefer env vars (set in Netlify → Environment variables); fall back to the
 // original hardcoded values so nothing breaks if they're not set yet.
@@ -63,6 +64,12 @@ exports.handler = async (event, context) => {
 
   let sent = 0, failed = 0;
   const results = [];
+  const cleanupPromises = [];
+
+  // Firestore cleanup is best-effort: if Admin creds aren't configured, we
+  // still send the pushes, we just skip removing dead subscriptions.
+  const canCleanup = !ADMIN_INIT_ERROR;
+  const db = canCleanup ? admin.firestore() : null;
 
   for (const sub of subscriptions) {
     try {
@@ -70,7 +77,13 @@ exports.handler = async (event, context) => {
       sent++;
       results.push({ email: sub.userEmail || '—', status: 'sent' });
     } catch (e) {
-      // 410 Gone = subscription expired/unsubscribed — not a real error
+      // The push service itself rejected the subscription (410 Gone, or any
+      // other 4xx like 400/403/404) — it's permanently dead, not a fluke.
+      // Wipe it from Firestore so it stops dragging down stats and future
+      // sends. A "Push timed out" from our own client-side timeout has no
+      // statusCode, so it's left alone — that one might just be transient.
+      const isDead = typeof e.statusCode === 'number' && e.statusCode >= 400 && e.statusCode < 500;
+
       if (e.statusCode === 410) {
         sent++;
         results.push({ email: sub.userEmail || '—', status: 'expired' });
@@ -79,8 +92,19 @@ exports.handler = async (event, context) => {
         results.push({ email: sub.userEmail || '—', status: 'failed', error: e.message });
         console.error('Push failed for', sub.userEmail, ':', e.message);
       }
+
+      if (isDead && canCleanup && sub.uid) {
+        cleanupPromises.push(
+          db.collection('users').doc(sub.uid)
+            .update({ pushSubscription: admin.firestore.FieldValue.delete() })
+            .then(() => console.log('Cleaned up dead subscription for', sub.userEmail || sub.uid))
+            .catch(err => console.error('Cleanup failed for', sub.uid, ':', err.message))
+        );
+      }
     }
   }
+
+  if (cleanupPromises.length) await Promise.all(cleanupPromises);
 
   return {
     statusCode: 200,
