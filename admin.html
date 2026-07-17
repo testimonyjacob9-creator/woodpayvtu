@@ -1,0 +1,952 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>WoodPayVTU — Admin</title>
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#06070c">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%23090a12'/><text x='50' y='66' font-family='Georgia,serif' font-size='46' font-weight='700' fill='%23D9B25C' text-anchor='middle'>WP</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --void:#06070c; --panel:#0b0d16;
+  --glass: rgba(255,255,255,.10); --border: rgba(255,255,255,.18); --border-hi: rgba(255,255,255,.30);
+  --indigo:#6C5CE7; --blue:#4F7CFF; --cyan:#22D3EE; --gold:#D9B25C; --gold-2:#F0D48A;
+  --text:#F3F4F9; --text-dim:#9AA1B7; --text-mute:#5B6178;
+  --success:#3ADC97; --danger:#FF5C7C; --warn:#FFB454;
+  --radius:20px; --radius-sm:13px;
+  --font-d:'Space Grotesk',sans-serif; --font-b:'Inter',sans-serif; --font-m:'IBM Plex Mono',monospace;
+  --ease:cubic-bezier(.16,1,.3,1);
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{ background:var(--void); color:var(--text); font-family:var(--font-b); min-height:100vh; -webkit-font-smoothing:antialiased; }
+a{color:inherit; text-decoration:none;}
+button{font-family:inherit;}
+input,select{outline:none;}
+:focus-visible{ outline:2px solid var(--blue); outline-offset:2px; border-radius:8px; }
+h1,h2,h3{ font-family:var(--font-d); margin:0; letter-spacing:-.01em; }
+p{ color:var(--text-dim); margin:0; line-height:1.5; }
+.mono{ font-family:var(--font-m); }
+
+.aurora{ position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none; }
+.aurora::before,.aurora::after{ content:''; position:absolute; border-radius:50%; filter:blur(100px); opacity:.4; }
+.aurora::before{ width:50vmax; height:50vmax; top:-20vmax; left:-10vmax; background:radial-gradient(circle, var(--indigo), transparent 70%); }
+.aurora::after{ width:46vmax; height:46vmax; bottom:-18vmax; right:-12vmax; background:radial-gradient(circle, var(--blue), transparent 70%); }
+
+.glass{ background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.05)); backdrop-filter:blur(48px) saturate(200%); -webkit-backdrop-filter:blur(48px) saturate(200%);
+  border:1px solid var(--border); border-radius:var(--radius); box-shadow:0 10px 36px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.18); }
+
+.btn{ border:none; border-radius:14px; padding:13px 18px; font-weight:700; font-size:14px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; gap:8px; transition:transform .15s, filter .15s; }
+.btn:active{ transform:scale(.97); }
+.btn-primary{ background:linear-gradient(90deg,var(--indigo),var(--blue)); color:#fff; }
+.btn-ghost{ background:var(--glass); color:var(--text); border:1px solid var(--border); }
+.btn-danger{ background:rgba(255,92,124,.14); color:var(--danger); border:1px solid rgba(255,92,124,.3); }
+.btn-sm{ padding:9px 14px; font-size:12.5px; border-radius:10px; }
+.btn:disabled{ opacity:.5; cursor:not-allowed; }
+
+.field{ margin-bottom:14px; }
+.field label{ display:block; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-mute); margin-bottom:7px; }
+.field input, .field select{ width:100%; padding:13px 14px; border-radius:12px; background:rgba(255,255,255,.035); border:1px solid var(--border); color:var(--text); font-size:14.5px; }
+.field input:focus, .field select:focus{ border-color:var(--blue); }
+
+/* ---------- Login gate ---------- */
+#gate{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; position:relative; z-index:1; }
+.gate-card{ width:100%; max-width:380px; padding:34px 28px; text-align:center; }
+.gate-mark{ width:52px; height:52px; border-radius:15px; margin:0 auto 18px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(160deg,#111,#000); border:1px solid rgba(217,178,92,.5); font-family:var(--font-d); font-weight:700; color:var(--gold); font-size:18px;
+  box-shadow:0 0 20px rgba(217,178,92,.2); }
+.gate-error{ font-size:12.5px; color:var(--danger); margin-top:10px; display:none; }
+
+/* ---------- Admin shell ---------- */
+#adminShell{ display:none; position:relative; z-index:1; max-width:1180px; margin:0 auto; padding:0 20px 60px; }
+#adminShell.show{ display:block; }
+.topbar{ display:flex; align-items:center; justify-content:space-between; padding:22px 0; flex-wrap:wrap; gap:12px; }
+.brand{ display:flex; align-items:center; gap:11px; }
+.mark{ width:36px;height:36px;border-radius:10px; background:linear-gradient(160deg,#111,#000); border:1px solid rgba(217,178,92,.5); display:flex;align-items:center;justify-content:center; color:var(--gold); font-family:var(--font-d); font-weight:700; font-size:13px; }
+.brand-name{ font-family:var(--font-d); font-weight:700; font-size:16.5px; }
+.brand-name b{ color:var(--gold-2); }
+.badge-admin{ font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--text-mute); background:var(--glass); border:1px solid var(--border); padding:5px 10px; border-radius:20px; }
+
+.hamburger{ display:none; flex-direction:column; cursor:pointer; gap:5px; width:28px; height:26px; }
+.hamburger span{ width:100%; height:2.5px; background:var(--text); border-radius:2px; transition:.3s; }
+.hamburger.open span:nth-child(1){ transform:rotate(45deg) translateY(11px); }
+.hamburger.open span:nth-child(2){ opacity:0; }
+.hamburger.open span:nth-child(3){ transform:rotate(-45deg) translateY(-10px); }
+
+.sidebar{ position:fixed; left:0; top:0; height:100vh; width:240px; background:var(--panel); border-right:1px solid var(--border); z-index:50; padding:20px 0; transform:translateX(-100%); transition:.3s; overflow-y:auto; }
+.sidebar.open{ transform:translateX(0); }
+.sidebar-close{ display:none; }
+.sidebar-menu{ list-style:none; padding:0; margin:0; }
+.sidebar-menu li{ border-bottom:1px solid rgba(255,255,255,.06); }
+.sidebar-menu a{ display:block; padding:14px 20px; color:var(--text-dim); font-weight:600; font-size:13.5px; transition:.2s; }
+.sidebar-menu a:hover{ background:rgba(255,255,255,.08); color:var(--text); }
+.sidebar-menu a.active{ background:rgba(79,124,255,.15); color:var(--blue); border-left:3px solid var(--blue); padding-left:17px; }
+.sidebar-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:40; }
+.sidebar-overlay.open{ display:block; }
+
+@media(max-width:768px){
+  .hamburger{ display:flex; }
+  .tabs{ display:none; }
+  .sidebar-close{ display:block !important; padding:0; width:40px; height:40px; background:transparent; border:none; cursor:pointer; color:var(--text); font-size:20px; }
+}
+
+.stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:24px; }
+.stat-card{ padding:20px; }
+.stat-card .eyebrow{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-mute); }
+.stat-card b{ display:block; font-family:var(--font-m); font-size:24px; font-weight:600; margin-top:8px; }
+.stat-card.gold b{ color:var(--gold-2); }
+.stat-card.cyan b{ color:var(--cyan); }
+
+.panel{ padding:22px; margin-bottom:20px; }
+.panel-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; flex-wrap:wrap; gap:10px; }
+.panel-head h2{ font-size:17px; }
+
+table{ width:100%; border-collapse:collapse; font-size:13.5px; }
+thead th{ text-align:left; font-size:10.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--text-mute); padding:0 12px 10px; font-weight:700; }
+tbody tr{ border-top:1px solid rgba(255,255,255,.06); }
+tbody td{ padding:13px 12px; vertical-align:middle; }
+tbody tr:hover{ background:rgba(255,255,255,.02); }
+.table-scroll{ overflow-x:auto; }
+.badge{ font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; display:inline-block; }
+.badge.ok{ background:rgba(58,220,151,.14); color:var(--success); }
+.badge.pending{ background:rgba(255,180,84,.14); color:var(--warn); }
+.badge.failed{ background:rgba(255,92,124,.14); color:var(--danger); }
+.badge.blocked{ background:rgba(255,92,124,.14); color:var(--danger); }
+.badge.active{ background:rgba(58,220,151,.14); color:var(--success); }
+.empty-row td{ text-align:center; padding:40px 10px; color:var(--text-mute); }
+
+.switch{ width:44px; height:25px; border-radius:20px; background:rgba(255,255,255,.1); position:relative; cursor:pointer; border:1px solid var(--border); flex:none; }
+.switch::after{ content:''; position:absolute; width:19px;height:19px;border-radius:50%; background:#fff; top:2px; left:2px; transition:.25s; }
+.switch.on{ background:linear-gradient(90deg,var(--indigo),var(--blue)); }
+.switch.on::after{ left:21px; }
+
+.two-col{ display:grid; grid-template-columns:1.3fr 1fr; gap:20px; }
+@media(max-width:860px){ .two-col{ grid-template-columns:1fr; } }
+canvas{ width:100% !important; }
+
+.notice{ padding:14px 16px; border-radius:14px; font-size:13px; display:flex; gap:10px; align-items:flex-start; }
+.notice.warn{ background:rgba(255,180,84,.09); border:1px solid rgba(255,180,84,.25); color:#FFD9A0; }
+.notice.info{ background:rgba(79,124,255,.08); border:1px solid rgba(79,124,255,.22); color:#B9CBFF; }
+
+.toast-wrap{ position:fixed; top:16px; left:0; right:0; z-index:100; display:flex; flex-direction:column; align-items:center; gap:8px; pointer-events:none; }
+.toast{ padding:12px 18px; border-radius:14px; font-size:13.5px; font-weight:600; box-shadow:0 10px 30px rgba(0,0,0,.4); }
+.toast.ok{ background:rgba(20,26,22,.95); border:1px solid rgba(58,220,151,.35); color:var(--success); }
+.toast.err{ background:rgba(28,18,22,.95); border:1px solid rgba(255,92,124,.35); color:var(--danger); }
+.toast.info{ background:rgba(16,18,30,.95); border:1px solid var(--border-hi); color:var(--text); }
+
+.skeleton{ background:linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.09), rgba(255,255,255,.04)); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:8px; height:14px; }
+@keyframes shimmer{ 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+.hide{ display:none !important; }
+</style>
+</head>
+<body>
+
+<div class="aurora"></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ============ PASSWORD + AUTH GATE ============ -->
+<div id="gate">
+  <div class="glass gate-card">
+    <div class="gate-mark">WP</div>
+    <h1 style="font-size:19px;">WoodPayVTU Admin</h1>
+    <p style="margin-top:6px; font-size:13px;">Restricted access — authorized staff only</p>
+
+    <div style="text-align:left; margin-top:26px;">
+      <div class="field"><label>Admin email</label><input type="email" id="gateEmail" placeholder="admin@woodpayvtu.com" autocomplete="username"></div>
+      <div class="field"><label>Admin password</label><input type="password" id="gatePassOnly" placeholder="Firebase admin password" autocomplete="current-password"></div>
+      <div class="field" style="margin-bottom:6px;"><label>Portal passcode</label><input type="password" id="gatePass" placeholder="••••••••••••" autocomplete="off"></div>
+    </div>
+    <div class="gate-error" id="gateError"></div>
+    <button class="btn btn-primary" style="width:100%; margin-top:16px;" onclick="attemptLogin()">Enter dashboard</button>
+    <p style="margin-top:16px; font-size:11.5px;">This portal needs both a Firebase admin sign-in and the portal passcode — see the setup note in chat for how to create the admin account and Firestore allowlist entry.</p>
+  </div>
+</div>
+
+<!-- ============ ADMIN SHELL ============ -->
+<div id="adminShell">
+  <div class="topbar">
+    <div style="display:flex; align-items:center; gap:14px; flex:1;">
+      <button class="hamburger" id="hamburger" onclick="toggleSidebar()"><span></span><span></span><span></span></button>
+      <div class="brand"><div class="mark">WP</div><div class="brand-name">Wood<b>Pay</b>VTU <span style="color:var(--text-mute); font-weight:500;">Admin</span></div></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <span class="badge-admin" id="adminEmailBadge">—</span>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <button class="sidebar-close" onclick="closeSidebar()">✕</button>
+    <ul class="sidebar-menu">
+      <li><a href="#" class="active" data-tab="overview" onclick="setTab('overview'); closeSidebar(); return false;">📊 Overview</a></li>
+      <li><a href="#" data-tab="transactions" onclick="setTab('transactions'); closeSidebar(); return false;">📋 Transactions</a></li>
+      <li><a href="#" data-tab="txlog" onclick="setTab('txlog'); closeSidebar(); return false;">🔍 Transaction Log</a></li>
+      <li><a href="#" data-tab="users" onclick="setTab('users'); closeSidebar(); return false;">👥 Users</a></li>
+      <li><a href="#" data-tab="settings" onclick="setTab('settings'); closeSidebar(); return false;">⚙️ Settings</a></li>
+    </ul>
+  </div>
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+  <div class="tabs" style="display:none; gap:6px; overflow-x:auto; padding:4px 0 20px;">
+    <div class="tab active" data-tab="overview" onclick="setTab('overview')">Overview</div>
+    <div class="tab" data-tab="transactions" onclick="setTab('transactions')">Transactions</div>
+    <div class="tab" data-tab="txlog" onclick="setTab('txlog')">Transaction Log</div>
+    <div class="tab" data-tab="users" onclick="setTab('users')">Users</div>
+    <div class="tab" data-tab="settings" onclick="setTab('settings')">Settings</div>
+  </div>
+
+  <!-- ---- OVERVIEW ---- -->
+  <div class="tab-panel" id="panel-overview">
+
+    <div class="notice warn hide" id="setupNotice" style="margin-bottom:16px;">
+      ⚠️ <div>No transactions or users found yet. If you expect data and this stays empty, double-check the <span class="mono">admins/{uid}</span> Firestore document matches your signed-in UID.</div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="glass stat-card"><div class="eyebrow">Sales today</div><b id="statToday">₦0.00</b></div>
+      <div class="glass stat-card gold"><div class="eyebrow">Sales this week</div><b id="statWeek">₦0.00</b></div>
+      <div class="glass stat-card"><div class="eyebrow">Sales this month</div><b id="statMonth">₦0.00</b></div>
+      <div class="glass stat-card cyan"><div class="eyebrow">Total users</div><b id="statUsers">0</b></div>
+    </div>
+
+    <div style="margin-top:24px; margin-bottom:20px; font-size:14px; font-weight:700; letter-spacing:.05em;">Revenue & Expenses</div>
+    <div class="stat-grid">
+      <div class="glass stat-card"><div class="eyebrow">Bigisub spend today</div><b id="bigisubSpendToday">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Cost of provider topups</p></div>
+      <div class="glass stat-card"><div class="eyebrow">Charged to users today</div><b id="chargedToday">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Revenue from users</p></div>
+      <div class="glass stat-card gold"><div class="eyebrow">Net revenue today</div><b id="netToday">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Profit today</p></div>
+      <div class="glass stat-card cyan"><div class="eyebrow">Total revenue this week</div><b id="netWeek">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Week profit</p></div>
+    </div>
+
+    <div class="two-col">
+      <div class="glass panel">
+        <div class="panel-head"><h2>Revenue — last 14 days</h2></div>
+        <canvas id="revenueChart" height="220"></canvas>
+      </div>
+      <div class="glass panel">
+        <div class="panel-head"><h2>Provider wallet</h2></div>
+        <div class="eyebrow">Live balance</div>
+        <b class="mono" style="font-size:26px; display:block; margin-top:8px; color:var(--gold-2);" id="bigisubBalance">—</b>
+        <p style="margin-top:10px; font-size:12.5px;" id="bigisubNote">Live balance unavailable via API — check your provider dashboard directly.</p>
+        <a class="btn btn-ghost btn-sm" style="margin-top:14px; display:inline-block; text-decoration:none;" href="https://bigisub.ng" target="_blank" rel="noopener">Check on bigisub.ng</a>
+      </div>
+    </div>
+
+    <div class="glass panel">
+      <div class="panel-head"><h2>Latest transactions</h2><a class="btn btn-ghost btn-sm" onclick="setTab('transactions')">View all</a></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>User</th><th>Service</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+          <tbody id="latestTxBody"><tr class="empty-row"><td colspan="5">No data loaded yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- TRANSACTIONS ---- -->
+  <div class="tab-panel hide" id="panel-transactions">
+    <div class="glass panel">
+      <div class="panel-head">
+        <h2>All transactions</h2>
+        <select class="field" style="width:auto; margin:0; padding:10px 14px;" id="txFilter" onchange="renderTxTable()">
+          <option value="all">All statuses</option>
+          <option value="success">Successful</option>
+          <option value="pending">Pending</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Ref</th><th>User</th><th>Service</th><th>Amount</th><th>Status</th><th>Date</th><th>Action</th></tr></thead>
+          <tbody id="allTxBody"><tr class="empty-row"><td colspan="7">No data loaded yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- TRANSACTION LOG ---- -->
+  <div class="tab-panel hide" id="panel-txlog">
+    <div class="glass panel">
+      <div class="panel-head">
+        <h2>Transaction Log (Detailed)</h2>
+        <input type="text" id="txlogSearch" placeholder="Search by ref, user, email..." style="padding:10px 14px; border-radius:10px; background:rgba(255,255,255,.035); border:1px solid var(--border); color:var(--text); font-size:13px; width:200px;" onkeyup="filterTxLog()">
+      </div>
+      <div class="table-scroll" style="max-height:600px; overflow-y:auto;">
+        <table style="font-size:12.5px;">
+          <thead><tr><th>Ref</th><th>User Email</th><th>Type</th><th>Network</th><th>Amount</th><th>Provider Ref</th><th>Status</th><th>Created</th><th>Notes</th></tr></thead>
+          <tbody id="txlogBody"><tr class="empty-row"><td colspan="9">No data loaded yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- USERS ---- -->
+  <div class="tab-panel hide" id="panel-users">
+    <div class="glass panel">
+      <div class="panel-head"><h2>All users</h2></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Wallet</th><th>Status</th><th>₦100 1GB</th><th>Action</th></tr></thead>
+          <tbody id="usersBody"><tr class="empty-row"><td colspan="7">No data loaded yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- SETTINGS ---- -->
+  <div class="tab-panel hide" id="panel-settings">
+    <div class="glass panel">
+      <div class="panel-head"><h2>Promotions</h2></div>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 2px;">
+        <div><b style="display:block; font-size:14.5px;">Sunday Special</b><span style="font-size:12.5px; color:var(--text-mute);">1GB promo pricing for new users</span></div>
+        <div class="switch" id="promoSwitch" onclick="togglePromo()"></div>
+      </div>
+    </div>
+    <div class="glass panel">
+      <div class="panel-head"><h2>Support</h2></div>
+      <p>WhatsApp support line: <span class="mono">+234 904 677 2152</span></p>
+    </div>
+    <div class="glass panel">
+      <div class="panel-head"><h2>Broadcast email</h2></div>
+      <div class="field"><label>Send to</label><input type="email" id="bcEmail" placeholder="user@email.com (leave blank to send to all users)"></div>
+      <div class="field"><label>Subject</label><input type="text" id="bcSubject" placeholder="Special Data Promo — Today Only!"></div>
+      <div class="field"><label>Message (HTML allowed)</label><textarea id="bcHtml" rows="6" style="width:100%; padding:13px 14px; border-radius:12px; background:rgba(255,255,255,.035); border:1px solid var(--border); color:var(--text); font-size:14.5px; font-family:inherit;" placeholder="&lt;p&gt;Hi [First Name],&lt;/p&gt;&lt;p&gt;Your message here...&lt;/p&gt;"></textarea></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="sendBroadcast()" id="bcBtn">Send email</button>
+      <div id="bcStatus" style="margin-top:8px;font-size:13px;color:#aaa;"></div>
+    </div><!-- end broadcast panel -->
+
+    <div class="panel" style="margin-top:16px;">
+      <div class="panel-head"><h2>📲 Push Notifications (Enhanced)</h2></div>
+      
+      <!-- Test Notification -->
+      <div style="padding:12px; background:rgba(255,215,0,.08); border:1px solid rgba(255,215,0,.2); border-radius:12px; margin-bottom:16px;">
+        <b style="font-size:13px; color:var(--yellow-primary);">⚡ Quick Test</b>
+        <p style="font-size:12px; margin:6px 0 12px; color:var(--text-mute);">Send a test notification to yourself only:</p>
+        <button class="btn btn-ghost btn-sm" style="width:100%; border:1px solid rgba(255,215,0,.3);" onclick="sendTestNotification()">📤 Send Test Notification</button>
+        <div id="testStatus" style="margin-top:8px; font-size:12px; color:var(--text-mute);"></div>
+      </div>
+
+      <!-- Broadcast Settings -->
+      <label style="font-weight:700; font-size:13px;">Title</label>
+      <input id="pushTitle" class="inp" placeholder="e.g. New promo available!" style="width:100%;margin-bottom:8px;">
+      <label style="font-weight:700; font-size:13px;">Message</label>
+      <textarea id="pushBody" class="inp" rows="3" placeholder="e.g. Prices slashed! Buy data now on WoodPay." style="width:100%;margin-bottom:8px;"></textarea>
+      <label style="font-weight:700; font-size:13px;">Link (optional)</label>
+      <input id="pushUrl" class="inp" value="https://woodpay.netlify.app" style="width:100%;margin-bottom:12px;">
+      <button class="btn btn-primary" style="width:100%;" onclick="sendPushNotification()" id="pushBtn">📢 Send Push to All Users</button>
+      <div id="pushStatus" style="margin-top:8px; font-size:13px; color:#aaa;"></div>
+      
+      <!-- Notification Delivery Stats -->
+      <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border);">
+        <h3 style="font-size:14px; margin-bottom:12px;">📊 Delivery Stats (Last 24h)</h3>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div class="glass" style="padding:12px; border-radius:12px;">
+            <div style="font-size:11px; color:var(--text-mute); margin-bottom:4px;">Success Rate</div>
+            <b style="font-size:20px; color:var(--success);" id="successRate">—</b>
+          </div>
+          <div class="glass" style="padding:12px; border-radius:12px;">
+            <div style="font-size:11px; color:var(--text-mute); margin-bottom:4px;">Total Sent</div>
+            <b style="font-size:20px; color:var(--blue);" id="totalSent">—</b>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notification Logs -->
+      <div style="margin-top:20px; padding-top:20px; border-top:1px solid var(--border);">
+        <h3 style="font-size:14px; margin-bottom:12px;">📝 Recent Notification Logs</h3>
+        <div class="table-scroll" style="max-height:300px; overflow-y:auto; border:1px solid var(--border); border-radius:12px;">
+          <table style="font-size:11px;">
+            <thead><tr><th>Time</th><th>Email</th><th>Status</th><th>Error</th></tr></thead>
+            <tbody id="logBody"><tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-mute);">No logs yet</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="notice info">ℹ️ <div>To let this dashboard actually toggle <span class="mono">settings/promo</span> and read all users/transactions, update your Firestore rules to check an admin allowlist — full rule set provided in chat.</div></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, updateDoc, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBu67jM9fD7Mc1INRGfHpCvfFfw0U6mGuM",
+  authDomain: "woodpayvtu-d717a.firebaseapp.com",
+  projectId: "woodpayvtu-d717a",
+  storageBucket: "woodpayvtu-d717a.firebasestorage.app",
+  messagingSenderId: "641852126161",
+  appId: "1:641852126161:web:6d7f7e28087671ee7c26f0"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+window.FB = { auth, db, signInWithEmailAndPassword, signOut, onAuthStateChanged, collection, getDocs, doc, getDoc, setDoc, updateDoc, query, orderBy, limit, onSnapshot };
+window.dispatchEvent(new Event('fb-ready'));
+</script>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+
+<script>
+const ADMIN_PASSCODE = "woodadmin2026";
+// Bigisub calls now go through /.netlify/functions/bigisub-proxy — the
+// token lives server-side only (BIGISUB_TOKEN env var), never in this file.
+
+function naira(n){ return Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function toast(msg, type='info'){
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div'); el.className='toast '+type; el.textContent=msg;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transition='opacity .3s'; setTimeout(()=>el.remove(),300); }, 3200);
+}
+function waitFb(){ return new Promise(res=>{ if(window.FB) return res(); window.addEventListener('fb-ready', ()=>res(), {once:true}); }); }
+
+let ALL_TX = [];
+let ALL_USERS = [];
+let sessionOK = sessionStorage.getItem('wp_admin_ok') === '1';
+let txUnsub = null;
+let usersUnsub = null;
+
+async function attemptLogin(){
+  const email = document.getElementById('gateEmail').value.trim();
+  const fbPass = document.getElementById('gatePassOnly').value;
+  const passcode = document.getElementById('gatePass').value;
+  const err = document.getElementById('gateError');
+  err.style.display = 'none';
+
+  if(passcode !== ADMIN_PASSCODE){
+    err.textContent = 'Incorrect portal passcode.';
+    err.style.display = 'block';
+    return;
+  }
+  if(!email || !fbPass){
+    err.textContent = 'Enter the Firebase admin email and password too.';
+    err.style.display = 'block';
+    return;
+  }
+  await waitFb();
+  try{
+    await FB.signInWithEmailAndPassword(FB.auth, email, fbPass);
+    sessionStorage.setItem('wp_admin_ok','1');
+    enterDashboard();
+  }catch(e){
+    err.textContent = 'Firebase sign-in failed — check the admin email/password, or create the admin account first (see chat note).';
+    err.style.display = 'block';
+  }
+}
+
+function enterDashboard(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('adminShell').classList.add('show');
+  document.getElementById('adminEmailBadge').textContent = FB.auth.currentUser ? FB.auth.currentUser.email : 'admin';
+  loadAllData();
+}
+
+function doLogout(){
+  sessionStorage.removeItem('wp_admin_ok');
+  if(txUnsub){ txUnsub(); txUnsub=null; }
+  if(usersUnsub){ usersUnsub(); usersUnsub=null; }
+  ALL_TX = []; ALL_USERS = [];
+  waitFb().then(()=> FB.signOut(FB.auth));
+  document.getElementById('adminShell').classList.remove('show');
+  document.getElementById('gate').style.display='flex';
+}
+
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+  document.getElementById('hamburger').classList.toggle('open');
+}
+
+function closeSidebar(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  document.getElementById('hamburger').classList.remove('open');
+}
+
+function updateRevenueStats(){
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const weekStart = new Date(today);
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  
+  let bigisubSpendToday = 0, chargedToday = 0, netToday = 0, netWeek = 0;
+  
+  ALL_TX.forEach(tx => {
+    const txDate = tx.createdAt?.toDate?.() || new Date(tx.createdAt);
+    const txTime = new Date(txDate.getFullYear(), txDate.getMonth(), txDate.getDate());
+    
+    if(tx.status === 'success'){
+      const amount = parseFloat(tx.amount) || 0;
+      chargedToday += (txTime.getTime() === today.getTime() ? amount : 0);
+      netWeek += (txTime >= weekStart ? amount : 0);
+      // Estimate Bigisub cost at ~70% of amount charged
+      bigisubSpendToday += (txTime.getTime() === today.getTime() ? (amount * 0.7) : 0);
+    }
+  });
+  
+  netToday = chargedToday - bigisubSpendToday;
+  
+  document.getElementById('bigisubSpendToday').textContent = '₦' + bigisubSpendToday.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('chargedToday').textContent = '₦' + chargedToday.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('netToday').textContent = '₦' + netToday.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
+  document.getElementById('netWeek').textContent = '₦' + netWeek.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function renderTxLog(){
+  const tbody = document.getElementById('txlogBody');
+  if(!ALL_TX.length){ tbody.innerHTML = '<tr class="empty-row"><td colspan="9">No transactions yet</td></tr>'; return; }
+  
+  tbody.innerHTML = ALL_TX.map(tx => {
+    const user = ALL_USERS.find(u => u.id === tx.userId);
+    const date = toDate(tx.createdAt);
+    const dateStr = date.toLocaleDateString('en-NG') + ' ' + date.toLocaleTimeString('en-NG');
+    const notes = [];
+    if(tx.restricted) notes.push('Promo');
+    if(tx.paymentRef) notes.push('External');
+    if(!tx.paymentRef && tx.status==='success') notes.push('Wallet');
+    
+    return `<tr>
+      <td class="mono" style="font-size:11px;">${(tx.txRef || tx.id).toString().slice(0,12)}</td>
+      <td>${user?.email || userLabel(tx.userId)}</td>
+      <td>${serviceLabel(tx)}</td>
+      <td>${tx.network || (tx.provider || (tx.disco || '—'))}</td>
+      <td class="mono">₦${naira(tx.amount)}</td>
+      <td class="mono" style="font-size:10px;">${tx.paymentRef || '—'}</td>
+      <td>${statusBadge(tx.status)}</td>
+      <td style="font-size:11px;">${dateStr}</td>
+      <td style="font-size:10px; color:var(--text-mute);">${notes.join(' • ')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function filterTxLog(){
+  const query = document.getElementById('txlogSearch').value.toLowerCase();
+  document.querySelectorAll('#txlogBody tr').forEach(row => {
+    const text = row.textContent.toLowerCase();
+    row.style.display = text.includes(query) ? '' : 'none';
+  });
+}
+
+function setTab(name){
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('hide', p.id!=='panel-'+name));
+  document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.toggle('active', a.dataset.tab===name));
+  if(name==='transactions') renderTxTable();
+  if(name==='txlog') renderTxLog();
+  if(name==='users') renderUsersTable();
+  if(name==='settings') loadNotificationLogs();
+}
+
+async function editWallet(uid, name, currentBalance){
+  const input = prompt(`Edit wallet balance for ${name}\nCurrent: ₦${naira(currentBalance)}\n\nEnter new balance (or +100 to add, -50 to deduct):`);
+  if(input === null) return;
+  let newBalance;
+  const trimmed = input.trim();
+  if(trimmed.startsWith('+')) {
+    newBalance = currentBalance + parseFloat(trimmed.slice(1));
+  } else if(trimmed.startsWith('-')) {
+    newBalance = currentBalance - parseFloat(trimmed.slice(1));
+  } else {
+    newBalance = parseFloat(trimmed);
+  }
+  if(isNaN(newBalance) || newBalance < 0){
+    alert('Invalid amount. Enter a number like 500, +200, or -100'); return;
+  }
+  if(!confirm(`Set ${name}'s wallet to ₦${naira(newBalance)}?`)) return;
+  const delta = newBalance - currentBalance;
+  try{
+    // walletBalance is server-only (Firestore rules block direct client
+    // writes to it), and a direct client write also wouldn't create a
+    // transaction record. Route through wallet-credit instead, which
+    // verifies this browser is signed in as a real admin, applies the
+    // change, and writes a "From WoodPay" transaction record for the user
+    // to see in their history — all in one atomic step.
+    const actingAdminIdToken = await FB.auth.currentUser.getIdToken();
+    const res = await fetch('/.netlify/functions/wallet-credit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid, delta, actingAdminIdToken })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Update failed');
+    const u = ALL_USERS.find(x=>x.id===uid);
+    if(u) u.walletBalance = data.newBalance;
+    renderUsersTable();
+    toast(`Wallet updated to ₦${naira(data.newBalance)}`, 'ok');
+  }catch(e){ toast('Failed to update wallet: ' + e.message, 'err'); }
+}
+
+async function sendTestNotification(){
+  const statusEl = document.getElementById('testStatus');
+  statusEl.textContent = '⏳ Sending test notification...';
+  
+  try {
+    // Get current admin's push subscription — stored as a single field on
+    // the user doc (users/{uid}.pushSubscription), NOT a subcollection.
+    // (Matches the schema used everywhere else, e.g. the "Send Push to All
+    // Users" broadcast below, and what Firestore security rules allow.)
+    const adminUid = FB.auth.currentUser?.uid;
+    if(!adminUid){ statusEl.textContent = '❌ Not signed in.'; return; }
+    const adminDoc = await FB.getDoc(FB.doc(FB.db, 'users', adminUid));
+    const sub = adminDoc.exists() ? adminDoc.data().pushSubscription : null;
+
+    if(!sub || !sub.endpoint){
+      statusEl.textContent = '❌ No push subscription found. Enable notifications first.';
+      return;
+    }
+    const subs = [sub];
+
+    const response = await fetch('/.netlify/functions/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        title: '🧪 Test Notification',
+        body: 'This is a test notification from WoodPay admin panel. Notification reliability is working!',
+        url: 'https://woodpay.netlify.app/dashboard',
+        subscriptions: subs
+      })
+    });
+
+    const result = await response.json();
+    
+    if(result.sent > 0){
+      statusEl.textContent = `✅ Test sent! Delivered to ${result.sent}/${result.total} devices (${result.successRate}%)`;
+      if(result.emailFallback > 0) statusEl.textContent += ` + ${result.emailFallback} via email`;
+    } else {
+      statusEl.textContent = `❌ Delivery failed: ${result.details?.[0]?.error || 'Unknown error'}`;
+    }
+  } catch(e) {
+    statusEl.textContent = '❌ Error: ' + e.message;
+  }
+}
+
+async function loadNotificationLogs(){
+  try {
+    const logsCol = FB.collection(FB.db, 'notification_logs');
+    const logsQuery = FB.query(logsCol, FB.orderBy('timestamp', 'desc'), FB.limit(50));
+    const logDocs = await FB.getDocs(logsQuery);
+    
+    const logs = [];
+    logDocs.forEach(doc => logs.push(doc.data()));
+    
+    // Calculate stats
+    let successful = 0, failed = 0;
+    const last24h = new Date(Date.now() - 86400000);
+    
+    logs.forEach(log => {
+      const logTime = log.timestamp?.toDate?.() || new Date(log.timestamp);
+      if(logTime > last24h){
+        if(log.success) successful++;
+        else failed++;
+      }
+    });
+    
+    const total = successful + failed;
+    const rate = total > 0 ? Math.round((successful/total)*100) : 0;
+    
+    document.getElementById('successRate').textContent = rate + '%';
+    document.getElementById('totalSent').textContent = total;
+    
+    // Render table
+    const tbody = document.getElementById('logBody');
+    if(!logs.length){
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px; color:var(--text-mute);">No logs yet</td></tr>';
+      return;
+    }
+    
+    tbody.innerHTML = logs.slice(0, 20).map(log => {
+      const time = log.timestamp?.toDate?.() || new Date(log.timestamp);
+      const timeStr = time.toLocaleTimeString('en-NG', {hour:'2-digit', minute:'2-digit'});
+      const status = log.success ? '✅ Sent' : (log.error ? `⚠️ ${log.error.substring(0,20)}` : '❌ Failed');
+      return `<tr>
+        <td>${timeStr}</td>
+        <td style="max-width:100px; overflow:hidden; text-overflow:ellipsis;">${log.userEmail || '—'}</td>
+        <td>${status}</td>
+        <td style="font-size:10px; color:var(--text-mute);">${log.attempts} attempt(s)</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    console.error('Failed to load notification logs:', e);
+  }
+}
+
+async function sendPushNotification(){
+  const title = document.getElementById('pushTitle').value.trim();
+  const body = document.getElementById('pushBody').value.trim();
+  const url = document.getElementById('pushUrl').value.trim() || 'https://woodpay.netlify.app';
+  const statusEl = document.getElementById('pushStatus');
+  const btn = document.getElementById('pushBtn');
+
+  if(!title || !body){ statusEl.textContent = 'Fill in title and message first.'; return; }
+
+  // Collect push subscriptions from all users
+  const subscriptions = ALL_USERS
+    .filter(u => u.pushSubscription && u.pushSubscription.endpoint)
+    .map(u => u.pushSubscription);
+
+  if(!subscriptions.length){
+    statusEl.textContent = 'No users have enabled push notifications yet.'; return;
+  }
+
+  btn.disabled = true;
+  statusEl.textContent = `Sending push to ${subscriptions.length} subscriber(s)…`;
+
+  try{
+    const res = await fetch('/.netlify/functions/send-push', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title, body, url, subscriptions })
+    });
+    const data = await res.json();
+    const sent = data.sent ?? 0;
+    const failed = data.failed ?? 0;
+    statusEl.textContent = `Done — ${sent} sent, ${failed} failed.`;
+  }catch(e){
+    statusEl.textContent = 'Push failed: ' + e.message;
+  }
+  btn.disabled = false;
+}
+
+function loadAllData(){
+  waitFb().then(()=>{
+    // Unsubscribe any previous listeners
+    if(txUnsub) txUnsub();
+    if(usersUnsub) usersUnsub();
+
+    // Live listener: transactions (latest 500, newest first)
+    const txQ = FB.query(FB.collection(FB.db,'transactions'), FB.orderBy('createdAt','desc'), FB.limit(500));
+    txUnsub = FB.onSnapshot(txQ, (snap)=>{
+      ALL_TX = [];
+      snap.forEach(d => ALL_TX.push({id:d.id, ...d.data()}));
+      document.getElementById('setupNotice')?.classList.toggle('hide', ALL_TX.length>0 || ALL_USERS.length>0);
+      computeStats();
+      renderRevenueChart();
+      renderLatestTx();
+      renderTxTable();
+    }, (e)=>{
+      console.warn('transactions listener failed — admin allowlist may be needed', e);
+      ALL_TX = [];
+    });
+
+    // Live listener: users
+    usersUnsub = FB.onSnapshot(FB.collection(FB.db,'users'), (snap)=>{
+      ALL_USERS = [];
+      snap.forEach(d => ALL_USERS.push({id:d.id, ...d.data()}));
+      document.getElementById('setupNotice')?.classList.toggle('hide', ALL_TX.length>0 || ALL_USERS.length>0);
+      computeStats();
+      renderUsersTable();
+    }, (e)=>{
+      console.warn('users listener failed — admin allowlist may be needed', e);
+      ALL_USERS = [];
+    });
+
+    fetchBigisubBalance();
+    loadPromoSetting();
+  });
+}
+
+function isSameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
+function toDate(ts){ try{ return ts?.toDate ? ts.toDate() : new Date(ts); }catch(e){ return new Date(0); } }
+
+function computeStats(){
+  const now = new Date();
+  const weekAgo = new Date(now.getTime() - 7*86400000);
+  const monthAgo = new Date(now.getTime() - 30*86400000);
+  let today=0, week=0, month=0;
+  ALL_TX.filter(t=>t.status==='success').forEach(t=>{
+    const d = toDate(t.createdAt);
+    if(isSameDay(d, now)) today += Number(t.amount||0);
+    if(d >= weekAgo) week += Number(t.amount||0);
+    if(d >= monthAgo) month += Number(t.amount||0);
+  });
+  document.getElementById('statToday').textContent = '₦'+naira(today);
+  document.getElementById('statWeek').textContent = '₦'+naira(week);
+  document.getElementById('statMonth').textContent = '₦'+naira(month);
+  document.getElementById('statUsers').textContent = ALL_USERS.length;
+  updateRevenueStats();
+}
+
+let chartInstance = null;
+function renderRevenueChart(){
+  const days = [];
+  const totals = [];
+  for(let i=13;i>=0;i--){
+    const d = new Date(Date.now() - i*86400000);
+    days.push(d.toLocaleDateString('en-NG',{day:'numeric',month:'short'}));
+    const sum = ALL_TX.filter(t=>t.status==='success' && isSameDay(toDate(t.createdAt), d)).reduce((s,t)=>s+Number(t.amount||0),0);
+    totals.push(sum);
+  }
+  const ctx = document.getElementById('revenueChart');
+  if(typeof Chart === 'undefined') return;
+  if(chartInstance) chartInstance.destroy();
+  chartInstance = new Chart(ctx, {
+    type:'line',
+    data:{ labels:days, datasets:[{ label:'Revenue', data:totals, borderColor:'#4F7CFF', backgroundColor:'rgba(79,124,255,.15)', fill:true, tension:.35, pointRadius:0, borderWidth:2 }]},
+    options:{ plugins:{legend:{display:false}}, scales:{ x:{ ticks:{color:'#5B6178', font:{size:10}}, grid:{color:'rgba(255,255,255,.04)'} }, y:{ ticks:{color:'#5B6178', font:{size:10}}, grid:{color:'rgba(255,255,255,.04)'} } } }
+  });
+}
+
+function statusBadge(s){
+  if(s==='success') return `<span class="badge ok">Successful</span>`;
+  if(s==='failed') return `<span class="badge failed">Failed</span>`;
+  return `<span class="badge pending">Pending</span>`;
+}
+function userLabel(uid){
+  const u = ALL_USERS.find(x=>x.id===uid);
+  return u ? (u.name||u.email||uid.slice(0,8)) : uid.slice(0,8);
+}
+function serviceLabel(t){
+  if(t.type==='data') return `Data — ${t.network||''} ${t.planName||''}`;
+  if(t.type==='airtime') return `Airtime — ${t.network||''}`;
+  if(t.type==='cable') return `Cable — ${t.provider||''}`;
+  if(t.type==='electricity') return `Electricity — ${t.disco||''}`;
+  if(t.type==='wallet_funding') return 'Wallet funding';
+  if(t.type==='admin_credit') return 'Admin credit — From WoodPay';
+  if(t.type==='admin_debit') return 'Admin debit — From WoodPay';
+  return t.type||'—';
+}
+
+function renderLatestTx(){
+  const body = document.getElementById('latestTxBody');
+  const items = ALL_TX.slice(0,8);
+  if(!items.length){ body.innerHTML = `<tr class="empty-row"><td colspan="5">No transactions found</td></tr>`; return; }
+  body.innerHTML = items.map(t => `
+    <tr><td>${userLabel(t.userId)}</td><td>${serviceLabel(t)}</td><td class="mono">₦${naira(t.amount)}</td><td>${statusBadge(t.status)}</td><td>${toDate(t.createdAt).toLocaleDateString('en-NG')}</td></tr>`).join('');
+}
+
+function renderTxTable(){
+  const body = document.getElementById('allTxBody');
+  const filter = document.getElementById('txFilter').value;
+  const items = filter==='all' ? ALL_TX : ALL_TX.filter(t=>t.status===filter);
+  if(!items.length){ body.innerHTML = `<tr class="empty-row"><td colspan="7">No transactions found</td></tr>`; return; }
+  body.innerHTML = items.map(t => `
+    <tr>
+      <td class="mono" style="font-size:11.5px;">${(t.txRef||t.id).toString().slice(0,14)}</td>
+      <td>${userLabel(t.userId)}</td><td>${serviceLabel(t)}</td><td class="mono">₦${naira(t.amount)}</td>
+      <td>${statusBadge(t.status)}</td><td>${toDate(t.createdAt).toLocaleString('en-NG')}</td>
+      <td style="display:flex;gap:6px;">
+        ${t.status==='success' ? `<button class="btn btn-danger btn-sm" onclick="manualRefund('${t.id}', ${Number(t.amount||0)}, '${t.userId}')">Refund</button>` : ''}
+        ${t.providerExtra ? `<button class="btn btn-sm" onclick='showRawResponse(${JSON.stringify(t.providerExtra)})'>Raw</button>` : ''}
+      </td>
+    </tr>`).join('');
+}
+
+function showRawResponse(providerExtra){
+  alert(JSON.stringify(providerExtra, null, 2));
+}
+
+function renderUsersTable(){
+  const body = document.getElementById('usersBody');
+  if(!ALL_USERS.length){ body.innerHTML = `<tr class="empty-row"><td colspan="7">No users found</td></tr>`; return; }
+  body.innerHTML = ALL_USERS.map(u => `
+    <tr>
+      <td>${u.name||'—'}</td><td>${u.email||'—'}</td><td>${u.phone||'—'}</td>
+      <td class="mono">₦${naira(u.walletBalance)}</td>
+      <td>${u.blocked ? '<span class="badge blocked">Blocked</span>' : '<span class="badge active">Active</span>'}</td>
+      <td>${u.oneGigPromo ? '<span class="badge active">On</span>' : '<span class="badge blocked">Off</span>'}</td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn ${u.blocked?'btn-primary':'btn-danger'} btn-sm" onclick="toggleBlock('${u.id}', ${!!u.blocked})">${u.blocked?'Unblock':'Block'}</button>
+        <button class="btn ${u.oneGigPromo?'btn-danger':'btn-primary'} btn-sm" onclick="toggleOneGigPromo('${u.id}', ${!!u.oneGigPromo})">${u.oneGigPromo?'Remove ₦100 1GB':'Give ₦100 1GB'}</button>
+        <button class="btn btn-primary btn-sm" onclick="editWallet('${u.id}','${u.name||'User'}',${u.walletBalance||0})">💰 Edit</button>
+      </td>
+    </tr>`).join('');
+}
+
+async function toggleOneGigPromo(uid, currentlyOn){
+  try{
+    await FB.updateDoc(FB.doc(FB.db,'users',uid), { oneGigPromo: !currentlyOn });
+    const u = ALL_USERS.find(x=>x.id===uid); if(u) u.oneGigPromo = !currentlyOn;
+    renderUsersTable();
+    toast(!currentlyOn ? '₦100 1GB offer granted' : '₦100 1GB offer removed', 'ok');
+  }catch(e){ toast('Action failed — check Firestore admin rules.', 'err'); }
+}
+
+async function toggleBlock(uid, currentlyBlocked){
+  try{
+    await FB.updateDoc(FB.doc(FB.db,'users',uid), { blocked: !currentlyBlocked });
+    const u = ALL_USERS.find(x=>x.id===uid); if(u) u.blocked = !currentlyBlocked;
+    renderUsersTable();
+    toast(!currentlyBlocked ? 'User blocked' : 'User unblocked', 'ok');
+  }catch(e){ toast('Action failed — check Firestore admin rules.', 'err'); }
+}
+
+async function manualRefund(txId, amount, uid){
+  if(!confirm(`Refund ₦${naira(amount)} to this user's wallet?`)) return;
+  try{
+    await FB.updateDoc(FB.doc(FB.db,'transactions',txId), { status:'failed', refundedByAdmin:true });
+    await FB.updateDoc(FB.doc(FB.db,'users',uid), { walletBalance: (ALL_USERS.find(u=>u.id===uid)?.walletBalance||0) + amount });
+    toast('Refund processed', 'ok');
+    loadAllData();
+  }catch(e){ toast('Refund failed — check Firestore admin rules.', 'err'); }
+}
+
+async function loadPromoSetting(){
+  try{
+    const snap = await FB.getDoc(FB.doc(FB.db,'settings','promo'));
+    const on = snap.exists() ? !!snap.data().sundayPromoActive : true;
+    document.getElementById('promoSwitch').classList.toggle('on', on);
+  }catch(e){ /* settings doc may not exist yet */ }
+}
+async function togglePromo(){
+  const sw = document.getElementById('promoSwitch');
+  const newState = !sw.classList.contains('on');
+  try{
+    await FB.setDoc(FB.doc(FB.db,'settings','promo'), { sundayPromoActive:newState }, {merge:true});
+    sw.classList.toggle('on', newState);
+    toast('Promo setting updated', 'ok');
+  }catch(e){ toast('Could not update — Firestore rules currently block writes to settings/promo for everyone. Update the rule (see chat).', 'err'); }
+}
+
+async function fetchBigisubBalance(){
+  const el = document.getElementById('bigisubBalance');
+  el.textContent = 'N/A';
+  document.getElementById('bigisubNote').textContent = "Live balance is unavailable via API — check your balance by logging into your provider dashboard directly.";
+}
+
+async function sendBroadcast(){
+  const singleEmail = document.getElementById('bcEmail').value.trim();
+  const subject = document.getElementById('bcSubject').value.trim();
+  const html = document.getElementById('bcHtml').value.trim();
+  const statusEl = document.getElementById('bcStatus');
+  const btn = document.getElementById('bcBtn');
+
+  if(!subject || !html){ statusEl.textContent = 'Fill in a subject and message first.'; return; }
+
+  const recipients = singleEmail
+    ? [{ email: singleEmail, name: '' }]
+    : ALL_USERS.filter(u => u.email).map(u => ({ email: u.email, name: u.name || '' }));
+
+  if(recipients.length === 0){ statusEl.textContent = 'No recipients found — load users first or enter one email.'; return; }
+
+  btn.disabled = true;
+  statusEl.textContent = `Sending to ${recipients.length} recipient(s)…`;
+
+  let sent = 0, failed = 0;
+  for(const r of recipients){
+    try{
+      const res = await fetch('/.netlify/functions/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type:'custom', toEmail:r.email, toName:r.name, data:{ subject, html } })
+      });
+      if(res.ok) sent++; else failed++;
+    }catch(e){ failed++; }
+  }
+
+  btn.disabled = false;
+  statusEl.textContent = `Done — ${sent} sent, ${failed} failed.`;
+}
+
+waitFb().then(()=>{
+  FB.onAuthStateChanged(FB.auth, (user)=>{
+    if(user && sessionOK){ enterDashboard(); }
+  });
+});
+</script>
+</body>
+</html>
