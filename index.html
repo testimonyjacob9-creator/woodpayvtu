@@ -1020,8 +1020,31 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
     <h3 style="font-size:18px; margin-bottom:18px;">Fund wallet</h3>
     <div class="field mb0"><label>Amount (₦)</label><input type="number" id="fundAmount" placeholder="Enter amount"></div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 20px;" id="fundQuick"></div>
-    <button class="btn btn-primary" onclick="fundWallet()">Continue to pay</button>
-    <button class="btn btn-ghost mt16" onclick="closeSheet('fundSheet')">Cancel</button>
+    <button class="btn btn-primary" onclick="fundWalletViaSterling()">Pay via bank transfer (Sterling)</button>
+    <button class="btn btn-ghost mt16" onclick="fundWallet()">Pay with card / other bank</button>
+    <button class="btn btn-ghost" onclick="closeSheet('fundSheet')">Cancel</button>
+  </div>
+</div>
+
+<div class="overlay" id="sterlingSheet">
+  <div class="glass sheet">
+    <div class="sheet-handle"></div>
+    <h3 style="font-size:18px; margin-bottom:6px;">Transfer to fund wallet</h3>
+    <p style="opacity:.75; font-size:13px; margin-bottom:18px;">Send the exact amount below from any bank. Your wallet is credited automatically once we confirm the transfer.</p>
+    <div class="glass" style="text-align:left; padding:16px;">
+      <div class="summary-line"><span>Bank</span><b id="stBankName">Sterling Bank</b></div>
+      <div class="summary-line">
+        <span>Account number</span>
+        <b id="stAccountNumber" style="font-size:17px; letter-spacing:.5px;">—</b>
+      </div>
+      <div class="summary-line"><span>Amount</span><b id="stAmount">—</b></div>
+    </div>
+    <button class="btn btn-ghost mt16" id="stCopyBtn" onclick="copySterlingAccount()">Copy account number</button>
+    <div id="stStatusRow" style="display:flex; align-items:center; gap:8px; justify-content:center; margin-top:18px; font-size:13px; opacity:.8;">
+      <span class="spinner" id="stSpinner" style="width:14px; height:14px; border-width:2px;"></span>
+      <span id="stStatusText">Waiting for your transfer…</span>
+    </div>
+    <button class="btn btn-ghost mt16" onclick="closeSterlingSheet()">Cancel</button>
   </div>
 </div>
 
@@ -1230,7 +1253,7 @@ window.dispatchEvent(new Event('fb-ready'));
    APP CONFIG
    ============================================================ */
 const FLW_CONFIG = {
-  publicKey: "FLWPUBK-913e82b627d1bec600009a3bffae23a4-X",
+  publicKey: "FLWPUBK-391bc550e9925e473b641b8bd20f0298-X",
   currency: "NGN"
   // NOTE: Flutterwave's client-side SDK only ever needs the public key —
   // never the secret key. The secret key belongs on the server only
@@ -2759,6 +2782,88 @@ function fundWallet(){
   if(amt<100){ toast('Minimum funding amount is ₦100.', 'err'); return; }
   closeSheet('fundSheet');
   openFlutterwaveCheckout({ type:'wallet_funding', amount:amt });
+}
+
+/* ============================================================
+   WALLET FUNDING — Sterling Bank transfer (Flutterwave v4)
+   ============================================================ */
+let stTxUnsub = null; // active Firestore listener for the pending v4 transaction
+
+async function fundWalletViaSterling(){
+  const amt = Number(document.getElementById('fundAmount').value||0);
+  if(amt<100){ toast('Minimum funding amount is ₦100.', 'err'); return; }
+  if(!CURRENT_USER){ toast('You are not signed in. Please refresh and log in again.', 'err'); return; }
+
+  closeSheet('fundSheet');
+  showLoader('Generating account number…');
+
+  try{
+    const idToken = await CURRENT_USER.getIdToken();
+    const res = await fetch('/.netlify/functions/create-virtual-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, uid: CURRENT_USER.uid, amount: amt })
+    });
+    const data = await res.json();
+    hideLoader();
+
+    if(!data.ok){
+      toast(data.error || 'Could not generate a transfer account. Please try again.', 'err');
+      return;
+    }
+
+    document.getElementById('stBankName').textContent = data.bankName || 'Sterling Bank';
+    document.getElementById('stAccountNumber').textContent = data.accountNumber;
+    document.getElementById('stAmount').textContent = '₦' + naira(amt);
+    document.getElementById('stStatusText').textContent = 'Waiting for your transfer…';
+    document.getElementById('stSpinner').style.display = '';
+    openSheet('sterlingSheet');
+
+    // Listen for the webhook flipping this transaction's status once the
+    // transfer lands — no manual "I've paid" button needed, and it also
+    // means we don't need to separately poll: Firestore pushes the update.
+    if(stTxUnsub) { stTxUnsub(); stTxUnsub = null; }
+    const q = FB.query(
+      FB.collection(FB.db, 'transactions'),
+      FB.where('reference', '==', data.reference),
+      FB.where('type', '==', 'wallet_funding_v4'),
+      FB.limit(1)
+    );
+    stTxUnsub = FB.onSnapshot(q, (snap) => {
+      if(snap.empty) return;
+      const tx = snap.docs[0].data();
+      if(tx.status === 'success'){
+        if(window.playNotificationSound) window.playNotificationSound();
+        document.getElementById('stSpinner').style.display = 'none';
+        document.getElementById('stStatusText').textContent = 'Payment received! Wallet credited.';
+        // The existing users/{uid} listener already updates PROFILE.walletBalance
+        // and #walletBal automatically once the webhook writes the new balance —
+        // no need to duplicate that here.
+        setTimeout(() => { closeSterlingSheet(); toast('Wallet funded successfully!', 'ok'); }, 1500);
+      } else if(tx.status === 'failed' || tx.status === 'amount_mismatch'){
+        document.getElementById('stSpinner').style.display = 'none';
+        document.getElementById('stStatusText').textContent = 'Transfer could not be confirmed. Contact support if you were charged.';
+      }
+    });
+  }catch(e){
+    hideLoader();
+    toast('Could not reach payment server. Please try again.', 'err');
+  }
+}
+
+function copySterlingAccount(){
+  const num = document.getElementById('stAccountNumber').textContent;
+  if(!num || num === '—') return;
+  navigator.clipboard.writeText(num).then(()=>{
+    toast('Account number copied.', 'ok');
+  }).catch(()=>{
+    toast('Could not copy — please copy it manually.', 'err');
+  });
+}
+
+function closeSterlingSheet(){
+  if(stTxUnsub){ stTxUnsub(); stTxUnsub = null; }
+  closeSheet('sterlingSheet');
 }
 // override processDelivery path for wallet funding specifically
 const _origProcessDelivery = processDelivery;
