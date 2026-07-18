@@ -131,6 +131,7 @@ exports.handler = async (event) => {
       virtualAccountId: vaData.data.id,
       accountNumber: vaData.data.account_number,
       bankName: vaData.data.account_bank_name,
+      note: vaData.data.note || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp()
     });
 
@@ -141,6 +142,7 @@ exports.handler = async (event) => {
         ok: true,
         accountNumber: vaData.data.account_number,
         bankName: vaData.data.account_bank_name,
+        note: vaData.data.note || null,
         reference,
         expiresAt: vaData.data.account_expiration_datetime
       })
