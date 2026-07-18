@@ -1021,7 +1021,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
     <div class="field mb0"><label>Amount (₦)</label><input type="number" id="fundAmount" placeholder="Enter amount"></div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 20px;" id="fundQuick"></div>
     <button class="btn btn-primary" onclick="fundWalletViaSterling()">Pay via bank transfer (Sterling)</button>
-    <button class="btn btn-ghost mt16" onclick="fundWallet()">Pay with card / other bank</button>
+    <button class="btn btn-ghost mt16" onclick="fundWallet()">Pay with card / USSD</button>
     <button class="btn btn-ghost" onclick="closeSheet('fundSheet')">Cancel</button>
   </div>
 </div>
@@ -1039,6 +1039,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       </div>
       <div class="summary-line"><span>Amount</span><b id="stAmount">—</b></div>
     </div>
+    <p id="stNote" style="font-size:12.5px; opacity:.7; margin-top:10px; text-align:left;"></p>
     <button class="btn btn-ghost mt16" id="stCopyBtn" onclick="copySterlingAccount()">Copy account number</button>
     <div id="stStatusRow" style="display:flex; align-items:center; gap:8px; justify-content:center; margin-top:18px; font-size:13px; opacity:.8;">
       <span class="spinner" id="stSpinner" style="width:14px; height:14px; border-width:2px;"></span>
@@ -2308,7 +2309,7 @@ function openFlutterwaveCheckout(payload){
       tx_ref: ref,
       amount: payload.amount,
       currency: FLW_CONFIG.currency,
-      payment_options: 'card, banktransfer, ussd',
+      payment_options: 'card, ussd',
       customer: {
         email: customerEmail,
         phone_number: (PROFILE && PROFILE.phone) || payload.phone || '',
@@ -2815,6 +2816,7 @@ async function fundWalletViaSterling(){
     document.getElementById('stBankName').textContent = data.bankName || 'Sterling Bank';
     document.getElementById('stAccountNumber').textContent = data.accountNumber;
     document.getElementById('stAmount').textContent = '₦' + naira(amt);
+    document.getElementById('stNote').textContent = data.note || '';
     document.getElementById('stStatusText').textContent = 'Waiting for your transfer…';
     document.getElementById('stSpinner').style.display = '';
     openSheet('sterlingSheet');
@@ -2822,9 +2824,14 @@ async function fundWalletViaSterling(){
     // Listen for the webhook flipping this transaction's status once the
     // transfer lands — no manual "I've paid" button needed, and it also
     // means we don't need to separately poll: Firestore pushes the update.
+    // Filtering by userId (in addition to reference) matches the security
+    // rule pattern used elsewhere in the app for the transactions
+    // collection — a query missing this filter can be silently rejected
+    // by Firestore rules, which is why the sheet previously never updated.
     if(stTxUnsub) { stTxUnsub(); stTxUnsub = null; }
     const q = FB.query(
       FB.collection(FB.db, 'transactions'),
+      FB.where('userId', '==', CURRENT_USER.uid),
       FB.where('reference', '==', data.reference),
       FB.where('type', '==', 'wallet_funding_v4'),
       FB.limit(1)
@@ -2844,6 +2851,12 @@ async function fundWalletViaSterling(){
         document.getElementById('stSpinner').style.display = 'none';
         document.getElementById('stStatusText').textContent = 'Transfer could not be confirmed. Contact support if you were charged.';
       }
+    }, (err) => {
+      // Previously this listener failed silently on a permission error,
+      // which is exactly why the sheet could sit on "Waiting…" forever
+      // even after the wallet was actually credited by the webhook.
+      console.error('[sterling] transaction listener error:', err);
+      document.getElementById('stStatusText').textContent = 'Could not check status automatically — pull to refresh your balance after transferring.';
     });
   }catch(e){
     hideLoader();
