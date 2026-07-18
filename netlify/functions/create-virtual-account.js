@@ -17,7 +17,7 @@
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 const { getFlwV4Token } = require('./_flwV4Auth');
 
-const FLW_V4_BASE = 'https://api.flutterwave.com'; // update if Flutterwave gives you a different v4 production base URL
+const FLW_V4_BASE = 'https://f4bexperience.flutterwave.com'; // v4 production base URL — different from v3's api.flutterwave.com
 const STERLING_BANK_CODE = '232';
 const EXPIRY_SECONDS = 1800; // 30 minutes — long enough to complete a transfer, short enough not to leave stale accounts lying around
 
