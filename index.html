@@ -240,9 +240,6 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 .stat span{ font-size:11px; color:var(--text-mute); }
 
 .service-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:12px; margin-top:26px; }
-@keyframes tileIn{ from{ opacity:0; transform:translateY(14px) scale(.97); } to{ opacity:1; transform:translateY(0) scale(1); } }
-.service-tile.anim-in{ opacity:0; animation:tileIn .45s cubic-bezier(.2,.8,.2,1) forwards; }
-#screen-services .service-grid{ margin-top:6px; }
 .service-tile{ padding:20px 16px; cursor:pointer; }
 .service-tile .si{ width:42px;height:42px;border-radius:13px; display:flex;align-items:center;justify-content:center; margin-bottom:14px; }
 .service-tile h3{ font-size:15px; font-weight:600; }
@@ -375,7 +372,6 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 .result-icon{ width:72px;height:72px; border-radius:50%; margin:0 auto 20px; display:flex;align-items:center;justify-content:center; }
 .result-icon.ok{ background:rgba(58,220,151,.14); color:var(--success); }
 .result-icon.fail{ background:rgba(255,92,124,.14); color:var(--danger); }
-.result-icon.pending{ background:rgba(255,180,84,.14); color:var(--warn); }
 
 .copy-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:rgba(255,255,255,.035); border-radius:14px; border:1px solid var(--border); }
 .copy-row b{ font-family:var(--font-m); font-size:14.5px; letter-spacing:.02em; }
@@ -611,7 +607,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 
   <!-- ============ LANDING ============ -->
   <section class="screen active" id="screen-landing">
-    <div class="promo-strip"><span class="dot"></span> Sunday Special — 1GB promo pricing for new users today</div>
+    <div class="promo-strip hide" id="landingPromoStrip"><span class="dot"></span> <span id="landingPromoText"></span></div>
 
     <div class="hero">
       <h1>Top up your life,<br><span class="grad">instantly.</span></h1>
@@ -643,22 +639,6 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       <div class="glass glass-hover service-tile" onclick="requireAuth('electricity')">
         <div class="si" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke-linejoin="round"/></svg></div>
         <h3>Electricity</h3><p>All 12 DISCOs nationwide</p>
-      </div>
-      <div class="glass glass-hover service-tile" onclick="requireAuth('resultchecker')">
-        <div class="si" style="background:rgba(108,92,231,.16); color:#B3A6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h3>Result Checker</h3><p>WAEC &amp; NECO scratch cards</p>
-      </div>
-      <div class="glass glass-hover service-tile" onclick="requireAuth('rechargepin')">
-        <div class="si" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h2M11 11h2" stroke-linecap="round"/></svg></div>
-        <h3>Recharge Pin</h3><p>Print &amp; resell bulk airtime PINs</p>
-      </div>
-      <div class="glass glass-hover service-tile" onclick="requireAuth('betting')">
-        <div class="si" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h3>Betting Wallet</h3><p>Bet9ja, SportyBet, BetKing &amp; more</p>
-      </div>
-      <div class="glass glass-hover service-tile" onclick="requireAuth('isp')">
-        <div class="si" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0M12 19h.01" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h3>ISP Top-up</h3><p>Smile &amp; Spectranet broadband</p>
       </div>
     </div>
 
@@ -736,6 +716,8 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       </div>
     </div>
 
+    <div class="promo-strip hide" id="dashPromoStrip" style="margin-bottom:14px;"><span class="dot"></span> <span id="dashPromoText"></span></div>
+
     <div class="glass wallet-card">
       <div class="eyebrow">Wallet balance</div>
       <div class="wallet-amt">₦<span id="walletBal">0.00</span></div>
@@ -750,55 +732,11 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       <div class="glass glass-hover quick-item" onclick="go('airtime')"><div class="qi" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4l3 3-2 2a13 13 0 006 6l2-2 3 3-2 3a2 2 0 01-2 .6A16 16 0 014 6a2 2 0 01.6-2z" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Airtime</span></div>
       <div class="glass glass-hover quick-item" onclick="go('cable')"><div class="qi" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M12 18v3" stroke-linecap="round"/></svg></div><span>TV</span></div>
       <div class="glass glass-hover quick-item" onclick="go('electricity')"><div class="qi" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke-linejoin="round"/></svg></div><span>Power</span></div>
-      <div class="glass glass-hover quick-item" onclick="go('resultchecker')"><div class="qi" style="background:rgba(108,92,231,.16); color:#B3A6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Result</span></div>
-      <div class="glass glass-hover quick-item" onclick="go('rechargepin')"><div class="qi" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h2M11 11h2" stroke-linecap="round"/></svg></div><span>Pins</span></div>
-      <div class="glass glass-hover quick-item" onclick="go('betting')"><div class="qi" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Betting</span></div>
-      <div class="glass glass-hover quick-item" onclick="go('isp')"><div class="qi" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0M12 19h.01" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>ISP</span></div>
     </div>
 
     <div class="section-title"><h2>Recent activity</h2><a onclick="go('history')">See all</a></div>
     <div class="glass" id="recentTxWrap" style="padding:2px 4px; min-height:80px;">
       <div class="empty" id="recentTxEmpty"><div class="ei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h12v18l-2-1-2 1-2-1-2 1-2-1-2 1V3z"/><path d="M9 8h6M9 12h6" stroke-linecap="round"/></svg></div>No transactions yet — your top-ups will show here</div>
-    </div>
-  </section>
-
-  <!-- ============ SERVICES OVERVIEW ============ -->
-  <section class="screen" id="screen-services">
-    <div class="screen-head"><h2>Services</h2></div>
-    <p class="hint" style="margin:2px 4px 18px;">Everything you can pay for, in one place.</p>
-    <div class="service-grid" id="servicesGrid">
-      <div class="glass glass-hover service-tile anim-in" style="animation-delay:0ms" onclick="go('data')">
-        <div class="si" style="background:rgba(108,92,231,.16); color:#B3A6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h3>Buy Data</h3><p>MTN, Airtel, Glo, 9mobile</p>
-      </div>
-      <div class="glass glass-hover service-tile anim-in" style="animation-delay:40ms" onclick="go('airtime')">
-        <div class="si" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4l3 3-2 2a13 13 0 006 6l2-2 3 3-2 3a2 2 0 01-2 .6A16 16 0 014 6a2 2 0 01.6-2z" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h3>Buy Airtime</h3><p>All networks, instant</p>
-      </div>
-      <div class="glass glass-hover service-tile anim-in" style="animation-delay:80ms" onclick="go('cable')">
-        <div class="si" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M12 18v3" stroke-linecap="round"/></svg></div>
-        <h3>Cable TV</h3><p>DStv, GOtv, Startimes, Showmax</p>
-      </div>
-      <div class="glass glass-hover service-tile anim-in" style="animation-delay:120ms" onclick="go('electricity')">
-        <div class="si" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke-linejoin="round"/></svg></div>
-        <h3>Electricity</h3><p>All 12 DISCOs nationwide</p>
-      </div>
-      <div class="glass glass-hover service-tile anim-in" style="animation-delay:160ms" onclick="go('resultchecker')">
-        <div class="si" style="background:rgba(108,92,231,.16); color:#B3A6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h3>Result Checker</h3><p>WAEC, NECO, NABTEB pins</p>
-      </div>
-      <div class="glass glass-hover service-tile anim-in" style="animation-delay:200ms" onclick="go('rechargepin')">
-        <div class="si" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h2M11 11h2" stroke-linecap="round"/></svg></div>
-        <h3>Recharge Pin</h3><p>Print &amp; resell bulk airtime PINs</p>
-      </div>
-      <div class="glass glass-hover service-tile anim-in" style="animation-delay:240ms" onclick="go('betting')">
-        <div class="si" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h3>Betting Wallet</h3><p>Bet9ja, SportyBet, BetKing &amp; more</p>
-      </div>
-      <div class="glass glass-hover service-tile anim-in" style="animation-delay:280ms" onclick="go('isp')">
-        <div class="si" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0M12 19h.01" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <h3>ISP Top-up</h3><p>Smile &amp; Spectranet broadband</p>
-      </div>
     </div>
   </section>
 
@@ -865,85 +803,6 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
     <div class="sticky-pay">
       <div class="glass" style="padding:16px 18px;" id="elecSummary"></div>
       <button class="btn btn-primary mt16" id="elecPayBtn" disabled onclick="initiatePurchase('electricity')">Pay now</button>
-    </div>
-  </section>
-
-  <!-- ============ RESULT CHECKER ============ -->
-  <section class="screen" id="screen-resultchecker">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Result Checker</h2></div>
-    <div class="eyebrow" style="margin-bottom:10px;">Exam type</div>
-    <div class="glass" id="rcExamDropdown" onclick="document.getElementById('rcExamGrid').scrollIntoView({behavior:'smooth', block:'nearest'})" style="display:flex; align-items:center; justify-content:space-between; padding:15px 16px; margin-bottom:14px; cursor:pointer;">
-      <span id="rcExamDropdownLabel" style="color:var(--text-mute); font-size:14px;">Select exam type</span>
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
-    <div class="net-grid" style="grid-template-columns:repeat(2,1fr);" id="rcExamGrid"></div>
-    <div id="rcLoadState" class="hint mb0"></div>
-    <div class="field" id="rcQtyField" style="display:none;">
-      <label>Quantity</label>
-      <div style="display:flex; align-items:center; gap:14px;">
-        <button class="btn btn-ghost btn-sm" onclick="adjustRcQty(-1)">−</button>
-        <b id="rcQtyVal" style="font-size:16px; min-width:24px; text-align:center;">1</b>
-        <button class="btn btn-ghost btn-sm" onclick="adjustRcQty(1)">+</button>
-      </div>
-    </div>
-    <div class="sticky-pay">
-      <div class="glass" style="padding:16px 18px;" id="rcSummary"></div>
-      <button class="btn btn-primary mt16" id="rcPayBtn" disabled onclick="initiatePurchase('resultchecker')">Pay now</button>
-    </div>
-  </section>
-
-  <!-- ============ RECHARGE PIN ============ -->
-  <section class="screen" id="screen-rechargepin">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Recharge Pin</h2></div>
-    <p class="hint" style="margin:2px 4px 16px;">Bulk airtime PINs for printing &amp; resale — buy in bulk, print or share the PIN, and load any phone by dialing it in.</p>
-    <div class="net-grid" id="rpNetGrid"></div>
-    <div class="eyebrow" style="margin-bottom:10px;">Select denomination</div>
-    <div id="rpLoadState" class="hint mb0"></div>
-    <div class="plan-list" id="rpPlanList"></div>
-    <div class="field" id="rpQtyField" style="display:none;">
-      <label>Quantity</label>
-      <div style="display:flex; align-items:center; gap:14px;">
-        <button class="btn btn-ghost btn-sm" onclick="adjustRpQty(-1)">−</button>
-        <b id="rpQtyVal" style="font-size:16px; min-width:24px; text-align:center;">1</b>
-        <button class="btn btn-ghost btn-sm" onclick="adjustRpQty(1)">+</button>
-      </div>
-    </div>
-    <div class="list-link" id="rpPrintField" style="display:none; margin-top:4px;">
-      <div class="ll-l"><div><b>Print this PIN</b><span>Adds a printing fee — ₦1 per ₦100</span></div></div>
-      <label class="toggle-switch"><input type="checkbox" id="rpPrintToggle" onchange="toggleRpPrint(this.checked)"><span class="toggle-slider"></span></label>
-    </div>
-    <div class="sticky-pay">
-      <div class="glass" style="padding:16px 18px;" id="rpSummary"></div>
-      <button class="btn btn-primary mt16" id="rpPayBtn" disabled onclick="initiatePurchase('rechargepin')">Pay now</button>
-    </div>
-  </section>
-
-  <!-- ============ BETTING ============ -->
-  <section class="screen" id="screen-betting">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Betting Wallet</h2></div>
-    <div class="eyebrow" style="margin-bottom:10px;">Select platform</div>
-    <div id="btLoadState" class="hint mb0"></div>
-    <div class="net-grid" style="grid-template-columns:repeat(3,1fr);" id="btBillerGrid"></div>
-    <div class="field"><label>Customer ID</label><input type="text" id="btCustomerId" placeholder="Your betting account ID"></div>
-    <div class="field mb0"><label>Amount (₦)</label><input type="number" id="btAmount" placeholder="Enter amount"></div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 20px;" id="btQuick"></div>
-    <div class="sticky-pay">
-      <div class="glass" style="padding:16px 18px;" id="btSummary"></div>
-      <button class="btn btn-primary mt16" id="btPayBtn" disabled onclick="initiatePurchase('betting')">Fund wallet</button>
-    </div>
-  </section>
-
-  <!-- ============ ISP ============ -->
-  <section class="screen" id="screen-isp">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>ISP Top-up</h2></div>
-    <div class="net-grid" style="grid-template-columns:repeat(2,1fr);" id="ispProvGrid"></div>
-    <div class="field" id="ispAccountField" style="display:none;"><label id="ispAccountLabel">Account ID</label><input type="text" id="ispAccountId" placeholder="Enter your account/router ID"></div>
-    <div class="eyebrow" style="margin-bottom:10px;">Select plan</div>
-    <div id="ispLoadState" class="hint mb0"></div>
-    <div class="plan-list" id="ispPlanList"></div>
-    <div class="sticky-pay">
-      <div class="glass" style="padding:16px 18px;" id="ispSummary"></div>
-      <button class="btn btn-primary mt16" id="ispPayBtn" disabled onclick="initiatePurchase('isp')">Pay now</button>
     </div>
   </section>
 
@@ -1139,7 +998,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   <div class="bottom-nav glass hide" id="bottomNav">
     <div class="bottom-nav-inner">
       <div class="nav-item active" data-nav="dashboard" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1v-9z" stroke-linejoin="round"/></svg><span>Home</span></div>
-      <div class="nav-item" data-nav="services" onclick="go('services')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Services</span></div>
+      <div class="nav-item" data-nav="data" onclick="go('data')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Services</span></div>
       <div class="nav-item" data-nav="history" onclick="go('history')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l2-7 4 14 2-7h6" stroke-linecap="round" stroke-linejoin="round"/></svg><span>History</span></div>
       <div class="nav-item" data-nav="referral" onclick="go('referral')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M2 20c0-3.3 3-6 7-6s7 2.7 7 6M16 8a3 3 0 010 6M22 20c0-2.6-2-4.8-5-5.6"/></svg><span>Referral</span></div>
       <div class="nav-item" data-nav="contact" onclick="go('contact')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" stroke="none" fill="currentColor"/></svg><span>Contact</span></div>
@@ -1163,32 +1022,8 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
     <h3 style="font-size:18px; margin-bottom:18px;">Fund wallet</h3>
     <div class="field mb0"><label>Amount (₦)</label><input type="number" id="fundAmount" placeholder="Enter amount"></div>
     <div style="display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 20px;" id="fundQuick"></div>
-    <button class="btn btn-primary" onclick="fundWalletViaSterling()">Pay via bank transfer (Sterling)</button>
-    <button class="btn btn-ghost" onclick="closeSheet('fundSheet')">Cancel</button>
-  </div>
-</div>
-
-<div class="overlay" id="sterlingSheet">
-  <div class="glass sheet">
-    <div class="sheet-handle"></div>
-    <h3 style="font-size:18px; margin-bottom:6px;">Transfer to fund wallet</h3>
-    <p style="opacity:.75; font-size:13px; margin-bottom:18px;">Send the exact amount below from any bank. Your wallet is credited automatically once we confirm the transfer.</p>
-    <div class="glass" style="text-align:left; padding:16px;">
-      <div class="summary-line"><span>Bank</span><b id="stBankName">Sterling Bank</b></div>
-      <div class="summary-line">
-        <span>Account number</span>
-        <b id="stAccountNumber" style="font-size:17px; letter-spacing:.5px;">—</b>
-      </div>
-      <div class="summary-line"><span>Amount</span><b id="stAmount">—</b></div>
-    </div>
-    <p style="font-size:11.5px; opacity:.55; margin-top:6px; text-align:left;">Includes transfer fee — your wallet is credited the amount you requested.</p>
-    <p id="stNote" style="font-size:12.5px; opacity:.7; margin-top:10px; text-align:left;"></p>
-    <button class="btn btn-ghost mt16" id="stCopyBtn" onclick="copySterlingAccount()">Copy account number</button>
-    <div id="stStatusRow" style="display:flex; align-items:center; gap:8px; justify-content:center; margin-top:18px; font-size:13px; opacity:.8;">
-      <span class="spinner" id="stSpinner" style="width:14px; height:14px; border-width:2px;"></span>
-      <span id="stStatusText">Waiting for your transfer…</span>
-    </div>
-    <button class="btn btn-ghost mt16" onclick="closeSterlingSheet()">Cancel</button>
+    <button class="btn btn-primary" onclick="fundWallet()">Continue to pay</button>
+    <button class="btn btn-ghost mt16" onclick="closeSheet('fundSheet')">Cancel</button>
   </div>
 </div>
 
@@ -1248,10 +1083,6 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 
 <div class="overlay" id="resultSheet">
   <div class="glass sheet" id="resultSheetInner"></div>
-</div>
-
-<div class="overlay" id="txReceiptSheet">
-  <div class="glass sheet" id="txReceiptSheetInner"></div>
 </div>
 
 <div class="overlay" id="contactSheet">
@@ -1426,93 +1257,6 @@ const CABLE_META = {
   startimes: { label:"Startimes", color:"#E30613" },
   showmax: { label:"Showmax", color:"#1CE783" }
 };
-// Betting billers are fetched live from Bigisub (api/v2/betting/billers/), but
-// we keep a small local map of known ones for display color/branding — any
-// biller Bigisub returns that isn't in this map still works, just with a
-// generic gold tile.
-const BETTING_META = {
-  bet9ja:   { label:"Bet9ja",   color:"#00873C" },
-  sportybet:{ label:"SportyBet",color:"#E4053C" },
-  betking:  { label:"BetKing",  color:"#0A6E3A" },
-  nairabet: { label:"NairaBet", color:"#1CA84B" },
-  betway:   { label:"Betway",   color:"#1A1A2E" },
-  "1xbet":  { label:"1xBet",    color:"#1C4795" }
-};
-const ISP_META = {
-  smile:      { label:"Smile", color:"#F5A623", steps:3 },
-  spectranet: { label:"Spectranet", color:"#2E7D32", steps:2 }
-};
-
-// Smile's live ISP plan endpoint isn't returning reliably, so the real
-// catalog (pulled straight from the provider) is hardcoded here instead.
-// Each "buy" is the provider's raw cost; markupPrice(buy, 0.22) is still
-// applied on top when rendering/charging, same as before.
-const SMILE_PLANS = [
-  { id:'smile_airtime',      name:'Buy Airtime',                              buy:0 },
-  { id:'smile_mini_1gb_1d',  name:'SmileMINI 1GB for 1days - 450 Naira',      buy:450 },
-  { id:'smile_mini_25gb_1d', name:'Smile MINI 2.5GB for 1days - 750 Naira',   buy:750 },
-  { id:'smile_mini_1gb_7d',  name:'Smile MINI 1GB for 7days - 750 Naira',     buy:750 },
-  { id:'smile_voice_65',     name:'SmileVoice ONLY 65 for 30days - 900 Naira', buy:900 },
-  { id:'smile_midi_15gb',    name:'Smile MIDI 1.5GB for 30days - 1,250 Naira', buy:1250 },
-  { id:'smile_midi_2gb',     name:'Smile MIDI 2GB for 30days - 1,500 Naira',  buy:1500 },
-  { id:'smile_mini_3gb_2d',  name:'Smile MINI 3GB for 2days - 1,500 Naira',   buy:1500 },
-  { id:'smile_mini_35gb_7d', name:'Smile MINI 3.5GB for 7days - 1,500 Naira', buy:1500 },
-  { id:'smile_voice_135',    name:'SmileVoice ONLY 135 for 30days - 1,850 Naira', buy:1850 },
-  { id:'smile_midi_3gb',     name:'Smile MIDI 3GB for 30days - 2,000 Naira',  buy:2000 },
-  { id:'smile_mini_5gb_2d',  name:'Smile MINI 5GB for 2days - 2,200 Naira',   buy:2200 },
-  { id:'smile_mini_6gb_7d',  name:'Smile MINI 6GB for 7days - 2,300 Naira',   buy:2300 },
-  { id:'smile_voice_150',    name:'SmileVoice ONLY 150 for 60days - 2,700 Naira', buy:2700 },
-  { id:'smile_midi_6gb',     name:'Smile MIDI 6GB for 30days - 3,000 Naira',  buy:3000 },
-  { id:'smile_midi_8gb',     name:'Smile MIDI 8GB for 30days - 3,500 Naira',  buy:3500 },
-  { id:'smile_voice_175',    name:'SmileVoice ONLY 175 for 90days - 3,600 Naira', buy:3600 },
-  { id:'smile_midi_10gb',    name:'Smile MIDI 10GB for 30days - 4,000 Naira', buy:4000 },
-  { id:'smile_midi_13gb',    name:'Smile MIDI 13GB for 30days - 5,000 Naira', buy:5000 },
-  { id:'smile_freedom',      name:'Freedom Mobile Plan for 30days - 5,000 Naira', buy:5000 },
-  { id:'smile_voice_430',    name:'SmileVoice ONLY 430 for 30days - 5,700 Naira', buy:5700 },
-  { id:'smile_midi_18gb',    name:'Smile MIDI 18GB for 30days - 6,000 Naira', buy:6000 },
-  { id:'smile_midi_20gb',    name:'Smile MIDI 20GB for 30days - 7,000 Naira', buy:7000 },
-  { id:'smile_voice_450',    name:'SmileVoice ONLY 450 for 60days - 7,200 Naira', buy:7200 },
-  { id:'smile_voice_500',    name:'SmileVoice ONLY 500 for 90days - 9,000 Naira', buy:9000 },
-  { id:'smile_midi_25gb',    name:'Smile MIDI 25GB for 30days - 9,000 Naira', buy:9000 },
-  { id:'smile_midi_40gb',    name:'Smile MIDI 40GB for 30days - 12,500 Naira', buy:12500 },
-  { id:'smile_annual_20gb',  name:'Smile ANNUAL 20GB for 365days - 14,000 Naira', buy:14000 },
-  { id:'smile_midi_65gb',    name:'Smile MIDI 65GB for 30days - 15,000 Naira', buy:15000 },
-  { id:'smile_maxi_lite',    name:'Smile MAXI Lite for 30days - 15,000 Naira', buy:15000 },
-  { id:'smile_midi_100gb',   name:'Smile MIDI 100GB for 30days - 20,000 Naira', buy:20000 },
-  { id:'smile_jumbo_90gb',   name:'Smile JUMBO 90GB for 60days - 25,000 Naira', buy:25000 },
-  { id:'smile_midi_130gb',   name:'Smile MIDI 130GB for 30days - 25,000 Naira', buy:25000 },
-  { id:'smile_maxi_essential', name:'Smile MAXI Essential for 30days - 27,700 Naira', buy:27700 },
-  { id:'smile_annual_50gb',  name:'Smile ANNUAL 50GB for 365days - 29,000 Naira', buy:29000 },
-  { id:'smile_maxi_home',    name:'Smile Maxi Home for 30days - 38,500 Naira', buy:38500 },
-  { id:'smile_midi_210gb',   name:'Smile MIDI 210GB for 30days - 40,000 Naira', buy:40000 },
-  { id:'smile_maxi_office',  name:'Smile MAXI Office for 30days - 45,000 Naira', buy:45000 },
-  { id:'smile_annual_120gb', name:'Smile ANNUAL 120GB for 365days - 49,500 Naira', buy:49500 },
-  { id:'smile_jumbo_300gb',  name:'Smile JUMBO 300GB for 90days - 50,000 Naira', buy:50000 },
-  { id:'smile_jumbo_350gb',  name:'Smile JUMBO 350GB for 120days - 60,000 Naira', buy:60000 },
-  { id:'smile_maxi_dataflux', name:'Smile MAXI DataFlux for 30days - 61,500 Naira', buy:61500 },
-  { id:'smile_jumbo_500gb',  name:'Smile JUMBO 500GB for 180days - 77,000 Naira', buy:77000 },
-  { id:'smile_annual_250gb', name:'Smile ANNUAL 250GB for 365days - 77,000 Naira', buy:77000 },
-  { id:'smile_annual_450gb', name:'Smile ANNUAL 450GB for 365days - 107,000 Naira', buy:107000 },
-  { id:'smile_annual_700gb', name:'Smile ANNUAL 700GB for 365days - 154,000 Naira', buy:154000 },
-  { id:'smile_annual_1tb',   name:'Smile ANNUAL 1TB for 365days - 180,000 Naira', buy:180000 }
-];
-
-// Shared markup for services whose prices come live from Bigisub rather than
-// a local PRICING catalog (result checker, recharge pin, betting, ISP) —
-// rounds to the nearest ₦5, same convention as the local catalog pricing.
-// Recharge pin carries a thin ~2% margin (it's functionally airtime); the
-// others carry the standard ~22% margin used for data/cable/electricity.
-// Bulk pricing for recharge pins — buying more brings the markup down per
-// unit (separate from, and in addition to, the optional printing fee).
-// Tiers are a starting point — adjust the thresholds/percentages below to
-// match whatever margins you actually want.
-function rpMarkupPct(qty){
-  if(qty >= 50) return 0.005; // 0.5%
-  if(qty >= 25) return 0.01;  // 1%
-  if(qty >= 10) return 0.015; // 1.5%
-  return 0.02;                // 2% base rate for small quantities
-}
-function markupPrice(buy, pct){ return Math.round((Number(buy||0) * (1 + pct)) / 5) * 5; }
 
 function naira(n){ return Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2, maximumFractionDigits:2}); }
 function digitsOnly(v){ return String(v||'').replace(/\D/g, ''); }
@@ -1555,17 +1299,13 @@ let selection = {
   data:{network:null, plan:null, typeFilter:'ALL'},
   airtime:{network:null, amount:null},
   cable:{provider:null, plan:null},
-  electricity:{disco:null, meterType:'prepaid', amount:null},
-  resultchecker:{examType:null, price:null, code:null, quantity:1},
-  rechargepin:{network:null, plan:null, quantity:1, plans:[]},
-  betting:{billerCode:null, billerName:null, customerId:null, amount:null, validationRef:null, customerName:null},
-  isp:{provider:null, plan:null, plans:[], accountId:null}
+  electricity:{disco:null, meterType:'prepaid', amount:null}
 };
 
 /* ============================================================
    NAVIGATION
    ============================================================ */
-const SCREENS = ['landing','auth','verify','dashboard','services','data','airtime','cable','electricity','resultchecker','rechargepin','betting','isp','history','referral','support','contact','profile'];
+const SCREENS = ['landing','auth','verify','dashboard','data','airtime','cable','electricity','history','referral','support','contact','profile'];
 function go(name){
   SCREENS.forEach(s => document.getElementById('screen-'+s).classList.toggle('active', s===name));
   document.getElementById('bottomNav').classList.toggle('hide', !CURRENT_USER || name==='landing' || name==='auth');
@@ -1573,18 +1313,9 @@ function go(name){
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav===name));
   window.scrollTo(0,0);
   if(name==='data') renderDataScreen();
-  if(name==='services'){
-    document.querySelectorAll('#screen-services .service-tile').forEach(t=>{
-      t.classList.remove('anim-in'); void t.offsetWidth; t.classList.add('anim-in');
-    });
-  }
   if(name==='airtime') renderAirtimeScreen();
   if(name==='cable') renderCableScreen();
   if(name==='electricity') renderElectricityScreen();
-  if(name==='resultchecker') renderResultCheckerScreen();
-  if(name==='rechargepin') renderRechargePinScreen();
-  if(name==='betting') renderBettingScreen();
-  if(name==='isp') renderIspScreen();
   if(name==='history') renderHistory();
   if(name==='referral') renderReferral();
   if(name==='profile'){ renderProfile(); initPushToggle(); }
@@ -1932,8 +1663,26 @@ waitFb().then(()=>{
 async function loadPromoState(){
   try{
     const snap = await FB.getDoc(FB.doc(FB.db,'settings','promo'));
-    promoActive = snap.exists() ? !!snap.data().sundayPromoActive : true;
+    const data = snap.exists() ? snap.data() : {};
+    promoActive = snap.exists() ? !!data.sundayPromoActive : true;
+    applyPromoBanner(data.bannerActive, data.bannerText);
   }catch(e){ /* settings collection may not exist yet — default stays true */ }
+}
+
+function applyPromoBanner(active, text){
+  const strips = [
+    { wrap: document.getElementById('landingPromoStrip'), text: document.getElementById('landingPromoText') },
+    { wrap: document.getElementById('dashPromoStrip'), text: document.getElementById('dashPromoText') }
+  ];
+  strips.forEach(({wrap, text: textEl}) => {
+    if(!wrap) return;
+    if(active && text){
+      textEl.textContent = text;
+      wrap.classList.remove('hide');
+    } else {
+      wrap.classList.add('hide');
+    }
+  });
 }
 
 /* ============================================================
@@ -1980,7 +1729,7 @@ function renderRecentTx(items){
   const wrap = document.getElementById('recentTxWrap');
   if(!items.length){ wrap.innerHTML = `<div class="empty" id="recentTxEmpty"><div class="ei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h12v18l-2-1-2 1-2-1-2 1-2-1-2 1V3z"/><path d="M9 8h6M9 12h6" stroke-linecap="round"/></svg></div>No transactions yet — your top-ups will show here</div>`; return; }
   wrap.innerHTML = items.map(t => `
-    <div class="tx-row" onclick="openTxReceipt('${t.id}')" style="cursor:pointer;">
+    <div class="tx-row">
       <div class="tx-icon" style="background:rgba(255,255,255,.05); color:var(--text-dim);">${txIcon(t.type)}</div>
       <div class="tx-mid"><b>${txLabel(t)}</b><span>${t.phone||t.meterNumber||t.smartcard||''}</span></div>
       <div class="tx-amt"><b>₦${naira(t.amount)}</b>${txBadge(t.status)}</div>
@@ -1991,10 +1740,6 @@ function txLabel(t){
   if(t.type==='airtime') return `${(NET_META[t.network]||{}).label||t.network} Airtime`;
   if(t.type==='cable') return `${(CABLE_META[t.provider]||{}).label||t.provider} — ${t.planName||''}`;
   if(t.type==='electricity') return `${t.disco||'Electricity'} (${t.meterType||''})`;
-  if(t.type==='resultchecker') return `${t.examType||'Result Checker'} PIN ×${t.quantity||1}`;
-  if(t.type==='rechargepin') return `${(NET_META[t.network]||{}).label||t.network} Recharge Pin — ${t.planLabel||''} ×${t.quantity||1}`;
-  if(t.type==='betting') return `${t.billerName||'Betting'} wallet funding`;
-  if(t.type==='isp') return `${(ISP_META[t.provider]||{}).label||t.provider} — ${t.planLabel||''}`;
   if(t.type==='wallet_funding') return 'Wallet funding';
   if(t.type==='admin_credit' || t.type==='admin_debit') return t.description || 'From WoodPay';
   return 'Transaction';
@@ -2004,7 +1749,7 @@ function renderHistoryList(items){
   const wrap = document.getElementById('historyWrap');
   if(!items.length){ wrap.innerHTML = `<div class="empty"><div class="ei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h12v18l-2-1-2 1-2-1-2 1-2-1-2 1V3z"/><path d="M9 8h6M9 12h6" stroke-linecap="round"/></svg></div>No transactions yet</div>`; return; }
   wrap.innerHTML = items.map(t => `
-    <div class="tx-row" onclick="openTxReceipt('${t.id}')" style="cursor:pointer;">
+    <div class="tx-row">
       <div class="tx-icon" style="background:rgba(255,255,255,.05); color:var(--text-dim);">${txIcon(t.type)}</div>
       <div class="tx-mid"><b>${txLabel(t)}</b><span>${fmtDate(t.createdAt)}</span></div>
       <div class="tx-amt"><b>₦${naira(t.amount)}</b>${txBadge(t.status)}</div>
@@ -2015,99 +1760,6 @@ function fmtDate(ts){
     const d = ts?.toDate ? ts.toDate() : new Date();
     return d.toLocaleString('en-NG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   }catch(e){ return ''; }
-}
-
-/* ============================================================
-   TRANSACTION RECEIPT — shown when a user taps any transaction row.
-   Only ever reads clean, our-own fields (payload fields + the safe subset
-   of providerExtra: token/units/pins/customerName). Never renders
-   providerExtra.rawResponse or any provider/vendor name — that stays
-   admin-only (see admin.html's "Raw" button).
-   ============================================================ */
-function txDetailLines(t){
-  const lines = [];
-  if(t.type==='data' || t.type==='airtime' || t.type==='rechargepin'){
-    if(t.phone) lines.push(['Phone number', t.phone]);
-    if(t.network) lines.push(['Network', (NET_META[t.network]||{}).label || t.network]);
-  }
-  if(t.type==='cable'){
-    if(t.smartcard) lines.push(['Smartcard / IUC', t.smartcard]);
-    if(t.planName) lines.push(['Plan', t.planName]);
-  }
-  if(t.type==='electricity'){
-    if(t.disco) lines.push(['Disco', t.disco]);
-    if(t.meterNumber) lines.push(['Meter number', t.meterNumber]);
-    if(t.meterType) lines.push(['Meter type', t.meterType]);
-  }
-  if(t.type==='resultchecker'){
-    if(t.examType) lines.push(['Exam type', t.examType]);
-    if(t.quantity) lines.push(['Quantity', t.quantity]);
-  }
-  if(t.type==='betting'){
-    if(t.billerName) lines.push(['Platform', t.billerName]);
-    if(t.customerId) lines.push(['Customer ID', t.customerId]);
-  }
-  if(t.type==='isp'){
-    if(t.provider) lines.push(['Provider', (ISP_META[t.provider]||{}).label || t.provider]);
-    if(t.accountId) lines.push(['Account ID', t.accountId]);
-    if(t.planLabel) lines.push(['Plan', t.planLabel]);
-  }
-  const customerName = t.providerExtra?.customerName;
-  if(customerName) lines.push(['Verified name', customerName]);
-  return lines;
-}
-
-function openTxReceipt(id){
-  const t = (window.__TX_CACHE||[]).find(x => x.id === id);
-  if(!t){ toast('Could not load this transaction. Please try again.', 'err'); return; }
-  renderTxReceipt(t);
-  openSheet('txReceiptSheet');
-}
-
-function renderTxReceipt(t){
-  const inner = document.getElementById('txReceiptSheetInner');
-  const status = t.status || 'pending';
-  const statusMeta = {
-    success:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12l6 6L20 6" stroke-linecap="round" stroke-linejoin="round"/></svg>`, cls:'ok', title:'Payment successful', sub:'Your order has been delivered.' },
-    failed:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>`, cls:'fail', title:'Delivery failed', sub:'This payment was refunded to your wallet.' },
-    pending:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg>`, cls:'pending', title:'Still confirming', sub:"We're confirming this with the network. It'll update automatically — no need to retry." }
-  }[status] || { icon:'', cls:'pending', title:'Pending', sub:'' };
-
-  const extra = t.providerExtra || {};
-  const tokenBlock = (status==='success' && extra.token) ? `
-    <div class="glass" style="text-align:left; padding:16px; margin-top:14px; border:1px solid var(--gold-2);">
-      <div class="eyebrow">Electricity token</div>
-      <b class="mono" style="font-size:18px; display:block; margin-top:6px;">${extra.token}</b>
-      ${extra.units ? `<div style="margin-top:6px; font-size:12.5px;">Units: ${extra.units} kWh</div>` : ''}
-    </div>` : '';
-  const pinsBlock = (status==='success' && Array.isArray(extra.pins) && extra.pins.length) ? `
-    <div class="glass" style="text-align:left; padding:16px; margin-top:14px; border:1px solid var(--gold-2);">
-      <div class="eyebrow">${t.type==='resultchecker' ? 'Result checker PIN(s)' : 'Recharge PIN(s)'}</div>
-      ${extra.pins.map(p => `<div class="mono" style="font-size:14px; margin-top:8px;">${p.pin || p.serial_number || p.card_number || ''}${p.serial ? ' · Serial: '+p.serial : ''}</div>`).join('')}
-    </div>` : '';
-
-  const detailLines = txDetailLines(t).map(([label,val]) =>
-    `<div class="summary-line"><span>${label}</span><b>${val}</b></div>`).join('');
-
-  inner.innerHTML = `
-    <div class="sheet-handle"></div>
-    <div class="result-card">
-      <div class="result-icon ${statusMeta.cls}">${statusMeta.icon}</div>
-      <h3 style="font-size:20px;">${statusMeta.title}</h3>
-      <p style="margin-top:8px;">${statusMeta.sub}</p>
-      <div class="glass" style="text-align:left; padding:16px; margin-top:22px;">
-        <div class="summary-line"><span>Reference</span><b class="mono" style="font-size:12.5px;">${t.txRef||t.id}</b></div>
-        <div class="summary-line"><span>Service</span><b>${txLabel(t)}</b></div>
-        <div class="summary-line"><span>Amount</span><b>₦${naira(t.amount)}</b></div>
-        <div class="summary-line"><span>Status</span><b>${txBadge(status)}</b></div>
-        <div class="summary-line"><span>Date</span><b>${fmtDate(t.createdAt)}</b></div>
-        ${detailLines}
-      </div>
-      ${tokenBlock}
-      ${pinsBlock}
-      ${status !== 'success' ? `<button class="btn btn-ghost mt16" onclick="closeSheet('txReceiptSheet'); go('contact');">Need help? Contact support</button>` : ''}
-      <button class="btn btn-primary mt16" onclick="closeSheet('txReceiptSheet')">Done</button>
-    </div>`;
 }
 
 /* ============================================================
@@ -2369,317 +2021,6 @@ function updateElecSummary(){
 }
 
 /* ============================================================
-   RESULT CHECKER (WAEC / NECO)
-   ============================================================ */
-// Same problem as the Smile ISP endpoint — the live result-checker prices
-// call isn't reliable, so the real catalog from the provider is hardcoded
-// here. "buy" is the provider's raw cost; the existing flat ₦100 profit
-// per PIN is still added on top when rendering/charging (unchanged).
-const RESULT_CHECKER_PLANS = [
-  { examType:'WAEC Result Checker',   code:'waec',   buy:5250, color:'#3ADC97' },
-  { examType:'NECO Result Checker',   code:'neco',   buy:2500, color:'#4F7CFF' },
-  { examType:'NABTEB Result Checker', code:'nabteb', buy:1000, color:'#FFB454' }
-];
-async function renderResultCheckerScreen(){
-  const grid = document.getElementById('rcExamGrid');
-  const loadEl = document.getElementById('rcLoadState');
-  if(!grid.dataset.built){
-    grid.dataset.built = '1';
-    selection.resultchecker._catalog = RESULT_CHECKER_PLANS.map(p => ({ examType:p.examType, code:p.code, buy:p.buy, color:p.color }));
-    loadEl.textContent = '';
-    grid.innerHTML = selection.resultchecker._catalog.map((p,i) => `
-      <div class="glass net-chip ${selection.resultchecker.examType===p.examType?'sel':''}" onclick="selectRcExam(${i})">
-        <div class="nb" style="background:${p.color}22; color:${p.color};">${(p.examType||'?')[0]}</div>
-        <span>${p.examType}</span>
-      </div>`).join('');
-  }
-  updateRcSummary();
-}
-function selectRcExam(i){
-  const p = selection.resultchecker._catalog[i];
-  selection.resultchecker.examType = p.examType;
-  selection.resultchecker.code = p.code;
-  selection.resultchecker.buy = p.buy;
-  selection.resultchecker.quantity = 1;
-  document.getElementById('rcQtyField').style.display = 'block';
-  document.getElementById('rcQtyVal').textContent = '1';
-  document.querySelectorAll('#rcExamGrid .net-chip').forEach((c,idx) => c.classList.toggle('sel', idx===i));
-  const dLabel = document.getElementById('rcExamDropdownLabel');
-  dLabel.textContent = p.examType;
-  dLabel.style.color = 'var(--text)';
-  updateRcSummary();
-}
-// Purchase mode tabs were dropped — Buy Now is the only flow.
-function adjustRcQty(d){
-  const q = Math.max(1, Math.min(10, (selection.resultchecker.quantity||1) + d));
-  selection.resultchecker.quantity = q;
-  document.getElementById('rcQtyVal').textContent = q;
-  updateRcSummary();
-}
-function updateRcSummary(){
-  const box = document.getElementById('rcSummary');
-  const btn = document.getElementById('rcPayBtn');
-  if(!selection.resultchecker.examType){
-    box.innerHTML = `<div class="hint mb0">Select an exam type to continue.</div>`;
-    btn.disabled = true; return;
-  }
-  const unitPrice = selection.resultchecker.buy + 100; // flat ₦100 profit per PIN
-  const qty = selection.resultchecker.quantity || 1;
-  const total = unitPrice * qty;
-  box.innerHTML = `
-    <div class="summary-line"><span>${selection.resultchecker.examType} PIN</span><b>₦${naira(unitPrice)} × ${qty}</b></div>
-    <div class="summary-total"><span>Total</span><b>₦${naira(total)}</b></div>`;
-  btn.disabled = false;
-}
-
-/* ============================================================
-   RECHARGE PIN
-   ============================================================ */
-// Per the provider docs: GET /api/v2/vtu/recharge-pin/plans/ takes no
-// network filter — it returns every network's denominations in one call,
-// shaped like { id, network, network_name, size:"N100", regular_price,
-// corporate_price, info }. The earlier code was mapping fields that don't
-// exist on this response (p.name / p.amount), which is why nothing ever
-// loaded. Fetching once and filtering client-side by network id below.
-let _rpAllPlans = null;
-function renderRechargePinScreen(){
-  const grid = document.getElementById('rpNetGrid');
-  grid.innerHTML = Object.keys(NET_META).map(k => `
-    <div class="glass net-chip ${selection.rechargepin.network===k?'sel':''}" onclick="selectRpNet('${k}')">
-      <div class="nb" style="background:${NET_META[k].color}; color:${NET_META[k].tc};">${NET_META[k].label[0]}</div>
-      <span>${NET_META[k].label}</span>
-    </div>`).join('');
-  renderRpPlans();
-  updateRpSummary();
-}
-async function selectRpNet(net){
-  selection.rechargepin.network = net;
-  selection.rechargepin.plan = null;
-  selection.rechargepin.plans = [];
-  selection.rechargepin.print = false;
-  document.getElementById('rpQtyField').style.display = 'none';
-  document.getElementById('rpPrintField').style.display = 'none';
-  document.getElementById('rpPrintToggle').checked = false;
-  renderRechargePinScreen();
-  const list = document.getElementById('rpPlanList');
-  const loadEl = document.getElementById('rpLoadState');
-  loadEl.textContent = 'Loading denominations…';
-  list.innerHTML = '';
-
-  if(!_rpAllPlans){
-    const res = await bigisubCall('api/v2/vtu/recharge-pin/plans/', 'GET');
-    if(isTimeoutRes(res) || !res.httpOk || !res.success){
-      loadEl.textContent = 'Could not load denominations. Please try again.';
-      return;
-    }
-    _rpAllPlans = res.data || [];
-  }
-  if(selection.rechargepin.network !== net) return; // user switched network mid-fetch
-
-  const netId = Number(NET_ID_MAP[net]);
-  selection.rechargepin.plans = _rpAllPlans
-    .filter(p => Number(p.network) === netId)
-    .map(p => ({
-      id: p.id,
-      label: p.size || p.info || 'Pin', // e.g. "N100"
-      buy: Number(p.regular_price || 0),
-      corporateBuy: Number(p.corporate_price || 0)
-    }));
-  loadEl.textContent = selection.rechargepin.plans.length ? '' : 'No denominations available for this network right now.';
-  renderRpPlans();
-}
-function renderRpPlans(){
-  const list = document.getElementById('rpPlanList');
-  const plans = selection.rechargepin.plans || [];
-  if(!selection.rechargepin.network){ list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">Choose a network to see denominations</div>`; return; }
-  if(!plans.length) return; // loading or empty state already shown via rpLoadState
-  list.innerHTML = plans.map((p,i) => {
-    const price = markupPrice(p.buy, 0.02);
-    return `<div class="glass plan-row ${selection.rechargepin.plan===i?'sel':''}" onclick="selectRpPlan(${i})">
-      <div class="pl-l"><b>${p.label}</b></div><div class="pl-r">₦${naira(price)}</div>
-    </div>`;
-  }).join('');
-}
-function selectRpPlan(i){
-  selection.rechargepin.plan = i;
-  selection.rechargepin.quantity = 1;
-  selection.rechargepin.print = false;
-  document.getElementById('rpQtyField').style.display = 'block';
-  document.getElementById('rpQtyVal').textContent = '1';
-  document.getElementById('rpPrintField').style.display = 'flex';
-  document.getElementById('rpPrintToggle').checked = false;
-  renderRpPlans();
-  updateRpSummary();
-}
-function toggleRpPrint(checked){
-  selection.rechargepin.print = checked;
-  updateRpSummary();
-}
-function adjustRpQty(d){
-  const q = Math.max(1, Math.min(200, (selection.rechargepin.quantity||1) + d));
-  selection.rechargepin.quantity = q;
-  document.getElementById('rpQtyVal').textContent = q;
-  updateRpSummary();
-}
-function updateRpSummary(){
-  const box = document.getElementById('rpSummary');
-  const btn = document.getElementById('rpPayBtn');
-  if(!selection.rechargepin.network || selection.rechargepin.plan===null){
-    box.innerHTML = `<div class="hint mb0">Select a network and a denomination to continue.</div>`;
-    btn.disabled = true; return;
-  }
-  const plan = selection.rechargepin.plans[selection.rechargepin.plan];
-  const qty = selection.rechargepin.quantity || 1;
-  const unitPrice = markupPrice(plan.buy, rpMarkupPct(qty)); // lower markup at higher qty
-  const subtotal = unitPrice * qty;
-  const printFee = selection.rechargepin.print ? Math.ceil(subtotal * 0.01) : 0; // ₦1 per ₦100, only if printing
-  const total = subtotal + printFee;
-  const printLine = selection.rechargepin.print
-    ? `<div class="summary-line"><span>Printing fee (1%)</span><b>₦${naira(printFee)}</b></div>` : '';
-  box.innerHTML = `
-    <div class="summary-line"><span>${NET_META[selection.rechargepin.network].label} · ${plan.label}</span><b>₦${naira(unitPrice)} × ${qty}</b></div>
-    ${printLine}
-    <div class="summary-total"><span>Total</span><b>₦${naira(total)}</b></div>`;
-  btn.disabled = false;
-}
-
-/* ============================================================
-   BETTING WALLET FUNDING
-   ============================================================ */
-async function renderBettingScreen(){
-  const grid = document.getElementById('btBillerGrid');
-  const loadEl = document.getElementById('btLoadState');
-  if(!grid.dataset.built){
-    grid.dataset.built = '1';
-    loadEl.textContent = 'Loading platforms…';
-    const res = await bigisubCall('api/v2/betting/billers/', 'GET');
-    if(isTimeoutRes(res) || !res.httpOk || !res.success){
-      loadEl.textContent = 'Could not load betting platforms. Please go back and try again.';
-      grid.dataset.built = '';
-      return;
-    }
-    loadEl.textContent = '';
-    selection.betting._catalog = (res.data || []).map(b => ({ code: b.biller_code || b.code, name: b.name || b.biller_name }));
-    grid.innerHTML = selection.betting._catalog.map((b,i) => {
-      const meta = BETTING_META[String(b.name||'').toLowerCase().replace(/\s+/g,'')] || { color:'var(--gold-2)' };
-      return `<div class="glass net-chip ${selection.betting.billerCode===b.code?'sel':''}" onclick="selectBiller(${i})">
-        <div class="nb" style="background:${meta.color};">${(b.name||'?')[0]}</div>
-        <span>${b.name}</span>
-      </div>`;
-    }).join('');
-  }
-  const quick = document.getElementById('btQuick');
-  quick.innerHTML = [500,1000,2000,5000,10000].map(a => `<button class="btn btn-ghost btn-sm" onclick="setBtAmt(${a})">₦${a.toLocaleString()}</button>`).join('');
-  document.getElementById('btCustomerId').oninput = updateBtSummary;
-  document.getElementById('btAmount').oninput = updateBtSummary;
-  updateBtSummary();
-}
-function selectBiller(i){
-  const b = selection.betting._catalog[i];
-  selection.betting.billerCode = b.code;
-  selection.betting.billerName = b.name;
-  document.querySelectorAll('#btBillerGrid .net-chip').forEach((c,idx) => c.classList.toggle('sel', idx===i));
-  updateBtSummary();
-}
-function setBtAmt(a){ document.getElementById('btAmount').value = a; updateBtSummary(); }
-function updateBtSummary(){
-  const box = document.getElementById('btSummary');
-  const btn = document.getElementById('btPayBtn');
-  const custId = document.getElementById('btCustomerId').value.trim();
-  const amt = Number(document.getElementById('btAmount').value||0);
-  selection.betting.customerId = custId;
-  selection.betting.amount = amt;
-  if(!selection.betting.billerCode || custId.length<3 || amt<100){
-    box.innerHTML = `<div class="hint mb0">Select a platform, enter your customer ID and an amount (min ₦100).</div>`;
-    btn.disabled = true; return;
-  }
-  box.innerHTML = `
-    <div class="summary-line"><span>${selection.betting.billerName}</span><b>${custId}</b></div>
-    <div class="summary-total"><span>Total</span><b>₦${naira(amt)}</b></div>`;
-  btn.disabled = false;
-}
-
-/* ============================================================
-   ISP TOP-UP (Smile / Spectranet)
-   ============================================================ */
-function renderIspScreen(){
-  const grid = document.getElementById('ispProvGrid');
-  grid.innerHTML = Object.keys(ISP_META).map(k => `
-    <div class="glass net-chip ${selection.isp.provider===k?'sel':''}" onclick="selectIspProvider('${k}')">
-      <div class="nb" style="background:${ISP_META[k].color};">${ISP_META[k].label[0]}</div>
-      <span>${ISP_META[k].label}</span>
-    </div>`).join('');
-  const accField = document.getElementById('ispAccountField');
-  accField.style.display = selection.isp.provider ? 'block' : 'none';
-  if(selection.isp.provider){
-    document.getElementById('ispAccountLabel').textContent = selection.isp.provider==='smile' ? 'Smile account/phone number' : 'Spectranet router/account ID';
-  }
-  document.getElementById('ispAccountId').oninput = (e)=>{ selection.isp.accountId = e.target.value.trim(); updateIspSummary(); };
-  renderIspPlans();
-  updateIspSummary();
-}
-async function selectIspProvider(p){
-  selection.isp.provider = p;
-  selection.isp.plan = null;
-  selection.isp.plans = [];
-  renderIspScreen();
-  const list = document.getElementById('ispPlanList');
-  const loadEl = document.getElementById('ispLoadState');
-  list.innerHTML = '';
-
-  // Smile's live plans endpoint (api/v2/isp/smile/plans/) hasn't been
-  // returning reliably, so the real Smile catalog is hardcoded in
-  // SMILE_PLANS above instead of fetched. No live call needed here.
-  if(p === 'smile'){
-    loadEl.textContent = '';
-    selection.isp.plans = SMILE_PLANS.map(pl => ({ id: pl.id, label: pl.name, buy: Number(pl.buy || 0) }));
-    renderIspPlans();
-    return;
-  }
-
-  loadEl.textContent = 'Loading plans…';
-  // Confirmed against Bigisub's docs: provider is a path segment
-  // (api/v2/isp/spectranet/plans/), not a query param.
-  const res = await bigisubCall(`api/v2/isp/${p}/plans/`, 'GET');
-  if(selection.isp.provider !== p) return;
-  if(isTimeoutRes(res) || !res.httpOk || !res.success){
-    loadEl.textContent = 'Could not load plans for this provider — the ISP endpoint path needs confirming against Bigisub\'s docs.';
-    return;
-  }
-  loadEl.textContent = '';
-  selection.isp.plans = (res.data || []).map(pl => ({ id: pl.id || pl.plan_id, label: pl.name || `₦${pl.amount}`, buy: Number(pl.amount || pl.price || 0) }));
-  renderIspPlans();
-}
-function renderIspPlans(){
-  const list = document.getElementById('ispPlanList');
-  const plans = selection.isp.plans || [];
-  if(!selection.isp.provider){ list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">Choose a provider to see plans</div>`; return; }
-  if(!plans.length) return;
-  list.innerHTML = plans.map((p,i) => {
-    const price = markupPrice(p.buy, 0.22);
-    return `<div class="glass plan-row ${selection.isp.plan===i?'sel':''}" onclick="selectIspPlan(${i})">
-      <div class="pl-l"><b>${p.label}</b></div><div class="pl-r">₦${naira(price)}</div>
-    </div>`;
-  }).join('');
-}
-function selectIspPlan(i){ selection.isp.plan = i; renderIspPlans(); updateIspSummary(); }
-function updateIspSummary(){
-  const box = document.getElementById('ispSummary');
-  const btn = document.getElementById('ispPayBtn');
-  const accId = selection.isp.accountId || '';
-  if(!selection.isp.provider || selection.isp.plan===null || accId.length<3){
-    box.innerHTML = `<div class="hint mb0">Select a provider, a plan, and enter your account/router ID.</div>`;
-    btn.disabled = true; return;
-  }
-  const plan = selection.isp.plans[selection.isp.plan];
-  const price = markupPrice(plan.buy, 0.22);
-  box.innerHTML = `
-    <div class="summary-line"><span>${ISP_META[selection.isp.provider].label} · ${plan.label}</span><b>${accId}</b></div>
-    <div class="summary-total"><span>Total</span><b>₦${naira(price)}</b></div>`;
-  btn.disabled = false;
-}
-
-/* ============================================================
    PURCHASE FLOW — wallet debit first, Flutterwave checkout as fallback
    ============================================================ */
 function buildPurchasePayload(type){
@@ -2702,28 +2043,6 @@ function buildPurchasePayload(type){
     const feeRate = units < 1000 ? 1.03 : 1.05;
     return { type, disco:selection.electricity.disco, meterType:selection.electricity.meterType, meterNumber:document.getElementById('meterNumber').value.trim(), amount:Math.ceil(units*feeRate), buyPrice:units };
   }
-  if(type==='resultchecker'){
-    const qty = selection.resultchecker.quantity || 1;
-    const unitBuy = selection.resultchecker.buy;
-    const unitPrice = unitBuy + 100; // flat ₦100 profit per PIN, not a percentage
-    return { type, examType:selection.resultchecker.examType, examCode:selection.resultchecker.code, quantity:qty, amount:unitPrice*qty, buyPrice:unitBuy*qty };
-  }
-  if(type==='rechargepin'){
-    const plan = selection.rechargepin.plans[selection.rechargepin.plan];
-    const qty = selection.rechargepin.quantity || 1;
-    const unitPrice = markupPrice(plan.buy, rpMarkupPct(qty)); // lower markup at higher qty
-    const subtotal = unitPrice * qty;
-    const printFee = selection.rechargepin.print ? Math.ceil(subtotal * 0.01) : 0;
-    return { type, network:selection.rechargepin.network, planId:plan.id, planLabel:plan.label, quantity:qty, printing:!!selection.rechargepin.print, printFee, amount:subtotal+printFee, buyPrice:plan.buy*qty };
-  }
-  if(type==='betting'){
-    return { type, billerCode:selection.betting.billerCode, billerName:selection.betting.billerName, customerId:selection.betting.customerId, amount:selection.betting.amount, buyPrice:selection.betting.amount };
-  }
-  if(type==='isp'){
-    const plan = selection.isp.plans[selection.isp.plan];
-    const price = markupPrice(plan.buy, 0.22);
-    return { type, provider:selection.isp.provider, planId:plan.id, planLabel:plan.label, accountId:selection.isp.accountId, amount:price, buyPrice:plan.buy };
-  }
 }
 
 async function initiatePurchase(type){
@@ -2735,16 +2054,6 @@ async function initiatePurchase(type){
   // they entered the right smartcard / meter number.
   if(type === 'cable' || type === 'electricity'){
     await verifyAndConfirm(payload);
-    return;
-  }
-  // Betting requires a customer-ID validation step before funding.
-  if(type === 'betting'){
-    await verifyAndConfirmBetting(payload);
-    return;
-  }
-  // Smile ISP requires an account-verify step; Spectranet does not.
-  if(type === 'isp' && payload.provider === 'smile'){
-    await verifyAndConfirmIsp(payload);
     return;
   }
 
@@ -2819,9 +2128,7 @@ async function verifyAndConfirm(payload){
   let customerName, verifiedPayload;
   try{
     if(isCable){
-      // Step 1: confirm the plan is still available in Bigisub's catalog
-      // before we verify/charge (purchase itself only needs cable_type +
-      // card_no + amount — no plan/variation code per the docs).
+      // Step 1: get plan list so we have the variation_code
       const plansRes = await bigisubCall(`api/v2/vtu/cable/plans/?cable_name=${payload.provider}`, 'GET');
       if(!plansRes.httpOk || !plansRes.success){
         hideLoader();
@@ -2837,18 +2144,20 @@ async function verifyAndConfirm(payload){
       // Step 2: verify smartcard
       const verifyRes = await bigisubCall('api/v2/vtu/cable/verify/', 'POST', {
         cable_name: payload.provider,
-        card_no: payload.smartcard
+        smartcard_number: payload.smartcard,
+        variation_code: match.variation_code
       });
       customerName = verifyRes.data?.customer_name || verifyRes.data?.name || null;
-      if(!verifyRes.httpOk || !verifyRes.success || !customerName || verifyRes.data?.valid === false){
+      if(!verifyRes.httpOk || !verifyRes.success || !customerName){
         hideLoader();
         toast('Smartcard verification failed. Check the number and try again.', 'err');
         return;
       }
-      verifiedPayload = { ...payload, _planChecked: true, _customerName: customerName };
+      // Stash resolved variation_code so callBigisubAPI can skip re-fetching
+      verifiedPayload = { ...payload, _variationCode: match.variation_code, _customerName: customerName };
     } else {
       // Electricity: get providers list first
-      const provRes = await bigisubCall('api/v2/bills/electricity/providers/', 'GET');
+      const provRes = await bigisubCall('bills/electricity/providers/', 'GET');
       if(!provRes.httpOk || !provRes.success){
         hideLoader();
         toast('Could not fetch electricity providers. Please try again.', 'err');
@@ -2867,9 +2176,9 @@ async function verifyAndConfirm(payload){
         toast('This electricity provider is currently unavailable. Please try again later.', 'err');
         return;
       }
-      const verifyRes = await bigisubCall('api/v2/bills/electricity/verify/', 'POST', {
-        company: match.code,
-        meter_no: payload.meterNumber,
+      const verifyRes = await bigisubCall('bills/electricity/verify/', 'POST', {
+        disco_code: match.code,
+        meter_number: payload.meterNumber,
         meter_type: payload.meterType
       });
       customerName = verifyRes.data?.customer_name || verifyRes.data?.name || null;
@@ -2916,87 +2225,6 @@ function showVerifyConfirmSheet(payload, customerName){
 
   // Store payload so the confirm button can access it
   window._pendingVerifiedPayload = payload;
-  openSheet('verifySheet');
-}
-
-// Betting: validate the customer ID against the biller before funding.
-// Bigisub's validate response may or may not include a validation_reference
-// (only required for billers where requires_validation_ref is true) — we
-// carry it through to the fund() call either way, and callBigisubAPI only
-// sends it if present.
-async function verifyAndConfirmBetting(payload){
-  showLoader('Validating customer ID…');
-  let customerName, validationRef;
-  try{
-    const res = await bigisubCall('api/v2/betting/validate/', 'POST', {
-      biller_code: payload.billerCode, customer_id: payload.customerId
-    });
-    if(isTimeoutRes(res)){ hideLoader(); toast('Validation is taking longer than usual. Please try again.', 'err'); return; }
-    customerName = res.data?.customer_name || res.data?.name || null;
-    validationRef = res.data?.validation_reference || null;
-    if(!res.httpOk || !res.success || !customerName){
-      hideLoader();
-      toast('Could not validate this customer ID. Please check it and try again.', 'err');
-      return;
-    }
-  }catch(e){
-    hideLoader();
-    toast('Validation failed. Please check your connection and try again.', 'err');
-    return;
-  }
-  hideLoader();
-  const verifiedPayload = { ...payload, _validationRef: validationRef, _customerName: customerName };
-  document.getElementById('verifySheetContent').innerHTML = `
-    <h3 style="font-size:18px; margin-bottom:6px;">Confirm details</h3>
-    <p style="font-size:13px; color:var(--text-mute); margin:0 0 20px;">We verified this customer ID with ${payload.billerName}. Please confirm before we fund the wallet.</p>
-    <div class="glass" style="padding:16px; margin-bottom:20px;">
-      <div class="summary-line"><span>Customer name</span><b style="color:var(--gold-2);">${customerName}</b></div>
-      <div class="summary-line"><span>Customer ID</span><b>${payload.customerId}</b></div>
-      <div class="summary-line"><span>Platform</span><b>${payload.billerName}</b></div>
-      <div class="summary-line"><span>Amount</span><b>₦${naira(payload.amount)}</b></div>
-    </div>
-    <button class="btn btn-primary" onclick="confirmVerifiedPurchase()">Confirm &amp; Fund ₦${naira(payload.amount)}</button>
-    <button class="btn btn-ghost mt16" onclick="closeSheet('verifySheet')">Cancel</button>
-  `;
-  window._pendingVerifiedPayload = verifiedPayload;
-  openSheet('verifySheet');
-}
-
-// Smile ISP: verify the account/phone number before funding.
-async function verifyAndConfirmIsp(payload){
-  showLoader('Verifying account…');
-  let customerName;
-  try{
-    const res = await bigisubCall(`api/v2/isp/${payload.provider}/verify/`, 'POST', {
-      account_id: payload.accountId
-    });
-    if(isTimeoutRes(res)){ hideLoader(); toast('Verification is taking longer than usual. Please try again.', 'err'); return; }
-    customerName = res.data?.customer_name || res.data?.name || null;
-    if(!res.httpOk || !res.success || !customerName){
-      hideLoader();
-      toast('Could not verify this Smile account. Please check the ID and try again.', 'err');
-      return;
-    }
-  }catch(e){
-    hideLoader();
-    toast('Verification failed. Please check your connection and try again.', 'err');
-    return;
-  }
-  hideLoader();
-  const verifiedPayload = { ...payload, _customerName: customerName };
-  document.getElementById('verifySheetContent').innerHTML = `
-    <h3 style="font-size:18px; margin-bottom:6px;">Confirm details</h3>
-    <p style="font-size:13px; color:var(--text-mute); margin:0 0 20px;">We verified this account with Smile. Please confirm before we top up.</p>
-    <div class="glass" style="padding:16px; margin-bottom:20px;">
-      <div class="summary-line"><span>Customer name</span><b style="color:var(--gold-2);">${customerName}</b></div>
-      <div class="summary-line"><span>Account ID</span><b>${payload.accountId}</b></div>
-      <div class="summary-line"><span>Plan</span><b>${payload.planLabel}</b></div>
-      <div class="summary-line"><span>Amount</span><b>₦${naira(payload.amount)}</b></div>
-    </div>
-    <button class="btn btn-primary" onclick="confirmVerifiedPurchase()">Confirm &amp; Pay ₦${naira(payload.amount)}</button>
-    <button class="btn btn-ghost mt16" onclick="closeSheet('verifySheet')">Cancel</button>
-  `;
-  window._pendingVerifiedPayload = verifiedPayload;
   openSheet('verifySheet');
 }
 
@@ -3077,7 +2305,7 @@ function openFlutterwaveCheckout(payload){
       tx_ref: ref,
       amount: payload.amount,
       currency: FLW_CONFIG.currency,
-      payment_options: 'card, ussd',
+      payment_options: 'card, banktransfer, ussd',
       customer: {
         email: customerEmail,
         phone_number: (PROFILE && PROFILE.phone) || payload.phone || '',
@@ -3429,35 +2657,34 @@ async function callBigisubAPI(payload){
   }
 
   if(payload.type === 'cable'){
-    // _customerName is pre-populated by the verify step. If somehow missing
-    // (e.g. a direct call), fall back to re-checking plan availability and
-    // re-verifying before we charge anything.
+    // _variationCode and _customerName are pre-populated by the verify step.
+    // If somehow missing (e.g. direct call), fall back to re-fetching.
+    let variationCode = payload._variationCode;
     let customerName = payload._customerName;
-    if(!payload._planChecked || !customerName){
+    if(!variationCode || !customerName){
       const plansRes = await bigisubCall(`api/v2/vtu/cable/plans/?cable_name=${payload.provider}`, 'GET');
       if(isTimeoutRes(plansRes)) return { ok:false, timeout:true, ref:null };
       if(!plansRes.httpOk || !plansRes.success) return { ok:false, ref:null };
       const match = (plansRes.data || []).find(p => p.product_name === payload.planName);
       if(!match){ console.error('No matching Bigisub cable plan for', payload.planName); return { ok:false, ref:null }; }
+      variationCode = match.variation_code;
       if(!customerName){
         const verifyRes = await bigisubCall('api/v2/vtu/cable/verify/', 'POST', {
-          cable_name: payload.provider, card_no: payload.smartcard
+          cable_name: payload.provider, smartcard_number: payload.smartcard, variation_code: variationCode
         });
         if(isTimeoutRes(verifyRes)) return { ok:false, timeout:true, ref:null };
         customerName = verifyRes.data?.customer_name || verifyRes.data?.name;
-        if(!verifyRes.httpOk || !verifyRes.success || !customerName || verifyRes.data?.valid === false){
+        if(!verifyRes.httpOk || !verifyRes.success || !customerName){
           console.error('Cable smartcard verify failed', verifyRes);
           return { ok:false, ref:null };
         }
       }
     }
     const res = await bigisubCall('api/v2/vtu/cable/purchase/', 'POST', {
-      cable_type: payload.provider,
-      card_no: payload.smartcard,
-      phone_number: (typeof PROFILE !== 'undefined' && PROFILE && PROFILE.phone) || payload.phone || '',
-      amount: payload.buyPrice,
+      cable_name: payload.provider,
+      smartcard_number: payload.smartcard,
+      variation_code: variationCode,
       Customer: customerName
-      // pin is injected server-side by the proxy — never sent from here
     });
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
     const bigisubOkCable = res.success === true;
@@ -3469,7 +2696,7 @@ async function callBigisubAPI(payload){
     let discoCode = payload._discoCode;
     let customerName = payload._customerName;
     if(!discoCode || !customerName){
-      const provRes = await bigisubCall('api/v2/bills/electricity/providers/', 'GET');
+      const provRes = await bigisubCall('bills/electricity/providers/', 'GET');
       if(isTimeoutRes(provRes)) return { ok:false, timeout:true, ref:null };
       if(!provRes.httpOk || !provRes.success) return { ok:false, ref:null };
       const providers = provRes.data?.providers || [];
@@ -3482,8 +2709,8 @@ async function callBigisubAPI(payload){
       if(!match){ console.error('No matching Bigisub DisCo for', payload.disco); return { ok:false, ref:null }; }
       discoCode = match.code;
       if(!customerName){
-        const verifyRes = await bigisubCall('api/v2/bills/electricity/verify/', 'POST', {
-          company: discoCode, meter_no: payload.meterNumber, meter_type: payload.meterType
+        const verifyRes = await bigisubCall('bills/electricity/verify/', 'POST', {
+          disco_code: discoCode, meter_number: payload.meterNumber, meter_type: payload.meterType
         });
         if(isTimeoutRes(verifyRes)) return { ok:false, timeout:true, ref:null };
         customerName = verifyRes.data?.customer_name || verifyRes.data?.name;
@@ -3493,91 +2720,20 @@ async function callBigisubAPI(payload){
         }
       }
     }
-    const res = await bigisubCall('api/v2/bills/electricity/pay/', 'POST', {
-      company: discoCode,
-      meter_no: payload.meterNumber,
+    const res = await bigisubCall('meter_pay/', 'POST', {
+      disco_code: discoCode,
+      meter_number: payload.meterNumber,
       meter_type: payload.meterType,
-      phone_number: (typeof PROFILE !== 'undefined' && PROFILE && PROFILE.phone) || payload.phone || '',
-      amount: payload.buyPrice,
+      amount: String(payload.buyPrice),
       Customer_name: customerName
-      // pin is injected server-side by the proxy — never sent from here
     });
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
-    const bigisubOkElec = res.success === true;
+    const bigisubOkElec = res.Status === 'successful' || res.status === 'successful';
     return {
       ok: res.httpOk && bigisubOkElec,
       ref: res.data?.reference || res.data?.transaction_id || null,
       extra: { customerName, token: res.data?.token || null, units: res.data?.units || null, rawResponse: res }
     };
-  }
-
-  if(payload.type === 'resultchecker'){
-    const res = await bigisubCall('api/v2/bills/result-checker/purchase/', 'POST', {
-      exam_type: payload.examType, exam_code: payload.examCode, quantity: payload.quantity
-    });
-    if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
-    const ok = res.success === true;
-    if(!res.httpOk || !ok) console.error('Result checker purchase failed — raw response:', JSON.stringify(res));
-    // Bigisub returns one PIN per unit purchased — collect whatever shape comes back.
-    const pins = res.data?.pins || res.data?.cards || (Array.isArray(res.data) ? res.data : null);
-    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, extra: { pins, rawResponse: res } };
-  }
-
-  if(payload.type === 'rechargepin'){
-    const res = await bigisubCall('api/v2/vtu/recharge-pin/purchase/', 'POST', {
-      network: Number(NET_ID_MAP[payload.network] || 1), plan: payload.planId, quantity: payload.quantity
-    });
-    if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
-    const ok = res.success === true;
-    if(!res.httpOk || !ok) console.error('Recharge pin purchase failed — raw response:', JSON.stringify(res));
-    const pins = res.data?.pins || res.data?.cards || (Array.isArray(res.data) ? res.data : null);
-    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, extra: { pins, rawResponse: res } };
-  }
-
-  if(payload.type === 'betting'){
-    const fundBody = {
-      biller_code: payload.billerCode,
-      customer_id: payload.customerId,
-      customer_name: payload._customerName,
-      amount: payload.amount
-      // pin_code is injected server-side by the proxy — never sent from here
-    };
-    if(payload._validationRef) fundBody.validation_reference = payload._validationRef;
-    const res = await bigisubCall('api/v2/betting/fund/', 'POST', fundBody);
-    if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
-    if(!res.httpOk || res.success !== true){
-      console.error('Betting fund failed — raw response:', JSON.stringify(res));
-      return { ok:false, ref:null };
-    }
-    const txId = res.data?.transaction_id;
-    let statusDetail = String(res.data?.status_detail || '').toLowerCase();
-    // fund() doesn't always resolve immediately — poll requery a few times
-    // if the initial status isn't already terminal, same reasoning as the
-    // proxy timeout elsewhere: an unresolved status is NOT a failure.
-    let attempts = 0;
-    while(!['successful','success','failed','failure'].includes(statusDetail) && attempts < 3 && txId){
-      await new Promise(r => setTimeout(r, 2000));
-      const rq = await bigisubCall(`api/v2/betting/requery/?transaction_id=${txId}`, 'GET');
-      if(isTimeoutRes(rq)) { attempts++; continue; }
-      statusDetail = String(rq.data?.status_detail || rq.data?.status || '').toLowerCase();
-      attempts++;
-    }
-    if(!['successful','success','failed','failure'].includes(statusDetail)){
-      // Still unresolved after polling — unknown outcome, not a confirmed failure.
-      return { ok:false, timeout:true, ref: txId||null };
-    }
-    const ok = statusDetail === 'successful' || statusDetail === 'success';
-    return { ok, ref: txId || null, extra: { customerName: payload._customerName, rawResponse: res } };
-  }
-
-  if(payload.type === 'isp'){
-    const res = await bigisubCall(`api/v2/isp/${payload.provider}/topup/`, 'POST', {
-      account_id: payload.accountId, plan: payload.planId
-    });
-    if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
-    const ok = res.success === true;
-    if(!res.httpOk || !ok) console.error('ISP top-up failed — raw response:', JSON.stringify(res));
-    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, extra: { customerName: payload._customerName, rawResponse: res } };
   }
 
   return { ok:false, ref:null };
@@ -3590,11 +2746,6 @@ function showResult(success, payload, extra){
         <div class="eyebrow">Electricity token</div>
         <b class="mono" style="font-size:18px; display:block; margin-top:6px;">${extra.token}</b>
         ${extra.units ? `<div style="margin-top:6px; font-size:12.5px;">Units: ${extra.units} kWh</div>` : ''}
-      </div>` : '';
-  const pinsBlock = (success && extra && Array.isArray(extra.pins) && extra.pins.length) ? `
-      <div class="glass" style="text-align:left; padding:16px; margin-top:14px; border:1px solid var(--gold-2);">
-        <div class="eyebrow">${payload.type==='resultchecker' ? 'Result checker PIN(s)' : 'Recharge PIN(s)'}</div>
-        ${extra.pins.map(p => `<div class="mono" style="font-size:14px; margin-top:8px;">${p.pin || p.serial_number || p.card_number || JSON.stringify(p)}${p.serial ? ' · Serial: '+p.serial : ''}</div>`).join('')}
       </div>` : '';
   inner.innerHTML = `
     <div class="sheet-handle"></div>
@@ -3610,7 +2761,6 @@ function showResult(success, payload, extra){
         <div class="summary-line"><span>Service</span><b>${payload.type}</b></div>
       </div>
       ${tokenBlock}
-      ${pinsBlock}
       <button class="btn btn-primary mt24" onclick="closeSheet('resultSheet'); go('dashboard');">Done</button>
     </div>`;
   openSheet('resultSheet');
@@ -3629,100 +2779,6 @@ function fundWallet(){
   if(amt<100){ toast('Minimum funding amount is ₦100.', 'err'); return; }
   closeSheet('fundSheet');
   openFlutterwaveCheckout({ type:'wallet_funding', amount:amt });
-}
-
-/* ============================================================
-   WALLET FUNDING — Sterling Bank transfer (Flutterwave v4)
-   ============================================================ */
-let stTxUnsub = null; // active Firestore listener for the pending v4 transaction
-
-async function fundWalletViaSterling(){
-  const amt = Number(document.getElementById('fundAmount').value||0);
-  if(amt<100){ toast('Minimum funding amount is ₦100.', 'err'); return; }
-  if(!CURRENT_USER){ toast('You are not signed in. Please refresh and log in again.', 'err'); return; }
-
-  closeSheet('fundSheet');
-  showLoader('Generating account number…');
-
-  try{
-    const idToken = await CURRENT_USER.getIdToken();
-    const res = await fetch('/.netlify/functions/create-virtual-account', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, uid: CURRENT_USER.uid, amount: amt })
-    });
-    const data = await res.json();
-    hideLoader();
-
-    if(!data.ok){
-      toast(data.error || 'Could not generate a transfer account. Please try again.', 'err');
-      return;
-    }
-
-    document.getElementById('stBankName').textContent = data.bankName || 'Sterling Bank';
-    document.getElementById('stAccountNumber').textContent = data.accountNumber;
-    document.getElementById('stAmount').textContent = '₦' + naira(data.chargeAmount);
-    document.getElementById('stNote').textContent = data.note || '';
-    document.getElementById('stStatusText').textContent = 'Waiting for your transfer…';
-    document.getElementById('stSpinner').style.display = '';
-    openSheet('sterlingSheet');
-
-    // Listen for the webhook flipping this transaction's status once the
-    // transfer lands — no manual "I've paid" button needed, and it also
-    // means we don't need to separately poll: Firestore pushes the update.
-    // Filtering by userId (in addition to reference) matches the security
-    // rule pattern used elsewhere in the app for the transactions
-    // collection — a query missing this filter can be silently rejected
-    // by Firestore rules, which is why the sheet previously never updated.
-    if(stTxUnsub) { stTxUnsub(); stTxUnsub = null; }
-    const q = FB.query(
-      FB.collection(FB.db, 'transactions'),
-      FB.where('userId', '==', CURRENT_USER.uid),
-      FB.where('reference', '==', data.reference),
-      FB.where('type', '==', 'wallet_funding_v4'),
-      FB.limit(1)
-    );
-    stTxUnsub = FB.onSnapshot(q, (snap) => {
-      if(snap.empty) return;
-      const tx = snap.docs[0].data();
-      if(tx.status === 'success'){
-        if(window.playNotificationSound) window.playNotificationSound();
-        document.getElementById('stSpinner').style.display = 'none';
-        document.getElementById('stStatusText').textContent = 'Payment received! Wallet credited.';
-        // The existing users/{uid} listener already updates PROFILE.walletBalance
-        // and #walletBal automatically once the webhook writes the new balance —
-        // no need to duplicate that here.
-        setTimeout(() => { closeSterlingSheet(); toast('Wallet funded successfully!', 'ok'); }, 1500);
-      } else if(tx.status === 'failed' || tx.status === 'amount_mismatch'){
-        document.getElementById('stSpinner').style.display = 'none';
-        document.getElementById('stStatusText').textContent = 'Transfer could not be confirmed. Contact support if you were charged.';
-      }
-    }, (err) => {
-      // Previously this listener failed silently on a permission error,
-      // which is exactly why the sheet could sit on "Waiting…" forever
-      // even after the wallet was actually credited by the webhook.
-      console.error('[sterling] transaction listener error:', err);
-      document.getElementById('stStatusText').textContent = 'Could not check status automatically — pull to refresh your balance after transferring.';
-    });
-  }catch(e){
-    hideLoader();
-    toast('Could not reach payment server. Please try again.', 'err');
-  }
-}
-
-function copySterlingAccount(){
-  const num = document.getElementById('stAccountNumber').textContent;
-  if(!num || num === '—') return;
-  navigator.clipboard.writeText(num).then(()=>{
-    toast('Account number copied.', 'ok');
-  }).catch(()=>{
-    toast('Could not copy — please copy it manually.', 'err');
-  });
-}
-
-function closeSterlingSheet(){
-  if(stTxUnsub){ stTxUnsub(); stTxUnsub = null; }
-  closeSheet('sterlingSheet');
 }
 // override processDelivery path for wallet funding specifically
 const _origProcessDelivery = processDelivery;

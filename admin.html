@@ -306,11 +306,22 @@ canvas{ width:100% !important; }
   <!-- ---- SETTINGS ---- -->
   <div class="tab-panel hide" id="panel-settings">
     <div class="glass panel">
-      <div class="panel-head"><h2>Promotions</h2></div>
+      <div class="panel-head"><h2>1GB Daily promo pricing</h2></div>
       <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 2px;">
-        <div><b style="display:block; font-size:14.5px;">Sunday Special</b><span style="font-size:12.5px; color:var(--text-mute);">1GB promo pricing for new users</span></div>
+        <div><b style="display:block; font-size:14.5px;">Discounted 1GB pricing</b><span style="font-size:12.5px; color:var(--text-mute);">Applies the promo price to the 1GB Daily plan for all users</span></div>
         <div class="switch" id="promoSwitch" onclick="togglePromo()"></div>
       </div>
+    </div>
+    <div class="glass panel">
+      <div class="panel-head"><h2>Promo banner</h2></div>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 12px;">Custom message shown at the top of the app (landing page and dashboard). Edit the text and toggle it on or off any time — it's not tied to actual pricing.</p>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 2px 14px;">
+        <div><b style="display:block; font-size:14.5px;">Show banner</b></div>
+        <div class="switch" id="bannerSwitch" onclick="toggleBannerVisible()"></div>
+      </div>
+      <div class="field"><label>Banner text</label><input type="text" id="bannerTextInput" placeholder="🎁 Refer a friend & earn ₦100 + lifetime referral rewards"></div>
+      <button class="btn btn-primary" style="width:100%;" onclick="saveBannerText()">Save banner</button>
+      <div id="bannerStatus" style="margin-top:8px;font-size:13px;color:#aaa;"></div>
     </div>
     <div class="glass panel">
       <div class="panel-head"><h2>Support</h2></div>
@@ -933,8 +944,11 @@ async function manualRefund(txId, amount, uid){
 async function loadPromoSetting(){
   try{
     const snap = await FB.getDoc(FB.doc(FB.db,'settings','promo'));
-    const on = snap.exists() ? !!snap.data().sundayPromoActive : true;
+    const data = snap.exists() ? snap.data() : {};
+    const on = snap.exists() ? !!data.sundayPromoActive : true;
     document.getElementById('promoSwitch').classList.toggle('on', on);
+    document.getElementById('bannerSwitch').classList.toggle('on', !!data.bannerActive);
+    document.getElementById('bannerTextInput').value = data.bannerText || '';
   }catch(e){ /* settings doc may not exist yet */ }
 }
 async function togglePromo(){
@@ -943,8 +957,29 @@ async function togglePromo(){
   try{
     await FB.setDoc(FB.doc(FB.db,'settings','promo'), { sundayPromoActive:newState }, {merge:true});
     sw.classList.toggle('on', newState);
-    toast('Promo setting updated', 'ok');
+    toast('Promo pricing updated', 'ok');
   }catch(e){ toast('Could not update — Firestore rules currently block writes to settings/promo for everyone. Update the rule (see chat).', 'err'); }
+}
+
+async function toggleBannerVisible(){
+  const sw = document.getElementById('bannerSwitch');
+  const newState = !sw.classList.contains('on');
+  try{
+    await FB.setDoc(FB.doc(FB.db,'settings','promo'), { bannerActive:newState }, {merge:true});
+    sw.classList.toggle('on', newState);
+    toast(newState ? 'Banner turned on' : 'Banner turned off', 'ok');
+  }catch(e){ toast('Could not update banner — check Firestore rules.', 'err'); }
+}
+
+async function saveBannerText(){
+  const text = document.getElementById('bannerTextInput').value.trim();
+  const statusEl = document.getElementById('bannerStatus');
+  if(!text){ statusEl.textContent = '⚠️ Enter some banner text first.'; return; }
+  try{
+    await FB.setDoc(FB.doc(FB.db,'settings','promo'), { bannerText:text }, {merge:true});
+    statusEl.textContent = '✅ Banner text saved.';
+    toast('Banner text saved', 'ok');
+  }catch(e){ statusEl.textContent = '❌ Could not save — check Firestore rules.'; }
 }
 
 async function fetchBigisubBalance(){
