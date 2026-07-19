@@ -565,11 +565,11 @@ async function editWallet(uid, name, currentBalance){
     // verifies this browser is signed in as a real admin, applies the
     // change, and writes a "From WoodPay" transaction record for the user
     // to see in their history — all in one atomic step.
-    const actingAdminIdToken = await FB.auth.currentUser.getIdToken();
+    const idToken = await FB.auth.currentUser.getIdToken();
     const res = await fetch('/.netlify/functions/wallet-credit', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid, delta, actingAdminIdToken })
+      body: JSON.stringify({ uid, delta, idToken })
     });
     const data = await res.json();
     if(!data.ok) throw new Error(data.error || 'Update failed');
