@@ -21,6 +21,19 @@ const FLW_V4_BASE = 'https://f4bexperience.flutterwave.com'; // v4 production ba
 const STERLING_BANK_CODE = '232';
 const EXPIRY_SECONDS = 1800; // 30 minutes — long enough to complete a transfer, short enough not to leave stale accounts lying around
 
+// Flutterwave's dashboard "charge my customer" toggle only auto-applies to
+// their own hosted checkout — it does NOT adjust amounts we set directly
+// through the v4 API. So if you want customers to cover the transaction
+// fee (rather than you absorbing it out of your margin), we calculate it
+// here ourselves. Current NGN collection fee is 2% (1.4% processing +
+// 0.6% platform) plus 7.5% VAT on that fee — effectively ~2.15%.
+// If Flutterwave changes this rate, update FEE_RATE below.
+const FEE_RATE = 0.0215;
+
+function feeInclusiveAmount(baseAmount) {
+  return Math.ceil(baseAmount * (1 + FEE_RATE));
+}
+
 exports.handler = async (event) => {
   if (ADMIN_INIT_ERROR) {
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: ADMIN_INIT_ERROR }) };
@@ -93,7 +106,11 @@ exports.handler = async (event) => {
     }
 
     // 2) Create the dynamic virtual account for this specific amount.
+    // The customer transfers chargeAmount (their requested top-up + our fee),
+    // but their wallet is only ever credited the original amount they asked
+    // to fund — the fee difference covers what Flutterwave deducts from us.
     const reference = `WPVA${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).slice(2, 7).toUpperCase()}`;
+    const chargeAmount = feeInclusiveAmount(Number(amount));
 
     const vaRes = await fetch(`${FLW_V4_BASE}/virtual-accounts`, {
       method: 'POST',
@@ -106,7 +123,7 @@ exports.handler = async (event) => {
         reference,
         customer_id: customerId,
         expiry: EXPIRY_SECONDS,
-        amount: Number(amount),
+        amount: chargeAmount,
         currency: 'NGN',
         account_type: 'dynamic',
         narration: name,
@@ -122,10 +139,13 @@ exports.handler = async (event) => {
 
     // 3) Record a pending funding transaction so the webhook has something
     // to match against and credit once the transfer lands.
+    // amount = what the wallet gets credited. chargeAmount = what Flutterwave
+    // actually expects the customer to transfer (amount + our fee cover).
     await db.collection('transactions').doc().set({
       userId: uid,
       type: 'wallet_funding_v4',
       amount: Number(amount),
+      chargeAmount,
       status: 'pending',
       reference,
       virtualAccountId: vaData.data.id,
@@ -140,6 +160,7 @@ exports.handler = async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ok: true,
+        chargeAmount,
         accountNumber: vaData.data.account_number,
         bankName: vaData.data.account_bank_name,
         note: vaData.data.note || null,

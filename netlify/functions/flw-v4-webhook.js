@@ -103,8 +103,12 @@ exports.handler = async (event) => {
     }
 
     // Verify amount matches what we expected before crediting anything.
-    if (Math.abs(amount - Number(txData.amount)) > 1) {
-      console.error('flw-v4-webhook: amount mismatch', { expected: txData.amount, got: amount, reference });
+    // Compare against chargeAmount (amount + fee) since that's what the
+    // customer actually transferred — the wallet itself is still only
+    // credited txData.amount, the original requested top-up.
+    const expectedAmount = txData.chargeAmount || txData.amount; // fallback for any older pending tx created before chargeAmount existed
+    if (Math.abs(amount - Number(expectedAmount)) > 1) {
+      console.error('flw-v4-webhook: amount mismatch', { expected: expectedAmount, got: amount, reference });
       await txDoc.ref.update({ status: 'amount_mismatch', flwAmount: amount });
       return { statusCode: 200, body: 'Amount mismatch — not credited' };
     }
