@@ -94,6 +94,11 @@ p{ color:var(--text-dim); margin:0; line-height:1.5; }
   .sidebar-close{ display:block !important; padding:0; width:40px; height:40px; background:transparent; border:none; cursor:pointer; color:var(--text); font-size:20px; }
 }
 
+.tabs{ display:flex; }
+.tab{ padding:9px 16px; border-radius:10px; font-weight:600; font-size:13.5px; color:var(--text-dim); cursor:pointer; white-space:nowrap; transition:.2s; border:1px solid transparent; }
+.tab:hover{ background:rgba(255,255,255,.06); color:var(--text); }
+.tab.active{ background:rgba(79,124,255,.15); color:var(--blue); border-color:rgba(79,124,255,.3); }
+
 .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:24px; }
 .stat-card{ padding:20px; }
 .stat-card .eyebrow{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-mute); }
@@ -191,7 +196,7 @@ canvas{ width:100% !important; }
   </div>
   <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
-  <div class="tabs" style="display:none; gap:6px; overflow-x:auto; padding:4px 0 20px;">
+  <div class="tabs" style="gap:6px; overflow-x:auto; padding:4px 0 20px;">
     <div class="tab active" data-tab="overview" onclick="setTab('overview')">Overview</div>
     <div class="tab" data-tab="transactions" onclick="setTab('transactions')">Transactions</div>
     <div class="tab" data-tab="txlog" onclick="setTab('txlog')">Transaction Log</div>
@@ -285,7 +290,10 @@ canvas{ width:100% !important; }
   <!-- ---- USERS ---- -->
   <div class="tab-panel hide" id="panel-users">
     <div class="glass panel">
-      <div class="panel-head"><h2>All users</h2></div>
+      <div class="panel-head" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+        <h2>All users</h2>
+        <input type="text" id="userSearchInput" placeholder="Search by name, email, or phone…" style="max-width:280px; width:100%; padding:10px 13px; border-radius:10px; background:rgba(255,255,255,.035); border:1px solid var(--border); color:var(--text); font-size:13.5px;" oninput="renderUsersTable()">
+      </div>
       <div class="table-scroll">
         <table>
           <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Wallet</th><th>Status</th><th>₦100 1GB</th><th>Action</th></tr></thead>
@@ -871,8 +879,16 @@ function showRawResponse(providerExtra){
 
 function renderUsersTable(){
   const body = document.getElementById('usersBody');
+  const q = (document.getElementById('userSearchInput')?.value || '').trim().toLowerCase();
+  const filtered = q
+    ? ALL_USERS.filter(u =>
+        (u.name||'').toLowerCase().includes(q) ||
+        (u.email||'').toLowerCase().includes(q) ||
+        (u.phone||'').toLowerCase().includes(q))
+    : ALL_USERS;
   if(!ALL_USERS.length){ body.innerHTML = `<tr class="empty-row"><td colspan="7">No users found</td></tr>`; return; }
-  body.innerHTML = ALL_USERS.map(u => `
+  if(!filtered.length){ body.innerHTML = `<tr class="empty-row"><td colspan="7">No users match "${q}"</td></tr>`; return; }
+  body.innerHTML = filtered.map(u => `
     <tr>
       <td>${u.name||'—'}</td><td>${u.email||'—'}</td><td>${u.phone||'—'}</td>
       <td class="mono">₦${naira(u.walletBalance)}</td>
