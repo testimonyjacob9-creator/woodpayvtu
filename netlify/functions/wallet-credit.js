@@ -53,11 +53,19 @@ exports.handler = async (event) => {
     };
   }
 
-  if (decoded.uid !== uid) {
+  // This endpoint is called by the admin panel to credit/debit ANY user's
+  // wallet, so the caller (decoded.uid, the signed-in admin) will almost
+  // never equal the target `uid`. Checking decoded.uid !== uid here was a
+  // leftover from a self-service pattern and made every admin edit fail
+  // with "Token/uid mismatch." What we actually need to verify is that the
+  // caller is a real admin, via the same admins/{uid} allowlist the rest
+  // of the admin panel relies on.
+  const adminSnap = await db.collection('admins').doc(decoded.uid).get();
+  if (!adminSnap.exists) {
     return {
       statusCode: 403,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ok: false, error: 'Token/uid mismatch.' })
+      body: JSON.stringify({ ok: false, error: 'Not authorized as admin.' })
     };
   }
 
