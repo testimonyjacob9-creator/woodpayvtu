@@ -649,7 +649,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       </div>
       <div class="glass glass-hover service-tile" onclick="requireAuth('rechargepin')">
         <div class="si" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h2M11 11h2" stroke-linecap="round"/></svg></div>
-        <h3>Recharge Pin</h3><p>Bulk airtime pins, all networks</p>
+        <h3>Recharge Pin</h3><p>Print &amp; resell bulk airtime PINs</p>
       </div>
       <div class="glass glass-hover service-tile" onclick="requireAuth('betting')">
         <div class="si" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
@@ -788,7 +788,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       </div>
       <div class="glass glass-hover service-tile anim-in" style="animation-delay:200ms" onclick="go('rechargepin')">
         <div class="si" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h2M11 11h2" stroke-linecap="round"/></svg></div>
-        <h3>Recharge Pin</h3><p>Bulk airtime pins, all networks</p>
+        <h3>Recharge Pin</h3><p>Print &amp; resell bulk airtime PINs</p>
       </div>
       <div class="glass glass-hover service-tile anim-in" style="animation-delay:240ms" onclick="go('betting')">
         <div class="si" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
@@ -870,7 +870,11 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   <!-- ============ RESULT CHECKER ============ -->
   <section class="screen" id="screen-resultchecker">
     <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Result Checker</h2></div>
-    <div class="eyebrow" style="margin-bottom:10px;">Select exam type</div>
+    <div class="eyebrow" style="margin-bottom:10px;">Exam type</div>
+    <div class="glass" id="rcExamDropdown" onclick="document.getElementById('rcExamGrid').scrollIntoView({behavior:'smooth', block:'nearest'})" style="display:flex; align-items:center; justify-content:space-between; padding:15px 16px; margin-bottom:14px; cursor:pointer;">
+      <span id="rcExamDropdownLabel" style="color:var(--text-mute); font-size:14px;">Select exam type</span>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
     <div class="net-grid" style="grid-template-columns:repeat(2,1fr);" id="rcExamGrid"></div>
     <div id="rcLoadState" class="hint mb0"></div>
     <div class="field" id="rcQtyField" style="display:none;">
@@ -890,6 +894,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   <!-- ============ RECHARGE PIN ============ -->
   <section class="screen" id="screen-rechargepin">
     <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Recharge Pin</h2></div>
+    <p class="hint" style="margin:2px 4px 16px;">Bulk airtime PINs for printing &amp; resale — buy in bulk, print or share the PIN, and load any phone by dialing it in.</p>
     <div class="net-grid" id="rpNetGrid"></div>
     <div class="eyebrow" style="margin-bottom:10px;">Select denomination</div>
     <div id="rpLoadState" class="hint mb0"></div>
@@ -901,6 +906,10 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
         <b id="rpQtyVal" style="font-size:16px; min-width:24px; text-align:center;">1</b>
         <button class="btn btn-ghost btn-sm" onclick="adjustRpQty(1)">+</button>
       </div>
+    </div>
+    <div class="list-link" id="rpPrintField" style="display:none; margin-top:4px;">
+      <div class="ll-l"><div><b>Print this PIN</b><span>Adds a printing fee — ₦1 per ₦100</span></div></div>
+      <label class="toggle-switch"><input type="checkbox" id="rpPrintToggle" onchange="toggleRpPrint(this.checked)"><span class="toggle-slider"></span></label>
     </div>
     <div class="sticky-pay">
       <div class="glass" style="padding:16px 18px;" id="rpSummary"></div>
@@ -1434,6 +1443,16 @@ const ISP_META = {
 // rounds to the nearest ₦5, same convention as the local catalog pricing.
 // Recharge pin carries a thin ~2% margin (it's functionally airtime); the
 // others carry the standard ~22% margin used for data/cable/electricity.
+// Bulk pricing for recharge pins — buying more brings the markup down per
+// unit (separate from, and in addition to, the optional printing fee).
+// Tiers are a starting point — adjust the thresholds/percentages below to
+// match whatever margins you actually want.
+function rpMarkupPct(qty){
+  if(qty >= 50) return 0.005; // 0.5%
+  if(qty >= 25) return 0.01;  // 1%
+  if(qty >= 10) return 0.015; // 1.5%
+  return 0.02;                // 2% base rate for small quantities
+}
 function markupPrice(buy, pct){ return Math.round((Number(buy||0) * (1 + pct)) / 5) * 5; }
 
 function naira(n){ return Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2, maximumFractionDigits:2}); }
@@ -2231,8 +2250,12 @@ function selectRcExam(i){
   document.getElementById('rcQtyField').style.display = 'block';
   document.getElementById('rcQtyVal').textContent = '1';
   document.querySelectorAll('#rcExamGrid .net-chip').forEach((c,idx) => c.classList.toggle('sel', idx===i));
+  const dLabel = document.getElementById('rcExamDropdownLabel');
+  dLabel.textContent = p.examType;
+  dLabel.style.color = 'var(--text)';
   updateRcSummary();
 }
+// Purchase mode tabs were dropped — Buy Now is the only flow.
 function adjustRcQty(d){
   const q = Math.max(1, Math.min(10, (selection.resultchecker.quantity||1) + d));
   selection.resultchecker.quantity = q;
@@ -2246,7 +2269,7 @@ function updateRcSummary(){
     box.innerHTML = `<div class="hint mb0">Select an exam type to continue.</div>`;
     btn.disabled = true; return;
   }
-  const unitPrice = markupPrice(selection.resultchecker.buy, 0.22);
+  const unitPrice = selection.resultchecker.buy + 100; // flat ₦100 profit per PIN
   const qty = selection.resultchecker.quantity || 1;
   const total = unitPrice * qty;
   box.innerHTML = `
@@ -2272,6 +2295,10 @@ async function selectRpNet(net){
   selection.rechargepin.network = net;
   selection.rechargepin.plan = null;
   selection.rechargepin.plans = [];
+  selection.rechargepin.print = false;
+  document.getElementById('rpQtyField').style.display = 'none';
+  document.getElementById('rpPrintField').style.display = 'none';
+  document.getElementById('rpPrintToggle').checked = false;
   renderRechargePinScreen();
   const list = document.getElementById('rpPlanList');
   const loadEl = document.getElementById('rpLoadState');
@@ -2306,13 +2333,20 @@ function renderRpPlans(){
 function selectRpPlan(i){
   selection.rechargepin.plan = i;
   selection.rechargepin.quantity = 1;
+  selection.rechargepin.print = false;
   document.getElementById('rpQtyField').style.display = 'block';
   document.getElementById('rpQtyVal').textContent = '1';
+  document.getElementById('rpPrintField').style.display = 'flex';
+  document.getElementById('rpPrintToggle').checked = false;
   renderRpPlans();
   updateRpSummary();
 }
+function toggleRpPrint(checked){
+  selection.rechargepin.print = checked;
+  updateRpSummary();
+}
 function adjustRpQty(d){
-  const q = Math.max(1, Math.min(50, (selection.rechargepin.quantity||1) + d));
+  const q = Math.max(1, Math.min(200, (selection.rechargepin.quantity||1) + d));
   selection.rechargepin.quantity = q;
   document.getElementById('rpQtyVal').textContent = q;
   updateRpSummary();
@@ -2325,11 +2359,16 @@ function updateRpSummary(){
     btn.disabled = true; return;
   }
   const plan = selection.rechargepin.plans[selection.rechargepin.plan];
-  const unitPrice = markupPrice(plan.buy, 0.02);
   const qty = selection.rechargepin.quantity || 1;
-  const total = unitPrice * qty;
+  const unitPrice = markupPrice(plan.buy, rpMarkupPct(qty)); // lower markup at higher qty
+  const subtotal = unitPrice * qty;
+  const printFee = selection.rechargepin.print ? Math.ceil(subtotal * 0.01) : 0; // ₦1 per ₦100, only if printing
+  const total = subtotal + printFee;
+  const printLine = selection.rechargepin.print
+    ? `<div class="summary-line"><span>Printing fee (1%)</span><b>₦${naira(printFee)}</b></div>` : '';
   box.innerHTML = `
     <div class="summary-line"><span>${NET_META[selection.rechargepin.network].label} · ${plan.label}</span><b>₦${naira(unitPrice)} × ${qty}</b></div>
+    ${printLine}
     <div class="summary-total"><span>Total</span><b>₦${naira(total)}</b></div>`;
   btn.disabled = false;
 }
@@ -2485,14 +2524,16 @@ function buildPurchasePayload(type){
   if(type==='resultchecker'){
     const qty = selection.resultchecker.quantity || 1;
     const unitBuy = selection.resultchecker.buy;
-    const unitPrice = markupPrice(unitBuy, 0.22);
+    const unitPrice = unitBuy + 100; // flat ₦100 profit per PIN, not a percentage
     return { type, examType:selection.resultchecker.examType, examCode:selection.resultchecker.code, quantity:qty, amount:unitPrice*qty, buyPrice:unitBuy*qty };
   }
   if(type==='rechargepin'){
     const plan = selection.rechargepin.plans[selection.rechargepin.plan];
     const qty = selection.rechargepin.quantity || 1;
-    const unitPrice = markupPrice(plan.buy, 0.02);
-    return { type, network:selection.rechargepin.network, planId:plan.id, planLabel:plan.label, quantity:qty, amount:unitPrice*qty, buyPrice:plan.buy*qty };
+    const unitPrice = markupPrice(plan.buy, rpMarkupPct(qty)); // lower markup at higher qty
+    const subtotal = unitPrice * qty;
+    const printFee = selection.rechargepin.print ? Math.ceil(subtotal * 0.01) : 0;
+    return { type, network:selection.rechargepin.network, planId:plan.id, planLabel:plan.label, quantity:qty, printing:!!selection.rechargepin.print, printFee, amount:subtotal+printFee, buyPrice:plan.buy*qty };
   }
   if(type==='betting'){
     return { type, billerCode:selection.betting.billerCode, billerName:selection.betting.billerName, customerId:selection.betting.customerId, amount:selection.betting.amount, buyPrice:selection.betting.amount };
