@@ -53,20 +53,27 @@ exports.handler = async (event) => {
     };
   }
 
-  // This endpoint is called by the admin panel to credit/debit ANY user's
-  // wallet, so the caller (decoded.uid, the signed-in admin) will almost
-  // never equal the target `uid`. Checking decoded.uid !== uid here was a
-  // leftover from a self-service pattern and made every admin edit fail
-  // with "Token/uid mismatch." What we actually need to verify is that the
-  // caller is a real admin, via the same admins/{uid} allowlist the rest
-  // of the admin panel relies on.
-  const adminSnap = await db.collection('admins').doc(decoded.uid).get();
-  if (!adminSnap.exists) {
-    return {
-      statusCode: 403,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ok: false, error: 'Not authorized as admin.' })
-    };
+  // Two legitimate callers hit this endpoint:
+  //  1. A user debiting/crediting their OWN wallet (index.html purchases,
+  //     refunds) — here decoded.uid === uid, and the PIN check below is
+  //     the real security gate.
+  //  2. An admin crediting/debiting ANY user's wallet from admin.html —
+  //     here decoded.uid !== uid, so we instead check the admins/{uid}
+  //     allowlist, and skip the PIN check since the admin already went
+  //     through separate auth and won't know the customer's PIN.
+  const isSelfService = decoded.uid === uid;
+  let isVerifiedAdmin = false;
+
+  if (!isSelfService) {
+    const adminSnap = await db.collection('admins').doc(decoded.uid).get();
+    if (!adminSnap.exists) {
+      return {
+        statusCode: 403,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ok: false, error: 'Not authorized as admin.' })
+      };
+    }
+    isVerifiedAdmin = true;
   }
 
   const userRef = db.collection('users').doc(uid);
@@ -81,8 +88,10 @@ exports.handler = async (event) => {
       const userData = userSnap.data();
       const currentBalance = userData.walletBalance || 0;
 
-      // PIN check — only required for debits
-      if (delta < 0) {
+      // PIN check — only required for self-service debits. Admin-initiated
+      // debits skip this since the admin was already authenticated via the
+      // admins/{uid} allowlist above and has no way to know the user's PIN.
+      if (delta < 0 && !isVerifiedAdmin) {
         const storedHash = userData.pinHash;
         if (storedHash) {
           if (!pin) throw Object.assign(new Error('PIN required.'), { pinError: 'PIN_REQUIRED' });
@@ -91,6 +100,12 @@ exports.handler = async (event) => {
           }
         }
         // Insufficient funds check
+        if (currentBalance + delta < 0) {
+          throw new Error('Insufficient wallet balance.');
+        }
+      } else if (delta < 0 && isVerifiedAdmin) {
+        // Still enforce the insufficient-funds check for admin debits —
+        // just without requiring a PIN.
         if (currentBalance + delta < 0) {
           throw new Error('Insufficient wallet balance.');
         }
