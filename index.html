@@ -640,6 +640,22 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
         <div class="si" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke-linejoin="round"/></svg></div>
         <h3>Electricity</h3><p>All 12 DISCOs nationwide</p>
       </div>
+      <div class="glass glass-hover service-tile" onclick="requireAuth('resultchecker')">
+        <div class="si" style="background:rgba(108,92,231,.16); color:#B3A6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Result Checker</h3><p>WAEC &amp; NECO scratch cards</p>
+      </div>
+      <div class="glass glass-hover service-tile" onclick="requireAuth('rechargepin')">
+        <div class="si" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h2M11 11h2" stroke-linecap="round"/></svg></div>
+        <h3>Recharge Pin</h3><p>Bulk airtime pins, all networks</p>
+      </div>
+      <div class="glass glass-hover service-tile" onclick="requireAuth('betting')">
+        <div class="si" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>Betting Wallet</h3><p>Bet9ja, SportyBet, BetKing &amp; more</p>
+      </div>
+      <div class="glass glass-hover service-tile" onclick="requireAuth('isp')">
+        <div class="si" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0M12 19h.01" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3>ISP Top-up</h3><p>Smile &amp; Spectranet broadband</p>
+      </div>
     </div>
 
     <div class="section-title"><h2>Why WoodPayVTU</h2></div>
@@ -730,6 +746,10 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       <div class="glass glass-hover quick-item" onclick="go('airtime')"><div class="qi" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4l3 3-2 2a13 13 0 006 6l2-2 3 3-2 3a2 2 0 01-2 .6A16 16 0 014 6a2 2 0 01.6-2z" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Airtime</span></div>
       <div class="glass glass-hover quick-item" onclick="go('cable')"><div class="qi" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M12 18v3" stroke-linecap="round"/></svg></div><span>TV</span></div>
       <div class="glass glass-hover quick-item" onclick="go('electricity')"><div class="qi" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke-linejoin="round"/></svg></div><span>Power</span></div>
+      <div class="glass glass-hover quick-item" onclick="go('resultchecker')"><div class="qi" style="background:rgba(108,92,231,.16); color:#B3A6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Result</span></div>
+      <div class="glass glass-hover quick-item" onclick="go('rechargepin')"><div class="qi" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h2M11 11h2" stroke-linecap="round"/></svg></div><span>Pins</span></div>
+      <div class="glass glass-hover quick-item" onclick="go('betting')"><div class="qi" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Betting</span></div>
+      <div class="glass glass-hover quick-item" onclick="go('isp')"><div class="qi" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0M12 19h.01" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>ISP</span></div>
     </div>
 
     <div class="section-title"><h2>Recent activity</h2><a onclick="go('history')">See all</a></div>
@@ -801,6 +821,76 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
     <div class="sticky-pay">
       <div class="glass" style="padding:16px 18px;" id="elecSummary"></div>
       <button class="btn btn-primary mt16" id="elecPayBtn" disabled onclick="initiatePurchase('electricity')">Pay now</button>
+    </div>
+  </section>
+
+  <!-- ============ RESULT CHECKER ============ -->
+  <section class="screen" id="screen-resultchecker">
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Result Checker</h2></div>
+    <div class="eyebrow" style="margin-bottom:10px;">Select exam type</div>
+    <div class="net-grid" style="grid-template-columns:repeat(2,1fr);" id="rcExamGrid"></div>
+    <div id="rcLoadState" class="hint mb0"></div>
+    <div class="field" id="rcQtyField" style="display:none;">
+      <label>Quantity</label>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <button class="btn btn-ghost btn-sm" onclick="adjustRcQty(-1)">−</button>
+        <b id="rcQtyVal" style="font-size:16px; min-width:24px; text-align:center;">1</b>
+        <button class="btn btn-ghost btn-sm" onclick="adjustRcQty(1)">+</button>
+      </div>
+    </div>
+    <div class="sticky-pay">
+      <div class="glass" style="padding:16px 18px;" id="rcSummary"></div>
+      <button class="btn btn-primary mt16" id="rcPayBtn" disabled onclick="initiatePurchase('resultchecker')">Pay now</button>
+    </div>
+  </section>
+
+  <!-- ============ RECHARGE PIN ============ -->
+  <section class="screen" id="screen-rechargepin">
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Recharge Pin</h2></div>
+    <div class="net-grid" id="rpNetGrid"></div>
+    <div class="eyebrow" style="margin-bottom:10px;">Select denomination</div>
+    <div id="rpLoadState" class="hint mb0"></div>
+    <div class="plan-list" id="rpPlanList"></div>
+    <div class="field" id="rpQtyField" style="display:none;">
+      <label>Quantity</label>
+      <div style="display:flex; align-items:center; gap:14px;">
+        <button class="btn btn-ghost btn-sm" onclick="adjustRpQty(-1)">−</button>
+        <b id="rpQtyVal" style="font-size:16px; min-width:24px; text-align:center;">1</b>
+        <button class="btn btn-ghost btn-sm" onclick="adjustRpQty(1)">+</button>
+      </div>
+    </div>
+    <div class="sticky-pay">
+      <div class="glass" style="padding:16px 18px;" id="rpSummary"></div>
+      <button class="btn btn-primary mt16" id="rpPayBtn" disabled onclick="initiatePurchase('rechargepin')">Pay now</button>
+    </div>
+  </section>
+
+  <!-- ============ BETTING ============ -->
+  <section class="screen" id="screen-betting">
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Betting Wallet</h2></div>
+    <div class="eyebrow" style="margin-bottom:10px;">Select platform</div>
+    <div id="btLoadState" class="hint mb0"></div>
+    <div class="net-grid" style="grid-template-columns:repeat(3,1fr);" id="btBillerGrid"></div>
+    <div class="field"><label>Customer ID</label><input type="text" id="btCustomerId" placeholder="Your betting account ID"></div>
+    <div class="field mb0"><label>Amount (₦)</label><input type="number" id="btAmount" placeholder="Enter amount"></div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 20px;" id="btQuick"></div>
+    <div class="sticky-pay">
+      <div class="glass" style="padding:16px 18px;" id="btSummary"></div>
+      <button class="btn btn-primary mt16" id="btPayBtn" disabled onclick="initiatePurchase('betting')">Fund wallet</button>
+    </div>
+  </section>
+
+  <!-- ============ ISP ============ -->
+  <section class="screen" id="screen-isp">
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>ISP Top-up</h2></div>
+    <div class="net-grid" style="grid-template-columns:repeat(2,1fr);" id="ispProvGrid"></div>
+    <div class="field" id="ispAccountField" style="display:none;"><label id="ispAccountLabel">Account ID</label><input type="text" id="ispAccountId" placeholder="Enter your account/router ID"></div>
+    <div class="eyebrow" style="margin-bottom:10px;">Select plan</div>
+    <div id="ispLoadState" class="hint mb0"></div>
+    <div class="plan-list" id="ispPlanList"></div>
+    <div class="sticky-pay">
+      <div class="glass" style="padding:16px 18px;" id="ispSummary"></div>
+      <button class="btn btn-primary mt16" id="ispPayBtn" disabled onclick="initiatePurchase('isp')">Pay now</button>
     </div>
   </section>
 
@@ -1038,6 +1128,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       </div>
       <div class="summary-line"><span>Amount</span><b id="stAmount">—</b></div>
     </div>
+    <p style="font-size:11.5px; opacity:.55; margin-top:6px; text-align:left;">Includes transfer fee — your wallet is credited the amount you requested.</p>
     <p id="stNote" style="font-size:12.5px; opacity:.7; margin-top:10px; text-align:left;"></p>
     <button class="btn btn-ghost mt16" id="stCopyBtn" onclick="copySterlingAccount()">Copy account number</button>
     <div id="stStatusRow" style="display:flex; align-items:center; gap:8px; justify-content:center; margin-top:18px; font-size:13px; opacity:.8;">
@@ -1278,6 +1369,29 @@ const CABLE_META = {
   startimes: { label:"Startimes", color:"#E30613" },
   showmax: { label:"Showmax", color:"#1CE783" }
 };
+// Betting billers are fetched live from Bigisub (api/v2/betting/billers/), but
+// we keep a small local map of known ones for display color/branding — any
+// biller Bigisub returns that isn't in this map still works, just with a
+// generic gold tile.
+const BETTING_META = {
+  bet9ja:   { label:"Bet9ja",   color:"#00873C" },
+  sportybet:{ label:"SportyBet",color:"#E4053C" },
+  betking:  { label:"BetKing",  color:"#0A6E3A" },
+  nairabet: { label:"NairaBet", color:"#1CA84B" },
+  betway:   { label:"Betway",   color:"#1A1A2E" },
+  "1xbet":  { label:"1xBet",    color:"#1C4795" }
+};
+const ISP_META = {
+  smile:      { label:"Smile", color:"#F5A623", steps:3 },
+  spectranet: { label:"Spectranet", color:"#2E7D32", steps:2 }
+};
+
+// Shared markup for services whose prices come live from Bigisub rather than
+// a local PRICING catalog (result checker, recharge pin, betting, ISP) —
+// rounds to the nearest ₦5, same convention as the local catalog pricing.
+// Recharge pin carries a thin ~2% margin (it's functionally airtime); the
+// others carry the standard ~22% margin used for data/cable/electricity.
+function markupPrice(buy, pct){ return Math.round((Number(buy||0) * (1 + pct)) / 5) * 5; }
 
 function naira(n){ return Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2, maximumFractionDigits:2}); }
 function digitsOnly(v){ return String(v||'').replace(/\D/g, ''); }
@@ -1320,13 +1434,17 @@ let selection = {
   data:{network:null, plan:null, typeFilter:'ALL'},
   airtime:{network:null, amount:null},
   cable:{provider:null, plan:null},
-  electricity:{disco:null, meterType:'prepaid', amount:null}
+  electricity:{disco:null, meterType:'prepaid', amount:null},
+  resultchecker:{examType:null, price:null, code:null, quantity:1},
+  rechargepin:{network:null, plan:null, quantity:1, plans:[]},
+  betting:{billerCode:null, billerName:null, customerId:null, amount:null, validationRef:null, customerName:null},
+  isp:{provider:null, plan:null, plans:[], accountId:null}
 };
 
 /* ============================================================
    NAVIGATION
    ============================================================ */
-const SCREENS = ['landing','auth','verify','dashboard','data','airtime','cable','electricity','history','referral','support','contact','profile'];
+const SCREENS = ['landing','auth','verify','dashboard','data','airtime','cable','electricity','resultchecker','rechargepin','betting','isp','history','referral','support','contact','profile'];
 function go(name){
   SCREENS.forEach(s => document.getElementById('screen-'+s).classList.toggle('active', s===name));
   document.getElementById('bottomNav').classList.toggle('hide', !CURRENT_USER || name==='landing' || name==='auth');
@@ -1337,6 +1455,10 @@ function go(name){
   if(name==='airtime') renderAirtimeScreen();
   if(name==='cable') renderCableScreen();
   if(name==='electricity') renderElectricityScreen();
+  if(name==='resultchecker') renderResultCheckerScreen();
+  if(name==='rechargepin') renderRechargePinScreen();
+  if(name==='betting') renderBettingScreen();
+  if(name==='isp') renderIspScreen();
   if(name==='history') renderHistory();
   if(name==='referral') renderReferral();
   if(name==='profile'){ renderProfile(); initPushToggle(); }
@@ -2024,6 +2146,272 @@ function updateElecSummary(){
 }
 
 /* ============================================================
+   RESULT CHECKER (WAEC / NECO)
+   ============================================================ */
+async function renderResultCheckerScreen(){
+  const grid = document.getElementById('rcExamGrid');
+  const loadEl = document.getElementById('rcLoadState');
+  if(!grid.dataset.built){
+    grid.dataset.built = '1';
+    loadEl.textContent = 'Loading exam prices…';
+    const res = await bigisubCall('api/v2/bills/result-checker/prices/', 'GET');
+    if(isTimeoutRes(res) || !res.httpOk || !res.success){
+      loadEl.textContent = 'Could not load exam prices. Please go back and try again.';
+      grid.dataset.built = '';
+      return;
+    }
+    selection.resultchecker._catalog = (res.data || []).map(p => ({
+      examType: p.exam_type || p.name || p.type,
+      code: p.exam_code || p.code || p.variation_code,
+      buy: Number(p.amount || p.price || 0)
+    }));
+    loadEl.textContent = '';
+    grid.innerHTML = selection.resultchecker._catalog.map((p,i) => `
+      <div class="glass net-chip ${selection.resultchecker.examType===p.examType?'sel':''}" onclick="selectRcExam(${i})">
+        <div class="nb" style="background:rgba(108,92,231,.16); color:#B3A6FF;">${(p.examType||'?')[0]}</div>
+        <span>${p.examType}</span>
+      </div>`).join('');
+  }
+  updateRcSummary();
+}
+function selectRcExam(i){
+  const p = selection.resultchecker._catalog[i];
+  selection.resultchecker.examType = p.examType;
+  selection.resultchecker.code = p.code;
+  selection.resultchecker.buy = p.buy;
+  selection.resultchecker.quantity = 1;
+  document.getElementById('rcQtyField').style.display = 'block';
+  document.getElementById('rcQtyVal').textContent = '1';
+  document.querySelectorAll('#rcExamGrid .net-chip').forEach((c,idx) => c.classList.toggle('sel', idx===i));
+  updateRcSummary();
+}
+function adjustRcQty(d){
+  const q = Math.max(1, Math.min(10, (selection.resultchecker.quantity||1) + d));
+  selection.resultchecker.quantity = q;
+  document.getElementById('rcQtyVal').textContent = q;
+  updateRcSummary();
+}
+function updateRcSummary(){
+  const box = document.getElementById('rcSummary');
+  const btn = document.getElementById('rcPayBtn');
+  if(!selection.resultchecker.examType){
+    box.innerHTML = `<div class="hint mb0">Select an exam type to continue.</div>`;
+    btn.disabled = true; return;
+  }
+  const unitPrice = markupPrice(selection.resultchecker.buy, 0.22);
+  const qty = selection.resultchecker.quantity || 1;
+  const total = unitPrice * qty;
+  box.innerHTML = `
+    <div class="summary-line"><span>${selection.resultchecker.examType} PIN</span><b>₦${naira(unitPrice)} × ${qty}</b></div>
+    <div class="summary-total"><span>Total</span><b>₦${naira(total)}</b></div>`;
+  btn.disabled = false;
+}
+
+/* ============================================================
+   RECHARGE PIN
+   ============================================================ */
+function renderRechargePinScreen(){
+  const grid = document.getElementById('rpNetGrid');
+  grid.innerHTML = Object.keys(NET_META).map(k => `
+    <div class="glass net-chip ${selection.rechargepin.network===k?'sel':''}" onclick="selectRpNet('${k}')">
+      <div class="nb" style="background:${NET_META[k].color}; color:${NET_META[k].tc};">${NET_META[k].label[0]}</div>
+      <span>${NET_META[k].label}</span>
+    </div>`).join('');
+  renderRpPlans();
+  updateRpSummary();
+}
+async function selectRpNet(net){
+  selection.rechargepin.network = net;
+  selection.rechargepin.plan = null;
+  selection.rechargepin.plans = [];
+  renderRechargePinScreen();
+  const list = document.getElementById('rpPlanList');
+  const loadEl = document.getElementById('rpLoadState');
+  loadEl.textContent = 'Loading denominations…';
+  list.innerHTML = '';
+  const res = await bigisubCall(`api/v2/vtu/recharge-pin/plans/?network=${NET_ID_MAP[net]}`, 'GET');
+  if(selection.rechargepin.network !== net) return; // user switched network mid-fetch
+  if(isTimeoutRes(res) || !res.httpOk || !res.success){
+    loadEl.textContent = 'Could not load denominations. Please try again.';
+    return;
+  }
+  loadEl.textContent = '';
+  selection.rechargepin.plans = (res.data || []).map(p => ({
+    id: p.id || p.plan_id,
+    label: p.name || `₦${p.amount}`,
+    buy: Number(p.amount || p.price || 0)
+  }));
+  renderRpPlans();
+}
+function renderRpPlans(){
+  const list = document.getElementById('rpPlanList');
+  const plans = selection.rechargepin.plans || [];
+  if(!selection.rechargepin.network){ list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">Choose a network to see denominations</div>`; return; }
+  if(!plans.length) return; // loading or error state already shown via rpLoadState
+  list.innerHTML = plans.map((p,i) => {
+    const price = markupPrice(p.buy, 0.02);
+    return `<div class="glass plan-row ${selection.rechargepin.plan===i?'sel':''}" onclick="selectRpPlan(${i})">
+      <div class="pl-l"><b>${p.label}</b></div><div class="pl-r">₦${naira(price)}</div>
+    </div>`;
+  }).join('');
+}
+function selectRpPlan(i){
+  selection.rechargepin.plan = i;
+  selection.rechargepin.quantity = 1;
+  document.getElementById('rpQtyField').style.display = 'block';
+  document.getElementById('rpQtyVal').textContent = '1';
+  renderRpPlans();
+  updateRpSummary();
+}
+function adjustRpQty(d){
+  const q = Math.max(1, Math.min(50, (selection.rechargepin.quantity||1) + d));
+  selection.rechargepin.quantity = q;
+  document.getElementById('rpQtyVal').textContent = q;
+  updateRpSummary();
+}
+function updateRpSummary(){
+  const box = document.getElementById('rpSummary');
+  const btn = document.getElementById('rpPayBtn');
+  if(!selection.rechargepin.network || selection.rechargepin.plan===null){
+    box.innerHTML = `<div class="hint mb0">Select a network and a denomination to continue.</div>`;
+    btn.disabled = true; return;
+  }
+  const plan = selection.rechargepin.plans[selection.rechargepin.plan];
+  const unitPrice = markupPrice(plan.buy, 0.02);
+  const qty = selection.rechargepin.quantity || 1;
+  const total = unitPrice * qty;
+  box.innerHTML = `
+    <div class="summary-line"><span>${NET_META[selection.rechargepin.network].label} · ${plan.label}</span><b>₦${naira(unitPrice)} × ${qty}</b></div>
+    <div class="summary-total"><span>Total</span><b>₦${naira(total)}</b></div>`;
+  btn.disabled = false;
+}
+
+/* ============================================================
+   BETTING WALLET FUNDING
+   ============================================================ */
+async function renderBettingScreen(){
+  const grid = document.getElementById('btBillerGrid');
+  const loadEl = document.getElementById('btLoadState');
+  if(!grid.dataset.built){
+    grid.dataset.built = '1';
+    loadEl.textContent = 'Loading platforms…';
+    const res = await bigisubCall('api/v2/betting/billers/', 'GET');
+    if(isTimeoutRes(res) || !res.httpOk || !res.success){
+      loadEl.textContent = 'Could not load betting platforms. Please go back and try again.';
+      grid.dataset.built = '';
+      return;
+    }
+    loadEl.textContent = '';
+    selection.betting._catalog = (res.data || []).map(b => ({ code: b.biller_code || b.code, name: b.name || b.biller_name }));
+    grid.innerHTML = selection.betting._catalog.map((b,i) => {
+      const meta = BETTING_META[String(b.name||'').toLowerCase().replace(/\s+/g,'')] || { color:'var(--gold-2)' };
+      return `<div class="glass net-chip ${selection.betting.billerCode===b.code?'sel':''}" onclick="selectBiller(${i})">
+        <div class="nb" style="background:${meta.color};">${(b.name||'?')[0]}</div>
+        <span>${b.name}</span>
+      </div>`;
+    }).join('');
+  }
+  const quick = document.getElementById('btQuick');
+  quick.innerHTML = [500,1000,2000,5000,10000].map(a => `<button class="btn btn-ghost btn-sm" onclick="setBtAmt(${a})">₦${a.toLocaleString()}</button>`).join('');
+  document.getElementById('btCustomerId').oninput = updateBtSummary;
+  document.getElementById('btAmount').oninput = updateBtSummary;
+  updateBtSummary();
+}
+function selectBiller(i){
+  const b = selection.betting._catalog[i];
+  selection.betting.billerCode = b.code;
+  selection.betting.billerName = b.name;
+  document.querySelectorAll('#btBillerGrid .net-chip').forEach((c,idx) => c.classList.toggle('sel', idx===i));
+  updateBtSummary();
+}
+function setBtAmt(a){ document.getElementById('btAmount').value = a; updateBtSummary(); }
+function updateBtSummary(){
+  const box = document.getElementById('btSummary');
+  const btn = document.getElementById('btPayBtn');
+  const custId = document.getElementById('btCustomerId').value.trim();
+  const amt = Number(document.getElementById('btAmount').value||0);
+  selection.betting.customerId = custId;
+  selection.betting.amount = amt;
+  if(!selection.betting.billerCode || custId.length<3 || amt<100){
+    box.innerHTML = `<div class="hint mb0">Select a platform, enter your customer ID and an amount (min ₦100).</div>`;
+    btn.disabled = true; return;
+  }
+  box.innerHTML = `
+    <div class="summary-line"><span>${selection.betting.billerName}</span><b>${custId}</b></div>
+    <div class="summary-total"><span>Total</span><b>₦${naira(amt)}</b></div>`;
+  btn.disabled = false;
+}
+
+/* ============================================================
+   ISP TOP-UP (Smile / Spectranet)
+   ============================================================ */
+function renderIspScreen(){
+  const grid = document.getElementById('ispProvGrid');
+  grid.innerHTML = Object.keys(ISP_META).map(k => `
+    <div class="glass net-chip ${selection.isp.provider===k?'sel':''}" onclick="selectIspProvider('${k}')">
+      <div class="nb" style="background:${ISP_META[k].color};">${ISP_META[k].label[0]}</div>
+      <span>${ISP_META[k].label}</span>
+    </div>`).join('');
+  const accField = document.getElementById('ispAccountField');
+  accField.style.display = selection.isp.provider ? 'block' : 'none';
+  if(selection.isp.provider){
+    document.getElementById('ispAccountLabel').textContent = selection.isp.provider==='smile' ? 'Smile account/phone number' : 'Spectranet router/account ID';
+  }
+  document.getElementById('ispAccountId').oninput = (e)=>{ selection.isp.accountId = e.target.value.trim(); updateIspSummary(); };
+  renderIspPlans();
+  updateIspSummary();
+}
+async function selectIspProvider(p){
+  selection.isp.provider = p;
+  selection.isp.plan = null;
+  selection.isp.plans = [];
+  renderIspScreen();
+  const list = document.getElementById('ispPlanList');
+  const loadEl = document.getElementById('ispLoadState');
+  loadEl.textContent = 'Loading plans…';
+  list.innerHTML = '';
+  // Confirmed against Bigisub's docs: provider is a path segment
+  // (api/v2/isp/smile/plans/ or api/v2/isp/spectranet/plans/), not a query param.
+  const res = await bigisubCall(`api/v2/isp/${p}/plans/`, 'GET');
+  if(selection.isp.provider !== p) return;
+  if(isTimeoutRes(res) || !res.httpOk || !res.success){
+    loadEl.textContent = 'Could not load plans for this provider — the ISP endpoint path needs confirming against Bigisub\'s docs.';
+    return;
+  }
+  loadEl.textContent = '';
+  selection.isp.plans = (res.data || []).map(pl => ({ id: pl.id || pl.plan_id, label: pl.name || `₦${pl.amount}`, buy: Number(pl.amount || pl.price || 0) }));
+  renderIspPlans();
+}
+function renderIspPlans(){
+  const list = document.getElementById('ispPlanList');
+  const plans = selection.isp.plans || [];
+  if(!selection.isp.provider){ list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">Choose a provider to see plans</div>`; return; }
+  if(!plans.length) return;
+  list.innerHTML = plans.map((p,i) => {
+    const price = markupPrice(p.buy, 0.22);
+    return `<div class="glass plan-row ${selection.isp.plan===i?'sel':''}" onclick="selectIspPlan(${i})">
+      <div class="pl-l"><b>${p.label}</b></div><div class="pl-r">₦${naira(price)}</div>
+    </div>`;
+  }).join('');
+}
+function selectIspPlan(i){ selection.isp.plan = i; renderIspPlans(); updateIspSummary(); }
+function updateIspSummary(){
+  const box = document.getElementById('ispSummary');
+  const btn = document.getElementById('ispPayBtn');
+  const accId = selection.isp.accountId || '';
+  if(!selection.isp.provider || selection.isp.plan===null || accId.length<3){
+    box.innerHTML = `<div class="hint mb0">Select a provider, a plan, and enter your account/router ID.</div>`;
+    btn.disabled = true; return;
+  }
+  const plan = selection.isp.plans[selection.isp.plan];
+  const price = markupPrice(plan.buy, 0.22);
+  box.innerHTML = `
+    <div class="summary-line"><span>${ISP_META[selection.isp.provider].label} · ${plan.label}</span><b>${accId}</b></div>
+    <div class="summary-total"><span>Total</span><b>₦${naira(price)}</b></div>`;
+  btn.disabled = false;
+}
+
+/* ============================================================
    PURCHASE FLOW — wallet debit first, Flutterwave checkout as fallback
    ============================================================ */
 function buildPurchasePayload(type){
@@ -2046,6 +2434,26 @@ function buildPurchasePayload(type){
     const feeRate = units < 1000 ? 1.03 : 1.05;
     return { type, disco:selection.electricity.disco, meterType:selection.electricity.meterType, meterNumber:document.getElementById('meterNumber').value.trim(), amount:Math.ceil(units*feeRate), buyPrice:units };
   }
+  if(type==='resultchecker'){
+    const qty = selection.resultchecker.quantity || 1;
+    const unitBuy = selection.resultchecker.buy;
+    const unitPrice = markupPrice(unitBuy, 0.22);
+    return { type, examType:selection.resultchecker.examType, examCode:selection.resultchecker.code, quantity:qty, amount:unitPrice*qty, buyPrice:unitBuy*qty };
+  }
+  if(type==='rechargepin'){
+    const plan = selection.rechargepin.plans[selection.rechargepin.plan];
+    const qty = selection.rechargepin.quantity || 1;
+    const unitPrice = markupPrice(plan.buy, 0.02);
+    return { type, network:selection.rechargepin.network, planId:plan.id, planLabel:plan.label, quantity:qty, amount:unitPrice*qty, buyPrice:plan.buy*qty };
+  }
+  if(type==='betting'){
+    return { type, billerCode:selection.betting.billerCode, billerName:selection.betting.billerName, customerId:selection.betting.customerId, amount:selection.betting.amount, buyPrice:selection.betting.amount };
+  }
+  if(type==='isp'){
+    const plan = selection.isp.plans[selection.isp.plan];
+    const price = markupPrice(plan.buy, 0.22);
+    return { type, provider:selection.isp.provider, planId:plan.id, planLabel:plan.label, accountId:selection.isp.accountId, amount:price, buyPrice:plan.buy };
+  }
 }
 
 async function initiatePurchase(type){
@@ -2057,6 +2465,16 @@ async function initiatePurchase(type){
   // they entered the right smartcard / meter number.
   if(type === 'cable' || type === 'electricity'){
     await verifyAndConfirm(payload);
+    return;
+  }
+  // Betting requires a customer-ID validation step before funding.
+  if(type === 'betting'){
+    await verifyAndConfirmBetting(payload);
+    return;
+  }
+  // Smile ISP requires an account-verify step; Spectranet does not.
+  if(type === 'isp' && payload.provider === 'smile'){
+    await verifyAndConfirmIsp(payload);
     return;
   }
 
@@ -2228,6 +2646,87 @@ function showVerifyConfirmSheet(payload, customerName){
 
   // Store payload so the confirm button can access it
   window._pendingVerifiedPayload = payload;
+  openSheet('verifySheet');
+}
+
+// Betting: validate the customer ID against the biller before funding.
+// Bigisub's validate response may or may not include a validation_reference
+// (only required for billers where requires_validation_ref is true) — we
+// carry it through to the fund() call either way, and callBigisubAPI only
+// sends it if present.
+async function verifyAndConfirmBetting(payload){
+  showLoader('Validating customer ID…');
+  let customerName, validationRef;
+  try{
+    const res = await bigisubCall('api/v2/betting/validate/', 'POST', {
+      biller_code: payload.billerCode, customer_id: payload.customerId
+    });
+    if(isTimeoutRes(res)){ hideLoader(); toast('Validation is taking longer than usual. Please try again.', 'err'); return; }
+    customerName = res.data?.customer_name || res.data?.name || null;
+    validationRef = res.data?.validation_reference || null;
+    if(!res.httpOk || !res.success || !customerName){
+      hideLoader();
+      toast('Could not validate this customer ID. Please check it and try again.', 'err');
+      return;
+    }
+  }catch(e){
+    hideLoader();
+    toast('Validation failed. Please check your connection and try again.', 'err');
+    return;
+  }
+  hideLoader();
+  const verifiedPayload = { ...payload, _validationRef: validationRef, _customerName: customerName };
+  document.getElementById('verifySheetContent').innerHTML = `
+    <h3 style="font-size:18px; margin-bottom:6px;">Confirm details</h3>
+    <p style="font-size:13px; color:var(--text-mute); margin:0 0 20px;">We verified this customer ID with ${payload.billerName}. Please confirm before we fund the wallet.</p>
+    <div class="glass" style="padding:16px; margin-bottom:20px;">
+      <div class="summary-line"><span>Customer name</span><b style="color:var(--gold-2);">${customerName}</b></div>
+      <div class="summary-line"><span>Customer ID</span><b>${payload.customerId}</b></div>
+      <div class="summary-line"><span>Platform</span><b>${payload.billerName}</b></div>
+      <div class="summary-line"><span>Amount</span><b>₦${naira(payload.amount)}</b></div>
+    </div>
+    <button class="btn btn-primary" onclick="confirmVerifiedPurchase()">Confirm &amp; Fund ₦${naira(payload.amount)}</button>
+    <button class="btn btn-ghost mt16" onclick="closeSheet('verifySheet')">Cancel</button>
+  `;
+  window._pendingVerifiedPayload = verifiedPayload;
+  openSheet('verifySheet');
+}
+
+// Smile ISP: verify the account/phone number before funding.
+async function verifyAndConfirmIsp(payload){
+  showLoader('Verifying account…');
+  let customerName;
+  try{
+    const res = await bigisubCall(`api/v2/isp/${payload.provider}/verify/`, 'POST', {
+      account_id: payload.accountId
+    });
+    if(isTimeoutRes(res)){ hideLoader(); toast('Verification is taking longer than usual. Please try again.', 'err'); return; }
+    customerName = res.data?.customer_name || res.data?.name || null;
+    if(!res.httpOk || !res.success || !customerName){
+      hideLoader();
+      toast('Could not verify this Smile account. Please check the ID and try again.', 'err');
+      return;
+    }
+  }catch(e){
+    hideLoader();
+    toast('Verification failed. Please check your connection and try again.', 'err');
+    return;
+  }
+  hideLoader();
+  const verifiedPayload = { ...payload, _customerName: customerName };
+  document.getElementById('verifySheetContent').innerHTML = `
+    <h3 style="font-size:18px; margin-bottom:6px;">Confirm details</h3>
+    <p style="font-size:13px; color:var(--text-mute); margin:0 0 20px;">We verified this account with Smile. Please confirm before we top up.</p>
+    <div class="glass" style="padding:16px; margin-bottom:20px;">
+      <div class="summary-line"><span>Customer name</span><b style="color:var(--gold-2);">${customerName}</b></div>
+      <div class="summary-line"><span>Account ID</span><b>${payload.accountId}</b></div>
+      <div class="summary-line"><span>Plan</span><b>${payload.planLabel}</b></div>
+      <div class="summary-line"><span>Amount</span><b>₦${naira(payload.amount)}</b></div>
+    </div>
+    <button class="btn btn-primary" onclick="confirmVerifiedPurchase()">Confirm &amp; Pay ₦${naira(payload.amount)}</button>
+    <button class="btn btn-ghost mt16" onclick="closeSheet('verifySheet')">Cancel</button>
+  `;
+  window._pendingVerifiedPayload = verifiedPayload;
   openSheet('verifySheet');
 }
 
@@ -2739,6 +3238,71 @@ async function callBigisubAPI(payload){
     };
   }
 
+  if(payload.type === 'resultchecker'){
+    const res = await bigisubCall('api/v2/bills/result-checker/purchase/', 'POST', {
+      exam_type: payload.examType, exam_code: payload.examCode, quantity: payload.quantity
+    });
+    if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
+    const ok = res.success === true;
+    if(!res.httpOk || !ok) console.error('Result checker purchase failed — raw response:', JSON.stringify(res));
+    // Bigisub returns one PIN per unit purchased — collect whatever shape comes back.
+    const pins = res.data?.pins || res.data?.cards || (Array.isArray(res.data) ? res.data : null);
+    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, extra: { pins, rawResponse: res } };
+  }
+
+  if(payload.type === 'rechargepin'){
+    const res = await bigisubCall('api/v2/vtu/recharge-pin/purchase/', 'POST', {
+      network: Number(NET_ID_MAP[payload.network] || 1), plan: payload.planId, quantity: payload.quantity
+    });
+    if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
+    const ok = res.success === true;
+    if(!res.httpOk || !ok) console.error('Recharge pin purchase failed — raw response:', JSON.stringify(res));
+    const pins = res.data?.pins || res.data?.cards || (Array.isArray(res.data) ? res.data : null);
+    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, extra: { pins, rawResponse: res } };
+  }
+
+  if(payload.type === 'betting'){
+    const fundBody = {
+      biller_code: payload.billerCode, customer_id: payload.customerId, amount: String(payload.amount)
+    };
+    if(payload._validationRef) fundBody.validation_reference = payload._validationRef;
+    const res = await bigisubCall('api/v2/betting/fund/', 'POST', fundBody);
+    if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
+    if(!res.httpOk || res.success !== true){
+      console.error('Betting fund failed — raw response:', JSON.stringify(res));
+      return { ok:false, ref:null };
+    }
+    const txId = res.data?.transaction_id;
+    let statusDetail = String(res.data?.status_detail || '').toLowerCase();
+    // fund() doesn't always resolve immediately — poll requery a few times
+    // if the initial status isn't already terminal, same reasoning as the
+    // proxy timeout elsewhere: an unresolved status is NOT a failure.
+    let attempts = 0;
+    while(!['successful','success','failed','failure'].includes(statusDetail) && attempts < 3 && txId){
+      await new Promise(r => setTimeout(r, 2000));
+      const rq = await bigisubCall(`api/v2/betting/requery/?transaction_id=${txId}`, 'GET');
+      if(isTimeoutRes(rq)) { attempts++; continue; }
+      statusDetail = String(rq.data?.status_detail || rq.data?.status || '').toLowerCase();
+      attempts++;
+    }
+    if(!['successful','success','failed','failure'].includes(statusDetail)){
+      // Still unresolved after polling — unknown outcome, not a confirmed failure.
+      return { ok:false, timeout:true, ref: txId||null };
+    }
+    const ok = statusDetail === 'successful' || statusDetail === 'success';
+    return { ok, ref: txId || null, extra: { customerName: payload._customerName, rawResponse: res } };
+  }
+
+  if(payload.type === 'isp'){
+    const res = await bigisubCall(`api/v2/isp/${payload.provider}/topup/`, 'POST', {
+      account_id: payload.accountId, plan: payload.planId
+    });
+    if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
+    const ok = res.success === true;
+    if(!res.httpOk || !ok) console.error('ISP top-up failed — raw response:', JSON.stringify(res));
+    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, extra: { customerName: payload._customerName, rawResponse: res } };
+  }
+
   return { ok:false, ref:null };
 }
 
@@ -2749,6 +3313,11 @@ function showResult(success, payload, extra){
         <div class="eyebrow">Electricity token</div>
         <b class="mono" style="font-size:18px; display:block; margin-top:6px;">${extra.token}</b>
         ${extra.units ? `<div style="margin-top:6px; font-size:12.5px;">Units: ${extra.units} kWh</div>` : ''}
+      </div>` : '';
+  const pinsBlock = (success && extra && Array.isArray(extra.pins) && extra.pins.length) ? `
+      <div class="glass" style="text-align:left; padding:16px; margin-top:14px; border:1px solid var(--gold-2);">
+        <div class="eyebrow">${payload.type==='resultchecker' ? 'Result checker PIN(s)' : 'Recharge PIN(s)'}</div>
+        ${extra.pins.map(p => `<div class="mono" style="font-size:14px; margin-top:8px;">${p.pin || p.serial_number || p.card_number || JSON.stringify(p)}${p.serial ? ' · Serial: '+p.serial : ''}</div>`).join('')}
       </div>` : '';
   inner.innerHTML = `
     <div class="sheet-handle"></div>
@@ -2764,6 +3333,7 @@ function showResult(success, payload, extra){
         <div class="summary-line"><span>Service</span><b>${payload.type}</b></div>
       </div>
       ${tokenBlock}
+      ${pinsBlock}
       <button class="btn btn-primary mt24" onclick="closeSheet('resultSheet'); go('dashboard');">Done</button>
     </div>`;
   openSheet('resultSheet');
@@ -2814,7 +3384,7 @@ async function fundWalletViaSterling(){
 
     document.getElementById('stBankName').textContent = data.bankName || 'Sterling Bank';
     document.getElementById('stAccountNumber').textContent = data.accountNumber;
-    document.getElementById('stAmount').textContent = '₦' + naira(amt);
+    document.getElementById('stAmount').textContent = '₦' + naira(data.chargeAmount);
     document.getElementById('stNote').textContent = data.note || '';
     document.getElementById('stStatusText').textContent = 'Waiting for your transfer…';
     document.getElementById('stSpinner').style.display = '';

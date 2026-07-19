@@ -599,7 +599,7 @@ async function sendTestNotification(){
       statusEl.textContent = '❌ No push subscription found. Enable notifications first.';
       return;
     }
-    const subs = [{ ...sub, userEmail: FB.auth.currentUser?.email || adminUid, uid: adminUid }];
+    const subs = [sub];
 
     const response = await fetch('/.netlify/functions/send-push', {
       method: 'POST',
@@ -684,13 +684,10 @@ async function sendPushNotification(){
 
   if(!title || !body){ statusEl.textContent = 'Fill in title and message first.'; return; }
 
-  // Collect push subscriptions from all users (carry email + uid along so
-  // server-side logs can be attributed to a real user, and so the function
-  // can delete a subscription from Firestore if the push service says it's
-  // dead — instead of it silently failing forever on every future send)
+  // Collect push subscriptions from all users
   const subscriptions = ALL_USERS
     .filter(u => u.pushSubscription && u.pushSubscription.endpoint)
-    .map(u => ({ ...u.pushSubscription, userEmail: u.email || u.id, uid: u.id }));
+    .map(u => u.pushSubscription);
 
   if(!subscriptions.length){
     statusEl.textContent = 'No users have enabled push notifications yet.'; return;
@@ -808,6 +805,10 @@ function serviceLabel(t){
   if(t.type==='airtime') return `Airtime — ${t.network||''}`;
   if(t.type==='cable') return `Cable — ${t.provider||''}`;
   if(t.type==='electricity') return `Electricity — ${t.disco||''}`;
+  if(t.type==='resultchecker') return `Result Checker — ${t.examType||''} ×${t.quantity||1}`;
+  if(t.type==='rechargepin') return `Recharge Pin — ${t.network||''} ${t.planLabel||''} ×${t.quantity||1}`;
+  if(t.type==='betting') return `Betting — ${t.billerName||''} (${t.customerId||''})`;
+  if(t.type==='isp') return `ISP — ${t.provider||''} ${t.planLabel||''}`;
   if(t.type==='wallet_funding') return 'Wallet funding';
   if(t.type==='admin_credit') return 'Admin credit — From WoodPay';
   if(t.type==='admin_debit') return 'Admin debit — From WoodPay';
