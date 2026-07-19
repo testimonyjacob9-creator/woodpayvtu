@@ -832,11 +832,37 @@ function renderTxTable(){
       <td class="mono" style="font-size:11.5px;">${(t.txRef||t.id).toString().slice(0,14)}</td>
       <td>${userLabel(t.userId)}</td><td>${serviceLabel(t)}</td><td class="mono">₦${naira(t.amount)}</td>
       <td>${statusBadge(t.status)}</td><td>${toDate(t.createdAt).toLocaleString('en-NG')}</td>
-      <td style="display:flex;gap:6px;">
+      <td style="display:flex;gap:6px;flex-wrap:wrap;">
+        <select class="field" style="width:auto;margin:0;padding:6px 8px;font-size:12px;" onchange="changeTxStatus('${t.id}', this.value, '${t.status||'pending'}')">
+          <option value="">Change status…</option>
+          <option value="pending" ${t.status==='pending'||!t.status?'disabled':''}>Pending</option>
+          <option value="success" ${t.status==='success'?'disabled':''}>Successful</option>
+          <option value="failed" ${t.status==='failed'?'disabled':''}>Failed</option>
+        </select>
         ${t.status==='success' ? `<button class="btn btn-danger btn-sm" onclick="manualRefund('${t.id}', ${Number(t.amount||0)}, '${t.userId}')">Refund</button>` : ''}
         ${t.providerExtra ? `<button class="btn btn-sm" onclick='showRawResponse(${JSON.stringify(t.providerExtra)})'>Raw</button>` : ''}
       </td>
     </tr>`).join('');
+}
+
+// Manually corrects a transaction's status label — e.g. the app marked
+// something "failed"/"pending" but you've confirmed with the provider it
+// actually delivered, or vice versa. This ONLY changes the status field.
+// It does NOT move any money — use the "Refund" button for that (it debits
+// nothing extra, just credits the user's wallet and flags the tx). Flipping
+// a tx to "failed" here does not auto-refund, to avoid ever double-crediting
+// a user whose money was already returned.
+async function changeTxStatus(txId, newStatus, oldStatus){
+  if(!newStatus) return;
+  const money = newStatus==='success'
+    ? '\n\nNote: this does NOT credit any wallet or send any token/PIN — it only changes the status label. Only mark something "Successful" if you have confirmed the customer actually received it.'
+    : (oldStatus==='success' ? '\n\nNote: this does NOT refund the customer. If they should get their money back, use the "Refund" button instead.' : '');
+  if(!confirm(`Change status from "${oldStatus}" to "${newStatus}"?${money}`)){ renderTxTable(); return; }
+  try{
+    await FB.updateDoc(FB.doc(FB.db,'transactions',txId), { status:newStatus, statusChangedByAdmin:true, statusChangedAt: FB.serverTimestamp ? FB.serverTimestamp() : new Date() });
+    toast('Status updated', 'ok');
+    loadAllData();
+  }catch(e){ toast('Update failed — check Firestore admin rules.', 'err'); }
 }
 
 function showRawResponse(providerExtra){

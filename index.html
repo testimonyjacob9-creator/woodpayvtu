@@ -375,6 +375,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 .result-icon{ width:72px;height:72px; border-radius:50%; margin:0 auto 20px; display:flex;align-items:center;justify-content:center; }
 .result-icon.ok{ background:rgba(58,220,151,.14); color:var(--success); }
 .result-icon.fail{ background:rgba(255,92,124,.14); color:var(--danger); }
+.result-icon.pending{ background:rgba(255,180,84,.14); color:var(--warn); }
 
 .copy-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 16px; background:rgba(255,255,255,.035); border-radius:14px; border:1px solid var(--border); }
 .copy-row b{ font-family:var(--font-m); font-size:14.5px; letter-spacing:.02em; }
@@ -1249,6 +1250,10 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   <div class="glass sheet" id="resultSheetInner"></div>
 </div>
 
+<div class="overlay" id="txReceiptSheet">
+  <div class="glass sheet" id="txReceiptSheetInner"></div>
+</div>
+
 <div class="overlay" id="contactSheet">
   <div class="glass sheet">
     <div class="sheet-handle"></div>
@@ -1437,6 +1442,60 @@ const ISP_META = {
   smile:      { label:"Smile", color:"#F5A623", steps:3 },
   spectranet: { label:"Spectranet", color:"#2E7D32", steps:2 }
 };
+
+// Smile's live ISP plan endpoint isn't returning reliably, so the real
+// catalog (pulled straight from the provider) is hardcoded here instead.
+// Each "buy" is the provider's raw cost; markupPrice(buy, 0.22) is still
+// applied on top when rendering/charging, same as before.
+const SMILE_PLANS = [
+  { id:'smile_airtime',      name:'Buy Airtime',                              buy:0 },
+  { id:'smile_mini_1gb_1d',  name:'SmileMINI 1GB for 1days - 450 Naira',      buy:450 },
+  { id:'smile_mini_25gb_1d', name:'Smile MINI 2.5GB for 1days - 750 Naira',   buy:750 },
+  { id:'smile_mini_1gb_7d',  name:'Smile MINI 1GB for 7days - 750 Naira',     buy:750 },
+  { id:'smile_voice_65',     name:'SmileVoice ONLY 65 for 30days - 900 Naira', buy:900 },
+  { id:'smile_midi_15gb',    name:'Smile MIDI 1.5GB for 30days - 1,250 Naira', buy:1250 },
+  { id:'smile_midi_2gb',     name:'Smile MIDI 2GB for 30days - 1,500 Naira',  buy:1500 },
+  { id:'smile_mini_3gb_2d',  name:'Smile MINI 3GB for 2days - 1,500 Naira',   buy:1500 },
+  { id:'smile_mini_35gb_7d', name:'Smile MINI 3.5GB for 7days - 1,500 Naira', buy:1500 },
+  { id:'smile_voice_135',    name:'SmileVoice ONLY 135 for 30days - 1,850 Naira', buy:1850 },
+  { id:'smile_midi_3gb',     name:'Smile MIDI 3GB for 30days - 2,000 Naira',  buy:2000 },
+  { id:'smile_mini_5gb_2d',  name:'Smile MINI 5GB for 2days - 2,200 Naira',   buy:2200 },
+  { id:'smile_mini_6gb_7d',  name:'Smile MINI 6GB for 7days - 2,300 Naira',   buy:2300 },
+  { id:'smile_voice_150',    name:'SmileVoice ONLY 150 for 60days - 2,700 Naira', buy:2700 },
+  { id:'smile_midi_6gb',     name:'Smile MIDI 6GB for 30days - 3,000 Naira',  buy:3000 },
+  { id:'smile_midi_8gb',     name:'Smile MIDI 8GB for 30days - 3,500 Naira',  buy:3500 },
+  { id:'smile_voice_175',    name:'SmileVoice ONLY 175 for 90days - 3,600 Naira', buy:3600 },
+  { id:'smile_midi_10gb',    name:'Smile MIDI 10GB for 30days - 4,000 Naira', buy:4000 },
+  { id:'smile_midi_13gb',    name:'Smile MIDI 13GB for 30days - 5,000 Naira', buy:5000 },
+  { id:'smile_freedom',      name:'Freedom Mobile Plan for 30days - 5,000 Naira', buy:5000 },
+  { id:'smile_voice_430',    name:'SmileVoice ONLY 430 for 30days - 5,700 Naira', buy:5700 },
+  { id:'smile_midi_18gb',    name:'Smile MIDI 18GB for 30days - 6,000 Naira', buy:6000 },
+  { id:'smile_midi_20gb',    name:'Smile MIDI 20GB for 30days - 7,000 Naira', buy:7000 },
+  { id:'smile_voice_450',    name:'SmileVoice ONLY 450 for 60days - 7,200 Naira', buy:7200 },
+  { id:'smile_voice_500',    name:'SmileVoice ONLY 500 for 90days - 9,000 Naira', buy:9000 },
+  { id:'smile_midi_25gb',    name:'Smile MIDI 25GB for 30days - 9,000 Naira', buy:9000 },
+  { id:'smile_midi_40gb',    name:'Smile MIDI 40GB for 30days - 12,500 Naira', buy:12500 },
+  { id:'smile_annual_20gb',  name:'Smile ANNUAL 20GB for 365days - 14,000 Naira', buy:14000 },
+  { id:'smile_midi_65gb',    name:'Smile MIDI 65GB for 30days - 15,000 Naira', buy:15000 },
+  { id:'smile_maxi_lite',    name:'Smile MAXI Lite for 30days - 15,000 Naira', buy:15000 },
+  { id:'smile_midi_100gb',   name:'Smile MIDI 100GB for 30days - 20,000 Naira', buy:20000 },
+  { id:'smile_jumbo_90gb',   name:'Smile JUMBO 90GB for 60days - 25,000 Naira', buy:25000 },
+  { id:'smile_midi_130gb',   name:'Smile MIDI 130GB for 30days - 25,000 Naira', buy:25000 },
+  { id:'smile_maxi_essential', name:'Smile MAXI Essential for 30days - 27,700 Naira', buy:27700 },
+  { id:'smile_annual_50gb',  name:'Smile ANNUAL 50GB for 365days - 29,000 Naira', buy:29000 },
+  { id:'smile_maxi_home',    name:'Smile Maxi Home for 30days - 38,500 Naira', buy:38500 },
+  { id:'smile_midi_210gb',   name:'Smile MIDI 210GB for 30days - 40,000 Naira', buy:40000 },
+  { id:'smile_maxi_office',  name:'Smile MAXI Office for 30days - 45,000 Naira', buy:45000 },
+  { id:'smile_annual_120gb', name:'Smile ANNUAL 120GB for 365days - 49,500 Naira', buy:49500 },
+  { id:'smile_jumbo_300gb',  name:'Smile JUMBO 300GB for 90days - 50,000 Naira', buy:50000 },
+  { id:'smile_jumbo_350gb',  name:'Smile JUMBO 350GB for 120days - 60,000 Naira', buy:60000 },
+  { id:'smile_maxi_dataflux', name:'Smile MAXI DataFlux for 30days - 61,500 Naira', buy:61500 },
+  { id:'smile_jumbo_500gb',  name:'Smile JUMBO 500GB for 180days - 77,000 Naira', buy:77000 },
+  { id:'smile_annual_250gb', name:'Smile ANNUAL 250GB for 365days - 77,000 Naira', buy:77000 },
+  { id:'smile_annual_450gb', name:'Smile ANNUAL 450GB for 365days - 107,000 Naira', buy:107000 },
+  { id:'smile_annual_700gb', name:'Smile ANNUAL 700GB for 365days - 154,000 Naira', buy:154000 },
+  { id:'smile_annual_1tb',   name:'Smile ANNUAL 1TB for 365days - 180,000 Naira', buy:180000 }
+];
 
 // Shared markup for services whose prices come live from Bigisub rather than
 // a local PRICING catalog (result checker, recharge pin, betting, ISP) —
@@ -1921,7 +1980,7 @@ function renderRecentTx(items){
   const wrap = document.getElementById('recentTxWrap');
   if(!items.length){ wrap.innerHTML = `<div class="empty" id="recentTxEmpty"><div class="ei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h12v18l-2-1-2 1-2-1-2 1-2-1-2 1V3z"/><path d="M9 8h6M9 12h6" stroke-linecap="round"/></svg></div>No transactions yet — your top-ups will show here</div>`; return; }
   wrap.innerHTML = items.map(t => `
-    <div class="tx-row">
+    <div class="tx-row" onclick="openTxReceipt('${t.id}')" style="cursor:pointer;">
       <div class="tx-icon" style="background:rgba(255,255,255,.05); color:var(--text-dim);">${txIcon(t.type)}</div>
       <div class="tx-mid"><b>${txLabel(t)}</b><span>${t.phone||t.meterNumber||t.smartcard||''}</span></div>
       <div class="tx-amt"><b>₦${naira(t.amount)}</b>${txBadge(t.status)}</div>
@@ -1932,6 +1991,10 @@ function txLabel(t){
   if(t.type==='airtime') return `${(NET_META[t.network]||{}).label||t.network} Airtime`;
   if(t.type==='cable') return `${(CABLE_META[t.provider]||{}).label||t.provider} — ${t.planName||''}`;
   if(t.type==='electricity') return `${t.disco||'Electricity'} (${t.meterType||''})`;
+  if(t.type==='resultchecker') return `${t.examType||'Result Checker'} PIN ×${t.quantity||1}`;
+  if(t.type==='rechargepin') return `${(NET_META[t.network]||{}).label||t.network} Recharge Pin — ${t.planLabel||''} ×${t.quantity||1}`;
+  if(t.type==='betting') return `${t.billerName||'Betting'} wallet funding`;
+  if(t.type==='isp') return `${(ISP_META[t.provider]||{}).label||t.provider} — ${t.planLabel||''}`;
   if(t.type==='wallet_funding') return 'Wallet funding';
   if(t.type==='admin_credit' || t.type==='admin_debit') return t.description || 'From WoodPay';
   return 'Transaction';
@@ -1941,7 +2004,7 @@ function renderHistoryList(items){
   const wrap = document.getElementById('historyWrap');
   if(!items.length){ wrap.innerHTML = `<div class="empty"><div class="ei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h12v18l-2-1-2 1-2-1-2 1-2-1-2 1V3z"/><path d="M9 8h6M9 12h6" stroke-linecap="round"/></svg></div>No transactions yet</div>`; return; }
   wrap.innerHTML = items.map(t => `
-    <div class="tx-row">
+    <div class="tx-row" onclick="openTxReceipt('${t.id}')" style="cursor:pointer;">
       <div class="tx-icon" style="background:rgba(255,255,255,.05); color:var(--text-dim);">${txIcon(t.type)}</div>
       <div class="tx-mid"><b>${txLabel(t)}</b><span>${fmtDate(t.createdAt)}</span></div>
       <div class="tx-amt"><b>₦${naira(t.amount)}</b>${txBadge(t.status)}</div>
@@ -1952,6 +2015,99 @@ function fmtDate(ts){
     const d = ts?.toDate ? ts.toDate() : new Date();
     return d.toLocaleString('en-NG',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'});
   }catch(e){ return ''; }
+}
+
+/* ============================================================
+   TRANSACTION RECEIPT — shown when a user taps any transaction row.
+   Only ever reads clean, our-own fields (payload fields + the safe subset
+   of providerExtra: token/units/pins/customerName). Never renders
+   providerExtra.rawResponse or any provider/vendor name — that stays
+   admin-only (see admin.html's "Raw" button).
+   ============================================================ */
+function txDetailLines(t){
+  const lines = [];
+  if(t.type==='data' || t.type==='airtime' || t.type==='rechargepin'){
+    if(t.phone) lines.push(['Phone number', t.phone]);
+    if(t.network) lines.push(['Network', (NET_META[t.network]||{}).label || t.network]);
+  }
+  if(t.type==='cable'){
+    if(t.smartcard) lines.push(['Smartcard / IUC', t.smartcard]);
+    if(t.planName) lines.push(['Plan', t.planName]);
+  }
+  if(t.type==='electricity'){
+    if(t.disco) lines.push(['Disco', t.disco]);
+    if(t.meterNumber) lines.push(['Meter number', t.meterNumber]);
+    if(t.meterType) lines.push(['Meter type', t.meterType]);
+  }
+  if(t.type==='resultchecker'){
+    if(t.examType) lines.push(['Exam type', t.examType]);
+    if(t.quantity) lines.push(['Quantity', t.quantity]);
+  }
+  if(t.type==='betting'){
+    if(t.billerName) lines.push(['Platform', t.billerName]);
+    if(t.customerId) lines.push(['Customer ID', t.customerId]);
+  }
+  if(t.type==='isp'){
+    if(t.provider) lines.push(['Provider', (ISP_META[t.provider]||{}).label || t.provider]);
+    if(t.accountId) lines.push(['Account ID', t.accountId]);
+    if(t.planLabel) lines.push(['Plan', t.planLabel]);
+  }
+  const customerName = t.providerExtra?.customerName;
+  if(customerName) lines.push(['Verified name', customerName]);
+  return lines;
+}
+
+function openTxReceipt(id){
+  const t = (window.__TX_CACHE||[]).find(x => x.id === id);
+  if(!t){ toast('Could not load this transaction. Please try again.', 'err'); return; }
+  renderTxReceipt(t);
+  openSheet('txReceiptSheet');
+}
+
+function renderTxReceipt(t){
+  const inner = document.getElementById('txReceiptSheetInner');
+  const status = t.status || 'pending';
+  const statusMeta = {
+    success:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12l6 6L20 6" stroke-linecap="round" stroke-linejoin="round"/></svg>`, cls:'ok', title:'Payment successful', sub:'Your order has been delivered.' },
+    failed:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>`, cls:'fail', title:'Delivery failed', sub:'This payment was refunded to your wallet.' },
+    pending:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg>`, cls:'pending', title:'Still confirming', sub:"We're confirming this with the network. It'll update automatically — no need to retry." }
+  }[status] || { icon:'', cls:'pending', title:'Pending', sub:'' };
+
+  const extra = t.providerExtra || {};
+  const tokenBlock = (status==='success' && extra.token) ? `
+    <div class="glass" style="text-align:left; padding:16px; margin-top:14px; border:1px solid var(--gold-2);">
+      <div class="eyebrow">Electricity token</div>
+      <b class="mono" style="font-size:18px; display:block; margin-top:6px;">${extra.token}</b>
+      ${extra.units ? `<div style="margin-top:6px; font-size:12.5px;">Units: ${extra.units} kWh</div>` : ''}
+    </div>` : '';
+  const pinsBlock = (status==='success' && Array.isArray(extra.pins) && extra.pins.length) ? `
+    <div class="glass" style="text-align:left; padding:16px; margin-top:14px; border:1px solid var(--gold-2);">
+      <div class="eyebrow">${t.type==='resultchecker' ? 'Result checker PIN(s)' : 'Recharge PIN(s)'}</div>
+      ${extra.pins.map(p => `<div class="mono" style="font-size:14px; margin-top:8px;">${p.pin || p.serial_number || p.card_number || ''}${p.serial ? ' · Serial: '+p.serial : ''}</div>`).join('')}
+    </div>` : '';
+
+  const detailLines = txDetailLines(t).map(([label,val]) =>
+    `<div class="summary-line"><span>${label}</span><b>${val}</b></div>`).join('');
+
+  inner.innerHTML = `
+    <div class="sheet-handle"></div>
+    <div class="result-card">
+      <div class="result-icon ${statusMeta.cls}">${statusMeta.icon}</div>
+      <h3 style="font-size:20px;">${statusMeta.title}</h3>
+      <p style="margin-top:8px;">${statusMeta.sub}</p>
+      <div class="glass" style="text-align:left; padding:16px; margin-top:22px;">
+        <div class="summary-line"><span>Reference</span><b class="mono" style="font-size:12.5px;">${t.txRef||t.id}</b></div>
+        <div class="summary-line"><span>Service</span><b>${txLabel(t)}</b></div>
+        <div class="summary-line"><span>Amount</span><b>₦${naira(t.amount)}</b></div>
+        <div class="summary-line"><span>Status</span><b>${txBadge(status)}</b></div>
+        <div class="summary-line"><span>Date</span><b>${fmtDate(t.createdAt)}</b></div>
+        ${detailLines}
+      </div>
+      ${tokenBlock}
+      ${pinsBlock}
+      ${status !== 'success' ? `<button class="btn btn-ghost mt16" onclick="closeSheet('txReceiptSheet'); go('contact');">Need help? Contact support</button>` : ''}
+      <button class="btn btn-primary mt16" onclick="closeSheet('txReceiptSheet')">Done</button>
+    </div>`;
 }
 
 /* ============================================================
@@ -2215,27 +2371,25 @@ function updateElecSummary(){
 /* ============================================================
    RESULT CHECKER (WAEC / NECO)
    ============================================================ */
+// Same problem as the Smile ISP endpoint — the live result-checker prices
+// call isn't reliable, so the real catalog from the provider is hardcoded
+// here. "buy" is the provider's raw cost; the existing flat ₦100 profit
+// per PIN is still added on top when rendering/charging (unchanged).
+const RESULT_CHECKER_PLANS = [
+  { examType:'WAEC Result Checker',   code:'waec',   buy:5250, color:'#3ADC97' },
+  { examType:'NECO Result Checker',   code:'neco',   buy:2500, color:'#4F7CFF' },
+  { examType:'NABTEB Result Checker', code:'nabteb', buy:1000, color:'#FFB454' }
+];
 async function renderResultCheckerScreen(){
   const grid = document.getElementById('rcExamGrid');
   const loadEl = document.getElementById('rcLoadState');
   if(!grid.dataset.built){
     grid.dataset.built = '1';
-    loadEl.textContent = 'Loading exam prices…';
-    const res = await bigisubCall('api/v2/bills/result-checker/prices/', 'GET');
-    if(isTimeoutRes(res) || !res.httpOk || !res.success){
-      loadEl.textContent = 'Could not load exam prices. Please go back and try again.';
-      grid.dataset.built = '';
-      return;
-    }
-    selection.resultchecker._catalog = (res.data || []).map(p => ({
-      examType: p.exam_type || p.name || p.type,
-      code: p.exam_code || p.code || p.variation_code,
-      buy: Number(p.amount || p.price || 0)
-    }));
+    selection.resultchecker._catalog = RESULT_CHECKER_PLANS.map(p => ({ examType:p.examType, code:p.code, buy:p.buy, color:p.color }));
     loadEl.textContent = '';
     grid.innerHTML = selection.resultchecker._catalog.map((p,i) => `
       <div class="glass net-chip ${selection.resultchecker.examType===p.examType?'sel':''}" onclick="selectRcExam(${i})">
-        <div class="nb" style="background:rgba(108,92,231,.16); color:#B3A6FF;">${(p.examType||'?')[0]}</div>
+        <div class="nb" style="background:${p.color}22; color:${p.color};">${(p.examType||'?')[0]}</div>
         <span>${p.examType}</span>
       </div>`).join('');
   }
@@ -2281,6 +2435,13 @@ function updateRcSummary(){
 /* ============================================================
    RECHARGE PIN
    ============================================================ */
+// Per the provider docs: GET /api/v2/vtu/recharge-pin/plans/ takes no
+// network filter — it returns every network's denominations in one call,
+// shaped like { id, network, network_name, size:"N100", regular_price,
+// corporate_price, info }. The earlier code was mapping fields that don't
+// exist on this response (p.name / p.amount), which is why nothing ever
+// loaded. Fetching once and filtering client-side by network id below.
+let _rpAllPlans = null;
 function renderRechargePinScreen(){
   const grid = document.getElementById('rpNetGrid');
   grid.innerHTML = Object.keys(NET_META).map(k => `
@@ -2304,25 +2465,34 @@ async function selectRpNet(net){
   const loadEl = document.getElementById('rpLoadState');
   loadEl.textContent = 'Loading denominations…';
   list.innerHTML = '';
-  const res = await bigisubCall(`api/v2/vtu/recharge-pin/plans/?network=${NET_ID_MAP[net]}`, 'GET');
-  if(selection.rechargepin.network !== net) return; // user switched network mid-fetch
-  if(isTimeoutRes(res) || !res.httpOk || !res.success){
-    loadEl.textContent = 'Could not load denominations. Please try again.';
-    return;
+
+  if(!_rpAllPlans){
+    const res = await bigisubCall('api/v2/vtu/recharge-pin/plans/', 'GET');
+    if(isTimeoutRes(res) || !res.httpOk || !res.success){
+      loadEl.textContent = 'Could not load denominations. Please try again.';
+      return;
+    }
+    _rpAllPlans = res.data || [];
   }
-  loadEl.textContent = '';
-  selection.rechargepin.plans = (res.data || []).map(p => ({
-    id: p.id || p.plan_id,
-    label: p.name || `₦${p.amount}`,
-    buy: Number(p.amount || p.price || 0)
-  }));
+  if(selection.rechargepin.network !== net) return; // user switched network mid-fetch
+
+  const netId = Number(NET_ID_MAP[net]);
+  selection.rechargepin.plans = _rpAllPlans
+    .filter(p => Number(p.network) === netId)
+    .map(p => ({
+      id: p.id,
+      label: p.size || p.info || 'Pin', // e.g. "N100"
+      buy: Number(p.regular_price || 0),
+      corporateBuy: Number(p.corporate_price || 0)
+    }));
+  loadEl.textContent = selection.rechargepin.plans.length ? '' : 'No denominations available for this network right now.';
   renderRpPlans();
 }
 function renderRpPlans(){
   const list = document.getElementById('rpPlanList');
   const plans = selection.rechargepin.plans || [];
   if(!selection.rechargepin.network){ list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">Choose a network to see denominations</div>`; return; }
-  if(!plans.length) return; // loading or error state already shown via rpLoadState
+  if(!plans.length) return; // loading or empty state already shown via rpLoadState
   list.innerHTML = plans.map((p,i) => {
     const price = markupPrice(p.buy, 0.02);
     return `<div class="glass plan-row ${selection.rechargepin.plan===i?'sel':''}" onclick="selectRpPlan(${i})">
@@ -2455,10 +2625,21 @@ async function selectIspProvider(p){
   renderIspScreen();
   const list = document.getElementById('ispPlanList');
   const loadEl = document.getElementById('ispLoadState');
-  loadEl.textContent = 'Loading plans…';
   list.innerHTML = '';
+
+  // Smile's live plans endpoint (api/v2/isp/smile/plans/) hasn't been
+  // returning reliably, so the real Smile catalog is hardcoded in
+  // SMILE_PLANS above instead of fetched. No live call needed here.
+  if(p === 'smile'){
+    loadEl.textContent = '';
+    selection.isp.plans = SMILE_PLANS.map(pl => ({ id: pl.id, label: pl.name, buy: Number(pl.buy || 0) }));
+    renderIspPlans();
+    return;
+  }
+
+  loadEl.textContent = 'Loading plans…';
   // Confirmed against Bigisub's docs: provider is a path segment
-  // (api/v2/isp/smile/plans/ or api/v2/isp/spectranet/plans/), not a query param.
+  // (api/v2/isp/spectranet/plans/), not a query param.
   const res = await bigisubCall(`api/v2/isp/${p}/plans/`, 'GET');
   if(selection.isp.provider !== p) return;
   if(isTimeoutRes(res) || !res.httpOk || !res.success){
@@ -2638,7 +2819,9 @@ async function verifyAndConfirm(payload){
   let customerName, verifiedPayload;
   try{
     if(isCable){
-      // Step 1: get plan list so we have the variation_code
+      // Step 1: confirm the plan is still available in Bigisub's catalog
+      // before we verify/charge (purchase itself only needs cable_type +
+      // card_no + amount — no plan/variation code per the docs).
       const plansRes = await bigisubCall(`api/v2/vtu/cable/plans/?cable_name=${payload.provider}`, 'GET');
       if(!plansRes.httpOk || !plansRes.success){
         hideLoader();
@@ -2654,20 +2837,18 @@ async function verifyAndConfirm(payload){
       // Step 2: verify smartcard
       const verifyRes = await bigisubCall('api/v2/vtu/cable/verify/', 'POST', {
         cable_name: payload.provider,
-        smartcard_number: payload.smartcard,
-        variation_code: match.variation_code
+        card_no: payload.smartcard
       });
       customerName = verifyRes.data?.customer_name || verifyRes.data?.name || null;
-      if(!verifyRes.httpOk || !verifyRes.success || !customerName){
+      if(!verifyRes.httpOk || !verifyRes.success || !customerName || verifyRes.data?.valid === false){
         hideLoader();
         toast('Smartcard verification failed. Check the number and try again.', 'err');
         return;
       }
-      // Stash resolved variation_code so callBigisubAPI can skip re-fetching
-      verifiedPayload = { ...payload, _variationCode: match.variation_code, _customerName: customerName };
+      verifiedPayload = { ...payload, _planChecked: true, _customerName: customerName };
     } else {
       // Electricity: get providers list first
-      const provRes = await bigisubCall('bills/electricity/providers/', 'GET');
+      const provRes = await bigisubCall('api/v2/bills/electricity/providers/', 'GET');
       if(!provRes.httpOk || !provRes.success){
         hideLoader();
         toast('Could not fetch electricity providers. Please try again.', 'err');
@@ -2686,9 +2867,9 @@ async function verifyAndConfirm(payload){
         toast('This electricity provider is currently unavailable. Please try again later.', 'err');
         return;
       }
-      const verifyRes = await bigisubCall('bills/electricity/verify/', 'POST', {
-        disco_code: match.code,
-        meter_number: payload.meterNumber,
+      const verifyRes = await bigisubCall('api/v2/bills/electricity/verify/', 'POST', {
+        company: match.code,
+        meter_no: payload.meterNumber,
         meter_type: payload.meterType
       });
       customerName = verifyRes.data?.customer_name || verifyRes.data?.name || null;
@@ -3248,34 +3429,35 @@ async function callBigisubAPI(payload){
   }
 
   if(payload.type === 'cable'){
-    // _variationCode and _customerName are pre-populated by the verify step.
-    // If somehow missing (e.g. direct call), fall back to re-fetching.
-    let variationCode = payload._variationCode;
+    // _customerName is pre-populated by the verify step. If somehow missing
+    // (e.g. a direct call), fall back to re-checking plan availability and
+    // re-verifying before we charge anything.
     let customerName = payload._customerName;
-    if(!variationCode || !customerName){
+    if(!payload._planChecked || !customerName){
       const plansRes = await bigisubCall(`api/v2/vtu/cable/plans/?cable_name=${payload.provider}`, 'GET');
       if(isTimeoutRes(plansRes)) return { ok:false, timeout:true, ref:null };
       if(!plansRes.httpOk || !plansRes.success) return { ok:false, ref:null };
       const match = (plansRes.data || []).find(p => p.product_name === payload.planName);
       if(!match){ console.error('No matching Bigisub cable plan for', payload.planName); return { ok:false, ref:null }; }
-      variationCode = match.variation_code;
       if(!customerName){
         const verifyRes = await bigisubCall('api/v2/vtu/cable/verify/', 'POST', {
-          cable_name: payload.provider, smartcard_number: payload.smartcard, variation_code: variationCode
+          cable_name: payload.provider, card_no: payload.smartcard
         });
         if(isTimeoutRes(verifyRes)) return { ok:false, timeout:true, ref:null };
         customerName = verifyRes.data?.customer_name || verifyRes.data?.name;
-        if(!verifyRes.httpOk || !verifyRes.success || !customerName){
+        if(!verifyRes.httpOk || !verifyRes.success || !customerName || verifyRes.data?.valid === false){
           console.error('Cable smartcard verify failed', verifyRes);
           return { ok:false, ref:null };
         }
       }
     }
     const res = await bigisubCall('api/v2/vtu/cable/purchase/', 'POST', {
-      cable_name: payload.provider,
-      smartcard_number: payload.smartcard,
-      variation_code: variationCode,
+      cable_type: payload.provider,
+      card_no: payload.smartcard,
+      phone_number: (typeof PROFILE !== 'undefined' && PROFILE && PROFILE.phone) || payload.phone || '',
+      amount: payload.buyPrice,
       Customer: customerName
+      // pin is injected server-side by the proxy — never sent from here
     });
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
     const bigisubOkCable = res.success === true;
@@ -3287,7 +3469,7 @@ async function callBigisubAPI(payload){
     let discoCode = payload._discoCode;
     let customerName = payload._customerName;
     if(!discoCode || !customerName){
-      const provRes = await bigisubCall('bills/electricity/providers/', 'GET');
+      const provRes = await bigisubCall('api/v2/bills/electricity/providers/', 'GET');
       if(isTimeoutRes(provRes)) return { ok:false, timeout:true, ref:null };
       if(!provRes.httpOk || !provRes.success) return { ok:false, ref:null };
       const providers = provRes.data?.providers || [];
@@ -3300,8 +3482,8 @@ async function callBigisubAPI(payload){
       if(!match){ console.error('No matching Bigisub DisCo for', payload.disco); return { ok:false, ref:null }; }
       discoCode = match.code;
       if(!customerName){
-        const verifyRes = await bigisubCall('bills/electricity/verify/', 'POST', {
-          disco_code: discoCode, meter_number: payload.meterNumber, meter_type: payload.meterType
+        const verifyRes = await bigisubCall('api/v2/bills/electricity/verify/', 'POST', {
+          company: discoCode, meter_no: payload.meterNumber, meter_type: payload.meterType
         });
         if(isTimeoutRes(verifyRes)) return { ok:false, timeout:true, ref:null };
         customerName = verifyRes.data?.customer_name || verifyRes.data?.name;
@@ -3311,15 +3493,17 @@ async function callBigisubAPI(payload){
         }
       }
     }
-    const res = await bigisubCall('meter_pay/', 'POST', {
-      disco_code: discoCode,
-      meter_number: payload.meterNumber,
+    const res = await bigisubCall('api/v2/bills/electricity/pay/', 'POST', {
+      company: discoCode,
+      meter_no: payload.meterNumber,
       meter_type: payload.meterType,
-      amount: String(payload.buyPrice),
+      phone_number: (typeof PROFILE !== 'undefined' && PROFILE && PROFILE.phone) || payload.phone || '',
+      amount: payload.buyPrice,
       Customer_name: customerName
+      // pin is injected server-side by the proxy — never sent from here
     });
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
-    const bigisubOkElec = res.Status === 'successful' || res.status === 'successful';
+    const bigisubOkElec = res.success === true;
     return {
       ok: res.httpOk && bigisubOkElec,
       ref: res.data?.reference || res.data?.transaction_id || null,
@@ -3352,7 +3536,11 @@ async function callBigisubAPI(payload){
 
   if(payload.type === 'betting'){
     const fundBody = {
-      biller_code: payload.billerCode, customer_id: payload.customerId, amount: String(payload.amount)
+      biller_code: payload.billerCode,
+      customer_id: payload.customerId,
+      customer_name: payload._customerName,
+      amount: payload.amount
+      // pin_code is injected server-side by the proxy — never sent from here
     };
     if(payload._validationRef) fundBody.validation_reference = payload._validationRef;
     const res = await bigisubCall('api/v2/betting/fund/', 'POST', fundBody);
