@@ -611,7 +611,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 
   <!-- ============ LANDING ============ -->
   <section class="screen active" id="screen-landing">
-    <div class="promo-strip"><span class="dot"></span> Sunday Special — 1GB promo pricing for new users today</div>
+    <div class="promo-strip hide" id="landingBanner"><span class="dot"></span> <span id="landingBannerText"></span></div>
 
     <div class="hero">
       <h1>Top up your life,<br><span class="grad">instantly.</span></h1>
@@ -735,6 +735,8 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
         <div class="avatar" id="avatarInit">•</div>
       </div>
     </div>
+
+    <div class="promo-strip hide" id="dashboardBanner" style="margin:14px 0 0;"><span class="dot"></span> <span id="dashboardBannerText"></span></div>
 
     <div class="glass wallet-card">
       <div class="eyebrow">Wallet balance</div>
@@ -1931,9 +1933,23 @@ waitFb().then(()=>{
 
 async function loadPromoState(){
   try{
-    const snap = await FB.getDoc(FB.doc(FB.db,'settings','promo'));
-    promoActive = snap.exists() ? !!snap.data().sundayPromoActive : true;
+    FB.onSnapshot(FB.doc(FB.db,'settings','promo'), (snap)=>{
+      const data = snap.exists() ? snap.data() : {};
+      promoActive = data.sundayPromoActive !== undefined ? !!data.sundayPromoActive : true;
+      renderTopBanner(!!data.bannerActive, data.bannerText || '');
+      if(document.getElementById('screen-data').classList.contains('active')) renderPromoBanner();
+    }, (err)=>{ console.warn('settings listen error', err); });
   }catch(e){ /* settings collection may not exist yet — default stays true */ }
+}
+
+function renderTopBanner(active, text){
+  const show = active && text.trim().length > 0;
+  const landing = document.getElementById('landingBanner');
+  const dashboard = document.getElementById('dashboardBanner');
+  landing.classList.toggle('hide', !show);
+  dashboard.classList.toggle('hide', !show);
+  document.getElementById('landingBannerText').textContent = text;
+  document.getElementById('dashboardBannerText').textContent = text;
 }
 
 /* ============================================================
@@ -2549,30 +2565,33 @@ function updateRpSummary(){
 async function renderBettingScreen(){
   const grid = document.getElementById('btBillerGrid');
   const loadEl = document.getElementById('btLoadState');
-  if(!grid.dataset.built){
-    grid.dataset.built = '1';
-    loadEl.textContent = 'Loading platforms…';
-    const res = await bigisubCall('api/v2/betting/billers/', 'GET');
-    if(isTimeoutRes(res) || !res.httpOk || !res.success){
-      loadEl.textContent = 'Could not load betting platforms. Please go back and try again.';
-      grid.dataset.built = '';
-      return;
-    }
-    loadEl.textContent = '';
-    selection.betting._catalog = (res.data || []).map(b => ({ code: b.biller_code || b.code, name: b.name || b.biller_name }));
-    grid.innerHTML = selection.betting._catalog.map((b,i) => {
-      const meta = BETTING_META[String(b.name||'').toLowerCase().replace(/\s+/g,'')] || { color:'var(--gold-2)' };
-      return `<div class="glass net-chip ${selection.betting.billerCode===b.code?'sel':''}" onclick="selectBiller(${i})">
-        <div class="nb" style="background:${meta.color};">${(b.name||'?')[0]}</div>
-        <span>${b.name}</span>
-      </div>`;
-    }).join('');
-  }
+  // Wire up the amount/customer-ID inputs and quick-amount buttons first,
+  // unconditionally — these must work even while the billers list is still
+  // loading (or if it fails to load), so the screen never goes "dead".
   const quick = document.getElementById('btQuick');
   quick.innerHTML = [500,1000,2000,5000,10000].map(a => `<button class="btn btn-ghost btn-sm" onclick="setBtAmt(${a})">₦${a.toLocaleString()}</button>`).join('');
   document.getElementById('btCustomerId').oninput = updateBtSummary;
   document.getElementById('btAmount').oninput = updateBtSummary;
   updateBtSummary();
+
+  if(grid.dataset.built) return;
+  grid.dataset.built = '1';
+  loadEl.textContent = 'Loading platforms…';
+  const res = await bigisubCall('api/v2/betting/billers/', 'GET');
+  if(isTimeoutRes(res) || !res.httpOk || !res.success){
+    grid.dataset.built = '';
+    loadEl.innerHTML = `Could not load betting platforms. <a onclick="renderBettingScreen()" style="text-decoration:underline; cursor:pointer; color:var(--gold-2);">Tap to retry</a>`;
+    return;
+  }
+  loadEl.textContent = '';
+  selection.betting._catalog = (res.data || []).map(b => ({ code: b.biller_code || b.code, name: b.name || b.biller_name }));
+  grid.innerHTML = selection.betting._catalog.map((b,i) => {
+    const meta = BETTING_META[String(b.name||'').toLowerCase().replace(/\s+/g,'')] || { color:'var(--gold-2)' };
+    return `<div class="glass net-chip ${selection.betting.billerCode===b.code?'sel':''}" onclick="selectBiller(${i})">
+      <div class="nb" style="background:${meta.color};">${(b.name||'?')[0]}</div>
+      <span>${b.name}</span>
+    </div>`;
+  }).join('');
 }
 function selectBiller(i){
   const b = selection.betting._catalog[i];
