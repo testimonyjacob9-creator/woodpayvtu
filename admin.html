@@ -191,6 +191,7 @@ canvas{ width:100% !important; }
       <li><a href="#" data-tab="transactions" onclick="setTab('transactions'); closeSidebar(); return false;">📋 Transactions</a></li>
       <li><a href="#" data-tab="txlog" onclick="setTab('txlog'); closeSidebar(); return false;">🔍 Transaction Log</a></li>
       <li><a href="#" data-tab="users" onclick="setTab('users'); closeSidebar(); return false;">👥 Users</a></li>
+      <li><a href="#" data-tab="settlement" onclick="setTab('settlement'); closeSidebar(); return false;">💸 Settlement</a></li>
       <li><a href="#" data-tab="settings" onclick="setTab('settings'); closeSidebar(); return false;">⚙️ Settings</a></li>
     </ul>
   </div>
@@ -201,6 +202,7 @@ canvas{ width:100% !important; }
     <div class="tab" data-tab="transactions" onclick="setTab('transactions')">Transactions</div>
     <div class="tab" data-tab="txlog" onclick="setTab('txlog')">Transaction Log</div>
     <div class="tab" data-tab="users" onclick="setTab('users')">Users</div>
+    <div class="tab" data-tab="settlement" onclick="setTab('settlement')">Settlement</div>
     <div class="tab" data-tab="settings" onclick="setTab('settings')">Settings</div>
   </div>
 
@@ -211,19 +213,32 @@ canvas{ width:100% !important; }
       ⚠️ <div>No transactions or users found yet. If you expect data and this stays empty, double-check the <span class="mono">admins/{uid}</span> Firestore document matches your signed-in UID.</div>
     </div>
 
+    <div style="margin-bottom:14px; font-size:14px; font-weight:700; letter-spacing:.05em;">Today</div>
     <div class="stat-grid">
-      <div class="glass stat-card"><div class="eyebrow">Sales today</div><b id="statToday">₦0.00</b></div>
-      <div class="glass stat-card gold"><div class="eyebrow">Sales this week</div><b id="statWeek">₦0.00</b></div>
-      <div class="glass stat-card"><div class="eyebrow">Sales this month</div><b id="statMonth">₦0.00</b></div>
-      <div class="glass stat-card cyan"><div class="eyebrow">Total users</div><b id="statUsers">0</b></div>
+      <div class="glass stat-card gold"><div class="eyebrow">Total sales (orders)</div><b id="statSalesToday">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Excludes wallet funding</p></div>
+      <div class="glass stat-card"><div class="eyebrow">Successful transactions</div><b id="statSuccessCount">0</b></div>
+      <div class="glass stat-card"><div class="eyebrow">Failed transactions</div><b id="statFailedCount">0</b></div>
+      <div class="glass stat-card cyan"><div class="eyebrow">Wallet funding</div><b id="statWalletFunding">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Deposited today — not revenue</p></div>
+      <div class="glass stat-card"><div class="eyebrow">Provider spending</div><b id="bigisubSpendToday">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Real Bigisub cost (buyPrice)</p></div>
+      <div class="glass stat-card gold"><div class="eyebrow">Actual profit</div><b id="netToday">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Sales − provider spending</p></div>
+      <div class="glass stat-card cyan"><div class="eyebrow">New users</div><b id="statNewUsers">0</b></div>
+      <div class="glass stat-card"><div class="eyebrow">Average order value</div><b id="statAvgOrder">₦0.00</b></div>
     </div>
 
-    <div style="margin-top:24px; margin-bottom:20px; font-size:14px; font-weight:700; letter-spacing:.05em;">Revenue & Expenses</div>
+    <div style="margin-top:26px; margin-bottom:14px; font-size:14px; font-weight:700; letter-spacing:.05em;">Overall</div>
     <div class="stat-grid">
-      <div class="glass stat-card"><div class="eyebrow">Provider spend today</div><b id="bigisubSpendToday">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Cost of provider topups</p></div>
-      <div class="glass stat-card"><div class="eyebrow">Charged to users today</div><b id="chargedToday">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Revenue from users</p></div>
-      <div class="glass stat-card gold"><div class="eyebrow">Net revenue today</div><b id="netToday">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Profit today</p></div>
-      <div class="glass stat-card cyan"><div class="eyebrow">Total revenue this week</div><b id="netWeek">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Week profit</p></div>
+      <div class="glass stat-card"><div class="eyebrow">Sales this week</div><b id="statWeek">₦0.00</b></div>
+      <div class="glass stat-card"><div class="eyebrow">Sales this month</div><b id="statMonth">₦0.00</b></div>
+      <div class="glass stat-card cyan"><div class="eyebrow">Total users</div><b id="statUsers">0</b></div>
+      <div class="glass stat-card gold"><div class="eyebrow">Profit this week</div><b id="netWeek">₦0.00</b></div>
+    </div>
+
+    <div style="margin-top:24px; margin-bottom:20px; font-size:14px; font-weight:700; letter-spacing:.05em;">Bigisub settlement</div>
+    <div class="stat-grid">
+      <div class="glass stat-card gold"><div class="eyebrow">Owed to Bigisub right now</div><b id="owedToBigisub">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);" id="owedToBigisubCount">0 orders pending settlement</p></div>
+      <div class="glass stat-card"><div class="eyebrow">Next auto-payout</div><b id="nextSettlementDue" style="font-size:16px;">—</b></div>
+      <div class="glass stat-card"><div class="eyebrow">Last payout</div><b id="lastSettlementInfo" style="font-size:16px;">—</b></div>
+      <div class="glass stat-card cyan"><div class="eyebrow">Payout frequency</div><a class="btn btn-ghost btn-sm" onclick="setTab('settlement')" style="margin-top:4px;">Manage →</a></div>
     </div>
 
     <div class="two-col">
@@ -298,6 +313,59 @@ canvas{ width:100% !important; }
         <table>
           <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Wallet</th><th>Status</th><th>₦100 1GB</th><th>Action</th></tr></thead>
           <tbody id="usersBody"><tr class="empty-row"><td colspan="7">No data loaded yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- SETTLEMENT ---- -->
+  <div class="tab-panel hide" id="panel-settlement">
+    <div class="glass panel">
+      <div class="panel-head"><h2>Pending settlement</h2></div>
+      <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-end;">
+        <div>
+          <div class="eyebrow">Owed to Bigisub right now</div>
+          <b class="mono" style="font-size:30px; display:block; margin-top:6px; color:var(--gold-2);" id="settlePendingTotal">₦0.00</b>
+          <p style="font-size:12.5px; margin-top:4px;" id="settlePendingCount">0 orders pending</p>
+        </div>
+        <div style="flex:1; min-width:180px;">
+          <div class="eyebrow">Next automatic payout</div>
+          <b style="font-size:16px; display:block; margin-top:6px;" id="settleNextDue">—</b>
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:22px;">
+        <button class="btn btn-ghost" onclick="previewSettlement()">Preview (no money moves)</button>
+        <button class="btn btn-primary" onclick="runSettlementNow()">Run settlement now</button>
+      </div>
+      <div id="settleActionStatus" style="margin-top:10px; font-size:13px; color:var(--text-mute);"></div>
+    </div>
+
+    <div class="glass panel">
+      <div class="panel-head"><h2>Payout frequency</h2></div>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 14px;">
+        How often should WoodPay automatically pay Bigisub what's owed? This runs on its own — no redeploy needed to change it.
+        "Run settlement now" above always works immediately regardless of this setting.
+      </p>
+      <div class="field" style="max-width:280px;">
+        <label>Auto-payout every</label>
+        <select id="settleIntervalSelect" onchange="saveSettlementInterval()">
+          <option value="1">1 day (daily)</option>
+          <option value="2">2 days</option>
+          <option value="7">7 days (weekly)</option>
+        </select>
+      </div>
+      <div id="settleIntervalStatus" style="font-size:13px; color:var(--text-mute);"></div>
+    </div>
+
+    <div class="glass panel">
+      <div class="panel-head">
+        <h2>Settlement history</h2>
+        <a class="btn btn-ghost btn-sm" onclick="loadSettlementHistory()">Refresh</a>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Date</th><th>Amount</th><th>Orders</th><th>Status</th><th>Bigisub account</th><th>Ref</th></tr></thead>
+          <tbody id="settleHistoryBody"><tr class="empty-row"><td colspan="6">No settlements yet</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -491,28 +559,48 @@ function updateRevenueStats(){
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const weekStart = new Date(today);
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-  
-  let bigisubSpendToday = 0, chargedToday = 0, netToday = 0, netWeek = 0;
-  
+
+  let salesToday = 0, salesWeek = 0, bigisubSpendToday = 0, bigisubSpendWeek = 0, walletFundingToday = 0;
+  let successCountToday = 0, failedCountToday = 0;
+
   ALL_TX.forEach(tx => {
     const txDate = tx.createdAt?.toDate?.() || new Date(tx.createdAt);
     const txTime = new Date(txDate.getFullYear(), txDate.getMonth(), txDate.getDate());
-    
+    const isToday = txTime.getTime() === today.getTime();
+    const isThisWeek = txTime >= weekStart;
+    const amount = parseFloat(tx.amount) || 0;
+
+    if(tx.type === 'wallet_funding'){
+      if(tx.status === 'success' && isToday) walletFundingToday += amount;
+      return; // wallet funding never counts toward sales/success/failed order stats
+    }
+    if(tx.type === 'admin_credit' || tx.type === 'admin_debit') return; // manual adjustments, not orders
+
     if(tx.status === 'success'){
-      const amount = parseFloat(tx.amount) || 0;
-      chargedToday += (txTime.getTime() === today.getTime() ? amount : 0);
-      netWeek += (txTime >= weekStart ? amount : 0);
-      // Estimate Bigisub cost at ~70% of amount charged
-      bigisubSpendToday += (txTime.getTime() === today.getTime() ? (amount * 0.7) : 0);
+      if(isToday) successCountToday++;
+      // Real Bigisub cost, not an estimate — every order-type transaction
+      // stores its actual provider cost as buyPrice.
+      const buyPrice = typeof tx.buyPrice === 'number' ? tx.buyPrice : 0;
+      if(isToday){ salesToday += amount; bigisubSpendToday += buyPrice; }
+      if(isThisWeek){ salesWeek += amount; bigisubSpendWeek += buyPrice; }
+    } else if(tx.status === 'failed'){
+      if(isToday) failedCountToday++;
     }
   });
-  
-  netToday = chargedToday - bigisubSpendToday;
-  
-  document.getElementById('bigisubSpendToday').textContent = '₦' + bigisubSpendToday.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('chargedToday').textContent = '₦' + chargedToday.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('netToday').textContent = '₦' + netToday.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
-  document.getElementById('netWeek').textContent = '₦' + netWeek.toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  const netToday = salesToday - bigisubSpendToday;
+  const avgOrder = successCountToday > 0 ? salesToday / successCountToday : 0;
+
+  document.getElementById('statSalesToday').textContent = fmtNaira(salesToday);
+  document.getElementById('statSuccessCount').textContent = successCountToday;
+  document.getElementById('statFailedCount').textContent = failedCountToday;
+  document.getElementById('statWalletFunding').textContent = fmtNaira(walletFundingToday);
+  document.getElementById('bigisubSpendToday').textContent = fmtNaira(bigisubSpendToday);
+  document.getElementById('netToday').textContent = fmtNaira(netToday);
+  document.getElementById('netWeek').textContent = fmtNaira(salesWeek - bigisubSpendWeek);
+  document.getElementById('statAvgOrder').textContent = fmtNaira(avgOrder);
+
+  updateOverviewSettlementBadges();
 }
 
 function renderTxLog(){
@@ -557,6 +645,7 @@ function setTab(name){
   if(name==='transactions') renderTxTable();
   if(name==='txlog') renderTxLog();
   if(name==='users') renderUsersTable();
+  if(name==='settlement'){ loadSettlementInterval(); loadSettlementHistory(); }
   if(name==='settings') loadNotificationLogs();
 }
 
@@ -765,27 +854,36 @@ function loadAllData(){
 
     fetchBigisubBalance();
     loadPromoSetting();
+    loadSettlementHistory();
   });
 }
 
 function isSameDay(a,b){ return a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate(); }
 function toDate(ts){ try{ return ts?.toDate ? ts.toDate() : new Date(ts); }catch(e){ return new Date(0); } }
 
+// A "sale" is a real order the user paid for. wallet_funding is money
+// coming into the wallet (not revenue), and admin_credit/admin_debit are
+// manual balance adjustments — none of these count as sales.
+const NON_SALE_TYPES = ['wallet_funding', 'admin_credit', 'admin_debit'];
+function isOrderTx(t){ return !NON_SALE_TYPES.includes(t.type); }
+
 function computeStats(){
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7*86400000);
   const monthAgo = new Date(now.getTime() - 30*86400000);
-  let today=0, week=0, month=0;
-  ALL_TX.filter(t=>t.status==='success').forEach(t=>{
+  let week=0, month=0;
+  ALL_TX.filter(t=>t.status==='success' && isOrderTx(t)).forEach(t=>{
     const d = toDate(t.createdAt);
-    if(isSameDay(d, now)) today += Number(t.amount||0);
     if(d >= weekAgo) week += Number(t.amount||0);
     if(d >= monthAgo) month += Number(t.amount||0);
   });
-  document.getElementById('statToday').textContent = '₦'+naira(today);
   document.getElementById('statWeek').textContent = '₦'+naira(week);
   document.getElementById('statMonth').textContent = '₦'+naira(month);
   document.getElementById('statUsers').textContent = ALL_USERS.length;
+
+  const newUsersToday = ALL_USERS.filter(u => u.createdAt && isSameDay(toDate(u.createdAt), now)).length;
+  document.getElementById('statNewUsers').textContent = newUsersToday;
+
   updateRevenueStats();
 }
 
@@ -980,6 +1078,141 @@ async function saveBannerText(){
     statusEl.textContent = '✅ Banner text saved.';
     toast('Banner text saved', 'ok');
   }catch(e){ statusEl.textContent = '❌ Could not save — check Firestore rules.'; }
+}
+
+// ---------- Bigisub settlement ----------
+
+function fmtNaira(n){ return '₦' + Number(n||0).toLocaleString('en-NG', {minimumFractionDigits:2, maximumFractionDigits:2}); }
+
+async function loadSettlementInterval(){
+  const sel = document.getElementById('settleIntervalSelect');
+  try{
+    const snap = await FB.getDoc(FB.doc(FB.db,'settings','settlement'));
+    const days = snap.exists() && snap.data().intervalDays ? String(snap.data().intervalDays) : '1';
+    sel.value = days;
+  }catch(e){ /* default stays at 1 day */ }
+}
+
+async function saveSettlementInterval(){
+  const sel = document.getElementById('settleIntervalSelect');
+  const statusEl = document.getElementById('settleIntervalStatus');
+  const days = Number(sel.value);
+  try{
+    await FB.setDoc(FB.doc(FB.db,'settings','settlement'), { intervalDays: days, updatedAt: FB.serverTimestamp() }, {merge:true});
+    statusEl.textContent = `✅ Saved — Bigisub will be auto-paid every ${days} day${days===1?'':'s'}.`;
+    toast('Payout frequency updated', 'ok');
+    updateOverviewSettlementBadges();
+  }catch(e){ statusEl.textContent = '❌ Could not save — check Firestore rules.'; }
+}
+
+async function previewSettlement(){
+  const statusEl = document.getElementById('settleActionStatus');
+  statusEl.textContent = '⏳ Checking what\'s owed…';
+  try{
+    const idToken = await FB.auth.currentUser.getIdToken();
+    const uid = FB.auth.currentUser.uid;
+    const res = await fetch('/.netlify/functions/trigger-settlement', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ idToken, uid, dryRun:true })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Preview failed');
+    if(data.skipped){ statusEl.textContent = 'ℹ️ ' + data.reason; return; }
+    statusEl.textContent = `Preview: ${fmtNaira(data.total)} across ${data.count} order(s) → ${data.resolvedAccountName || 'Bigisub account'}. Nothing has been sent.`;
+  }catch(e){ statusEl.textContent = '❌ ' + e.message; }
+}
+
+async function runSettlementNow(){
+  if(!confirm('This will send real money to Bigisub\'s bank account right now, for every unsettled successful order. Continue?')) return;
+  const statusEl = document.getElementById('settleActionStatus');
+  statusEl.textContent = '⏳ Running settlement…';
+  try{
+    const idToken = await FB.auth.currentUser.getIdToken();
+    const uid = FB.auth.currentUser.uid;
+    const res = await fetch('/.netlify/functions/trigger-settlement', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ idToken, uid, force:true })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Settlement failed');
+    if(data.skipped){ statusEl.textContent = 'ℹ️ ' + data.reason; return; }
+    statusEl.textContent = `✅ Sent ${fmtNaira(data.total)} for ${data.count} order(s) to ${data.resolvedAccountName || 'Bigisub'}. Ref: ${data.batchRef}`;
+    toast('Settlement sent to Bigisub', 'ok');
+    loadSettlementHistory();
+    updateOverviewSettlementBadges();
+  }catch(e){ statusEl.textContent = '❌ ' + e.message; toast('Settlement failed: ' + e.message, 'err'); }
+}
+
+async function loadSettlementHistory(){
+  const body = document.getElementById('settleHistoryBody');
+  try{
+    const idToken = await FB.auth.currentUser.getIdToken();
+    const uid = FB.auth.currentUser.uid;
+    const res = await fetch('/.netlify/functions/list-settlements', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ idToken, uid, limit:30 })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    SETTLEMENT_HISTORY = data.settlements || [];
+    renderSettlementHistory();
+    updateOverviewSettlementBadges();
+  }catch(e){
+    body.innerHTML = `<tr class="empty-row"><td colspan="6">Could not load history: ${e.message}</td></tr>`;
+  }
+}
+
+let SETTLEMENT_HISTORY = [];
+function renderSettlementHistory(){
+  const body = document.getElementById('settleHistoryBody');
+  if(!SETTLEMENT_HISTORY.length){ body.innerHTML = '<tr class="empty-row"><td colspan="6">No settlements yet</td></tr>'; return; }
+  body.innerHTML = SETTLEMENT_HISTORY.map(s => `
+    <tr>
+      <td>${s.createdAt ? new Date(s.createdAt).toLocaleString('en-NG') : '—'}</td>
+      <td class="mono">${fmtNaira(s.total)}</td>
+      <td>${s.count}</td>
+      <td>${s.status==='success' ? '<span class="badge ok">Sent</span>' : `<span class="badge failed" title="${(s.error||'').replace(/"/g,'')}">Failed</span>`}</td>
+      <td>${s.resolvedAccountName || '—'}</td>
+      <td class="mono" style="font-size:11px;">${s.batchRef || '—'}</td>
+    </tr>
+  `).join('');
+}
+
+// Pending-settlement + next-due badges shown on the Overview tab.
+async function updateOverviewSettlementBadges(){
+  let unsettledTotal = 0, unsettledCount = 0;
+  ALL_TX.forEach(tx => {
+    if(tx.status==='success' && typeof tx.buyPrice==='number' && tx.buyPrice>0 && tx.settled!==true){
+      unsettledTotal += tx.buyPrice; unsettledCount += 1;
+    }
+  });
+  const pendingTotalEl = document.getElementById('settlePendingTotal');
+  const pendingCountEl = document.getElementById('settlePendingCount');
+  if(pendingTotalEl) pendingTotalEl.textContent = fmtNaira(unsettledTotal);
+  if(pendingCountEl) pendingCountEl.textContent = unsettledCount + (unsettledCount===1?' order pending':' orders pending');
+
+  let intervalDays = 1;
+  try{
+    const snap = await FB.getDoc(FB.doc(FB.db,'settings','settlement'));
+    if(snap.exists() && snap.data().intervalDays) intervalDays = Number(snap.data().intervalDays);
+  }catch(e){}
+
+  const lastSuccess = (SETTLEMENT_HISTORY||[]).find(s => s.status==='success');
+  const nextDueEl = document.getElementById('settleNextDue');
+  const lastInfoEl = document.getElementById('lastSettlementInfo');
+  const nextDueOverviewEl = document.getElementById('nextSettlementDue');
+
+  if(lastSuccess && lastSuccess.createdAt){
+    const dueAt = new Date(new Date(lastSuccess.createdAt).getTime() + intervalDays*86400000);
+    const dueText = dueAt.toLocaleString('en-NG', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
+    if(nextDueEl) nextDueEl.textContent = dueText;
+    if(nextDueOverviewEl) nextDueOverviewEl.textContent = dueText;
+    if(lastInfoEl) lastInfoEl.textContent = fmtNaira(lastSuccess.total) + ' — ' + new Date(lastSuccess.createdAt).toLocaleDateString('en-NG', {day:'numeric', month:'short'});
+  } else {
+    if(nextDueEl) nextDueEl.textContent = unsettledCount>0 ? 'As soon as due (no prior payout yet)' : '—';
+    if(nextDueOverviewEl) nextDueOverviewEl.textContent = unsettledCount>0 ? 'Pending first payout' : '—';
+    if(lastInfoEl) lastInfoEl.textContent = 'None yet';
+  }
 }
 
 async function fetchBigisubBalance(){

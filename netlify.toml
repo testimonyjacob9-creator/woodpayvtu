@@ -3,3 +3,8 @@
   functions = "netlify/functions"
   publish = "."
   environment = { SECRETS_SCAN_OMIT_KEYS = "FIREBASE_PROJECT_ID,FIREBASE_WEB_API_KEY", SECRETS_SCAN_OMIT_PATHS = "**/node_modules/**" }
+
+# Pays Bigisub the day's accumulated cost once daily at 23:30 WAT (22:30 UTC).
+# Adjust the cron expression if you want a different time.
+[functions."daily-settlement"]
+  schedule = "30 22 * * *"
