@@ -236,9 +236,9 @@ canvas{ width:100% !important; }
     <div style="margin-top:24px; margin-bottom:20px; font-size:14px; font-weight:700; letter-spacing:.05em;">Bigisub settlement</div>
     <div class="stat-grid">
       <div class="glass stat-card gold"><div class="eyebrow">Owed to Bigisub right now</div><b id="owedToBigisub">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);" id="owedToBigisubCount">0 orders pending settlement</p></div>
-      <div class="glass stat-card"><div class="eyebrow">Next auto-payout</div><b id="nextSettlementDue" style="font-size:16px;">—</b></div>
+      <div class="glass stat-card"><div class="eyebrow">Payout mode</div><b style="font-size:16px;">Manual (via Flutterwave)</b></div>
       <div class="glass stat-card"><div class="eyebrow">Last payout</div><b id="lastSettlementInfo" style="font-size:16px;">—</b></div>
-      <div class="glass stat-card cyan"><div class="eyebrow">Payout frequency</div><a class="btn btn-ghost btn-sm" onclick="setTab('settlement')" style="margin-top:4px;">Manage →</a></div>
+      <div class="glass stat-card cyan"><div class="eyebrow">Pay Bigisub</div><a class="btn btn-ghost btn-sm" onclick="setTab('settlement')" style="margin-top:4px;">Go to Settlement →</a></div>
     </div>
 
     <div class="two-col">
@@ -321,6 +321,15 @@ canvas{ width:100% !important; }
   <!-- ---- SETTLEMENT ---- -->
   <div class="tab-panel hide" id="panel-settlement">
     <div class="glass panel">
+      <div class="panel-head"><h2>One-time: clear old backlog</h2></div>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 14px;">
+        If the pending total above includes old orders from before this system existed (orders you already paid Bigisub for some other way), use this once to mark them as handled — <b>this does not send any money</b>, it just resets the counter so tracking starts fresh from today.
+      </p>
+      <button class="btn btn-danger" onclick="resetSettlementBaseline()">Mark all current pending as already handled</button>
+      <div id="baselineStatus" style="margin-top:10px; font-size:13px; color:var(--text-mute);"></div>
+    </div>
+
+    <div class="glass panel">
       <div class="panel-head"><h2>Pending settlement</h2></div>
       <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-end;">
         <div>
@@ -328,26 +337,30 @@ canvas{ width:100% !important; }
           <b class="mono" style="font-size:30px; display:block; margin-top:6px; color:var(--gold-2);" id="settlePendingTotal">₦0.00</b>
           <p style="font-size:12.5px; margin-top:4px;" id="settlePendingCount">0 orders pending</p>
         </div>
-        <div style="flex:1; min-width:180px;">
-          <div class="eyebrow">Next automatic payout</div>
-          <b style="font-size:16px; display:block; margin-top:6px;" id="settleNextDue">—</b>
-        </div>
       </div>
-      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:22px;">
-        <button class="btn btn-ghost" onclick="previewSettlement()">Preview (no money moves)</button>
-        <button class="btn btn-primary" onclick="runSettlementNow()">Run settlement now</button>
+      <p style="font-size:12.5px; margin-top:16px;">
+        <b>How to pay:</b> click Preview, copy the total, then send that exact amount to Bigisub's account
+        (<span class="mono">5235861863</span>, Sterling Bank) yourself from your Flutterwave dashboard's Transfer screen.
+        Once sent, come back and click "I paid this — mark as settled" so the tracker resets.
+      </p>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:18px;">
+        <button class="btn btn-ghost" onclick="previewSettlement()">Preview</button>
+        <button class="btn btn-primary" onclick="confirmManualSettlement()">I paid this — mark as settled</button>
       </div>
       <div id="settleActionStatus" style="margin-top:10px; font-size:13px; color:var(--text-mute);"></div>
+      <div class="notice warn" style="margin-top:14px; font-size:12px;">
+        ℹ️ Automatic API payouts are off for now — Flutterwave requires payouts to come from a pre-approved IP, and Netlify's server IP rotates. This manual-confirm flow is the free workaround: nothing here calls Flutterwave's API, so it's never blocked. Ask Claude about a static-IP proxy if you want it fully automated later.
+      </div>
     </div>
 
     <div class="glass panel">
-      <div class="panel-head"><h2>Payout frequency</h2></div>
+      <div class="panel-head"><h2>Payout reminder frequency</h2></div>
       <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 14px;">
-        How often should WoodPay automatically pay Bigisub what's owed? This runs on its own — no redeploy needed to change it.
-        "Run settlement now" above always works immediately regardless of this setting.
+        This is saved for later — it does <b>not</b> do anything automatically right now, since real payouts are manual (see above).
+        If a static-IP proxy is set up later to re-enable full automation, this setting decides how often it pays.
       </p>
       <div class="field" style="max-width:280px;">
-        <label>Auto-payout every</label>
+        <label>Pay Bigisub every</label>
         <select id="settleIntervalSelect" onchange="saveSettlementInterval()">
           <option value="1">1 day (daily)</option>
           <option value="2">2 days</option>
@@ -1105,6 +1118,26 @@ async function saveSettlementInterval(){
   }catch(e){ statusEl.textContent = '❌ Could not save — check Firestore rules.'; }
 }
 
+async function resetSettlementBaseline(){
+  if(!confirm('This marks every currently-pending order as already handled — NO money will be sent. Only do this once, for old orders from before this tracking system existed. Continue?')) return;
+  const statusEl = document.getElementById('baselineStatus');
+  statusEl.textContent = '⏳ Resetting…';
+  try{
+    const idToken = await FB.auth.currentUser.getIdToken();
+    const uid = FB.auth.currentUser.uid;
+    const res = await fetch('/.netlify/functions/baseline-settlement', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ idToken, uid })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Reset failed');
+    statusEl.textContent = `✅ Cleared ${data.count} old order(s) totaling ${fmtNaira(data.total)}. Tracking now starts fresh.`;
+    toast('Backlog cleared', 'ok');
+    loadSettlementHistory();
+    updateOverviewSettlementBadges();
+  }catch(e){ statusEl.textContent = '❌ ' + e.message; toast('Reset failed: ' + e.message, 'err'); }
+}
+
 async function previewSettlement(){
   const statusEl = document.getElementById('settleActionStatus');
   statusEl.textContent = '⏳ Checking what\'s owed…';
@@ -1122,25 +1155,25 @@ async function previewSettlement(){
   }catch(e){ statusEl.textContent = '❌ ' + e.message; }
 }
 
-async function runSettlementNow(){
-  if(!confirm('This will send real money to Bigisub\'s bank account right now, for every unsettled successful order. Continue?')) return;
+async function confirmManualSettlement(){
+  if(!confirm('Have you ALREADY sent the previewed amount to Bigisub\'s bank account via Flutterwave? This just marks it as paid in the tracker — it does not send anything.')) return;
   const statusEl = document.getElementById('settleActionStatus');
-  statusEl.textContent = '⏳ Running settlement…';
+  statusEl.textContent = '⏳ Marking as settled…';
   try{
     const idToken = await FB.auth.currentUser.getIdToken();
     const uid = FB.auth.currentUser.uid;
-    const res = await fetch('/.netlify/functions/trigger-settlement', {
+    const res = await fetch('/.netlify/functions/manual-settlement', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ idToken, uid, force:true })
+      body: JSON.stringify({ idToken, uid })
     });
     const data = await res.json();
-    if(!data.ok) throw new Error(data.error || 'Settlement failed');
+    if(!data.ok) throw new Error(data.error || 'Failed to mark as settled');
     if(data.skipped){ statusEl.textContent = 'ℹ️ ' + data.reason; return; }
-    statusEl.textContent = `✅ Sent ${fmtNaira(data.total)} for ${data.count} order(s) to ${data.resolvedAccountName || 'Bigisub'}. Ref: ${data.batchRef}`;
-    toast('Settlement sent to Bigisub', 'ok');
+    statusEl.textContent = `✅ Marked ${fmtNaira(data.total)} across ${data.count} order(s) as settled. Ref: ${data.batchRef}`;
+    toast('Marked as settled', 'ok');
     loadSettlementHistory();
     updateOverviewSettlementBadges();
-  }catch(e){ statusEl.textContent = '❌ ' + e.message; toast('Settlement failed: ' + e.message, 'err'); }
+  }catch(e){ statusEl.textContent = '❌ ' + e.message; toast('Failed: ' + e.message, 'err'); }
 }
 
 async function loadSettlementHistory(){
@@ -1171,7 +1204,7 @@ function renderSettlementHistory(){
       <td>${s.createdAt ? new Date(s.createdAt).toLocaleString('en-NG') : '—'}</td>
       <td class="mono">${fmtNaira(s.total)}</td>
       <td>${s.count}</td>
-      <td>${s.status==='success' ? '<span class="badge ok">Sent</span>' : `<span class="badge failed" title="${(s.error||'').replace(/"/g,'')}">Failed</span>`}</td>
+      <td>${s.status==='success' ? '<span class="badge ok">Sent (API)</span>' : s.status==='manual' ? '<span class="badge ok">Paid manually</span>' : s.status==='baseline' ? '<span class="badge pending">Baseline reset</span>' : `<span class="badge failed" title="${(s.error||'').replace(/"/g,'')}">Failed</span>`}</td>
       <td>${s.resolvedAccountName || '—'}</td>
       <td class="mono" style="font-size:11px;">${s.batchRef || '—'}</td>
     </tr>
@@ -1191,27 +1224,14 @@ async function updateOverviewSettlementBadges(){
   if(pendingTotalEl) pendingTotalEl.textContent = fmtNaira(unsettledTotal);
   if(pendingCountEl) pendingCountEl.textContent = unsettledCount + (unsettledCount===1?' order pending':' orders pending');
 
-  let intervalDays = 1;
-  try{
-    const snap = await FB.getDoc(FB.doc(FB.db,'settings','settlement'));
-    if(snap.exists() && snap.data().intervalDays) intervalDays = Number(snap.data().intervalDays);
-  }catch(e){}
-
-  const lastSuccess = (SETTLEMENT_HISTORY||[]).find(s => s.status==='success');
-  const nextDueEl = document.getElementById('settleNextDue');
+  // A completed payout is either a manual confirmation or (if automation is
+  // ever re-enabled later) a real API transfer — either counts as "last paid".
+  const lastPaid = (SETTLEMENT_HISTORY||[]).find(s => s.status==='manual' || s.status==='success');
   const lastInfoEl = document.getElementById('lastSettlementInfo');
-  const nextDueOverviewEl = document.getElementById('nextSettlementDue');
-
-  if(lastSuccess && lastSuccess.createdAt){
-    const dueAt = new Date(new Date(lastSuccess.createdAt).getTime() + intervalDays*86400000);
-    const dueText = dueAt.toLocaleString('en-NG', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'});
-    if(nextDueEl) nextDueEl.textContent = dueText;
-    if(nextDueOverviewEl) nextDueOverviewEl.textContent = dueText;
-    if(lastInfoEl) lastInfoEl.textContent = fmtNaira(lastSuccess.total) + ' — ' + new Date(lastSuccess.createdAt).toLocaleDateString('en-NG', {day:'numeric', month:'short'});
-  } else {
-    if(nextDueEl) nextDueEl.textContent = unsettledCount>0 ? 'As soon as due (no prior payout yet)' : '—';
-    if(nextDueOverviewEl) nextDueOverviewEl.textContent = unsettledCount>0 ? 'Pending first payout' : '—';
-    if(lastInfoEl) lastInfoEl.textContent = 'None yet';
+  if(lastInfoEl){
+    lastInfoEl.textContent = lastPaid
+      ? fmtNaira(lastPaid.total) + ' — ' + new Date(lastPaid.createdAt).toLocaleDateString('en-NG', {day:'numeric', month:'short'})
+      : 'None yet';
   }
 }
 

@@ -4,7 +4,14 @@
   publish = "."
   environment = { SECRETS_SCAN_OMIT_KEYS = "FIREBASE_PROJECT_ID,FIREBASE_WEB_API_KEY", SECRETS_SCAN_OMIT_PATHS = "**/node_modules/**" }
 
-# Pays Bigisub the day's accumulated cost once daily at 23:30 WAT (22:30 UTC).
-# Adjust the cron expression if you want a different time.
-[functions."daily-settlement"]
-  schedule = "30 22 * * *"
+# The automatic nightly API-based payout (daily-settlement.js) is disabled
+# for now — it would fail every run on Flutterwave's mandatory IP
+# whitelisting requirement, since Netlify's outbound IP rotates. Settlement
+# amounts are instead sent manually via the Flutterwave dashboard and
+# confirmed through the Settlement tab (manual-settlement.js), which never
+# calls the Transfers API and so is never blocked.
+#
+# To re-enable full automation later (after setting up a static-IP proxy —
+# see STATIC_IP_PROXY_URL in _settlementCore.js), uncomment this:
+# [functions."daily-settlement"]
+#   schedule = "30 22 * * *"
