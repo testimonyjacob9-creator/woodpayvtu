@@ -3202,6 +3202,14 @@ async function processDelivery(payload, paymentRef){
     }
 
     await setTxStatus(docRef.id, result.ok ? 'success' : 'failed', result.ref||null, result.extra||null);
+    // If Bigisub's live price had drifted and we matched on nearest price
+    // instead of an exact one, correct buyPrice to what was actually
+    // charged — otherwise the Bigisub settlement total would silently be
+    // wrong for this order.
+    if(result.ok && result.extra && typeof result.extra.actualBuyPrice === 'number'){
+      try{ await FB.updateDoc(docRef, { buyPrice: result.extra.actualBuyPrice, buyPriceCorrected: true }); }
+      catch(e){ console.warn('Could not correct buyPrice after price-drift fallback:', e); }
+    }
     hideLoader();
     if(result.ok){
       // If this was a one-time promo plan (e.g. 1GB for ₦100), mark it as
@@ -3404,13 +3412,32 @@ async function callBigisubAPI(payload){
     const parsedUnit = wantSize ? wantSize.replace(/[\d.]/g, '') : null; // 'MB' or 'GB'
     const wantPrice = payload.buyPrice;
 
-    // Find all candidates matching size + unit + price (skip disabled plans)
-    const candidates = (plansRes.data || []).filter(p => {
+    // Find all candidates matching size + unit + exact price (skip disabled plans)
+    const sizeUnitMatch = (p) => {
       if(p.plan_disabled) return false;
       const pSize = parseFloat(p.size);
       const pUnit = String(p.plan_volume || '').toUpperCase();
-      return pSize === parsedSize && pUnit === parsedUnit && p.amount === wantPrice;
-    });
+      return pSize === parsedSize && pUnit === parsedUnit;
+    };
+    let candidates = (plansRes.data || []).filter(p => sizeUnitMatch(p) && p.amount === wantPrice);
+    let usedFallbackPrice = false;
+
+    // Bigisub's live price can drift by a naira or two from what our catalog
+    // has cached (e.g. their price changes momentarily under load). An exact
+    // match failing here used to hard-fail the whole order even though the
+    // plan clearly exists — now fall back to the closest price within a
+    // small tolerance instead of giving up.
+    const PRICE_TOLERANCE = 10;
+    if(candidates.length === 0){
+      const nearby = (plansRes.data || [])
+        .filter(p => sizeUnitMatch(p) && Math.abs(p.amount - wantPrice) <= PRICE_TOLERANCE)
+        .sort((a,b) => Math.abs(a.amount - wantPrice) - Math.abs(b.amount - wantPrice));
+      if(nearby.length > 0){
+        candidates = nearby.filter(p => p.amount === nearby[0].amount); // keep only the closest price tier
+        usedFallbackPrice = true;
+        console.warn('Bigisub price drifted for', payload.planName, '— catalog wanted', wantPrice, 'using nearest live price', nearby[0].amount);
+      }
+    }
 
     let match = null;
     if(candidates.length === 1){
@@ -3431,9 +3458,18 @@ async function callBigisubAPI(payload){
     }
 
     if(!match){
-      console.error('No matching Bigisub data plan for', payload.planName,
-        '(size:', parsedSize, parsedUnit, ', buyPrice:', wantPrice, ')');
-      return { ok:false, ref:null };
+      const debugInfo = {
+        reason: 'no_matching_plan',
+        wantedSize: parsedSize, wantedUnit: parsedUnit, wantedPrice: wantPrice,
+        availablePlansForSizeUnit: (plansRes.data||[]).filter(sizeUnitMatch).map(p => ({ id:p.id, amount:p.amount, disabled:!!p.plan_disabled }))
+      };
+      console.error('No matching Bigisub data plan for', payload.planName, debugInfo);
+      // Record what was actually available so a failure is diagnosable from
+      // the admin panel's Raw view instead of showing nothing at all.
+      return { ok:false, ref:null, extra: { rawResponse: debugInfo } };
+    }
+    if(usedFallbackPrice){
+      console.log('Proceeding with nearest-price match:', match.id, 'amount:', match.amount, 'vs catalog', wantPrice);
     }
     console.log('Bigisub purchase attempt — plan id:', match.id, 'phone:', payload.phone);
     const res = await bigisubCall('api/v2/vtu/data/purchase/', 'POST', {
@@ -3444,7 +3480,18 @@ async function callBigisubAPI(payload){
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
     const bigisubOkData = res.success === true;
     if(!res.httpOk || !bigisubOkData) console.error('Bigisub purchase failed — raw response:', JSON.stringify(res));
-    return { ok: res.httpOk && bigisubOkData, ref: res.data?.reference || res.data?.transaction_id || null, extra: { rawResponse: res } };
+    return {
+      ok: res.httpOk && bigisubOkData,
+      ref: res.data?.reference || res.data?.transaction_id || null,
+      extra: {
+        rawResponse: res,
+        // If we matched via price-drift fallback, this is what Bigisub
+        // actually charged — different from our catalog's cached price.
+        // processDelivery uses this to correct the transaction's buyPrice
+        // so settlement totals reflect the real cost, not a stale number.
+        actualBuyPrice: usedFallbackPrice ? match.amount : undefined
+      }
+    };
   }
 
   if(payload.type === 'cable'){
