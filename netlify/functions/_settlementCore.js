@@ -32,6 +32,27 @@ const BIGISUB_BANK_CODE = process.env.BIGISUB_BANK_CODE || '232';
 // this (case-insensitive) or the run aborts instead of paying a stranger.
 const BIGISUB_ACCOUNT_NAME_HINT = process.env.BIGISUB_ACCOUNT_NAME_HINT || '';
 
+// Flutterwave requires IP whitelisting for the Transfers API (mandatory,
+// can't be turned off on their end). Netlify Functions don't have a fixed
+// outbound IP — it rotates — so whitelisting one IP directly will randomly
+// break later. If STATIC_IP_PROXY_URL is set (e.g. from a service like
+// QuotaGuard Static IP), route Flutterwave calls through it so Flutterwave
+// always sees the same, whitelistable IP. Leave the env var unset and this
+// is a no-op — calls go out directly as before.
+const STATIC_IP_PROXY_URL = process.env.STATIC_IP_PROXY_URL || '';
+let proxyDispatcher = null;
+if (STATIC_IP_PROXY_URL) {
+  try {
+    const { ProxyAgent } = require('undici');
+    proxyDispatcher = new ProxyAgent(STATIC_IP_PROXY_URL);
+  } catch (e) {
+    console.error('STATIC_IP_PROXY_URL is set but the "undici" package is not installed. Add "undici" to netlify/functions/package.json dependencies.');
+  }
+}
+function flwFetch(url, opts) {
+  return fetch(url, proxyDispatcher ? { ...opts, dispatcher: proxyDispatcher } : opts);
+}
+
 function genBatchRef() {
   const d = new Date();
   const stamp = d.toISOString().replace(/[-:TZ.]/g, '').slice(0, 14); // YYYYMMDDHHmmss
@@ -40,7 +61,7 @@ function genBatchRef() {
 }
 
 async function resolveBigisubAccount() {
-  const res = await fetch('https://api.flutterwave.com/v3/accounts/resolve', {
+  const res = await flwFetch('https://api.flutterwave.com/v3/accounts/resolve', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${FLW_SECRET_KEY}`,
@@ -154,7 +175,7 @@ async function runSettlement({ dryRun = false, force = false } = {}) {
   }
 
   // 3. Initiate the transfer.
-  const transferRes = await fetch('https://api.flutterwave.com/v3/transfers', {
+  const transferRes = await flwFetch('https://api.flutterwave.com/v3/transfers', {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${FLW_SECRET_KEY}`,
@@ -224,4 +245,57 @@ async function runSettlement({ dryRun = false, force = false } = {}) {
   };
 }
 
-module.exports = { runSettlement };
+// One-time (or occasional) reset: mark every currently-unsettled successful
+// order as settled WITHOUT sending any money. Use this once, right after
+// turning the settlement system on, to clear out old orders that were
+// already paid to Bigisub some other way before this system existed — so
+// the running total only reflects NEW orders from this point forward.
+async function markBaseline() {
+  if (ADMIN_INIT_ERROR) throw new Error(ADMIN_INIT_ERROR);
+  const db = admin.firestore();
+
+  const snap = await db.collection('transactions').where('status', '==', 'success').get();
+  const eligible = [];
+  snap.forEach((doc) => {
+    const d = doc.data();
+    if (d.settled === true) return;
+    if (typeof d.buyPrice !== 'number' || d.buyPrice <= 0) return;
+    eligible.push({ id: doc.id, buyPrice: d.buyPrice });
+  });
+
+  if (eligible.length === 0) {
+    return { ok: true, count: 0, total: 0, reason: 'Nothing to reset — already at zero.' };
+  }
+
+  const total = eligible.reduce((s, t) => s + t.buyPrice, 0);
+  const batchRef = 'BASELINE-' + genBatchRef();
+
+  const CHUNK = 400;
+  for (let i = 0; i < eligible.length; i += CHUNK) {
+    const chunk = eligible.slice(i, i + CHUNK);
+    const batch = db.batch();
+    chunk.forEach((t) => {
+      batch.update(db.collection('transactions').doc(t.id), {
+        settled: true,
+        settledAt: admin.firestore.FieldValue.serverTimestamp(),
+        settlementBatchRef: batchRef,
+        settledViaBaseline: true // flags this wasn't an actual payout
+      });
+    });
+    await batch.commit();
+  }
+
+  // Recorded with status 'baseline' (not 'success') so it never counts as a
+  // real payout for the auto-payout due-date calculation.
+  await db.collection('settlements').add({
+    batchRef,
+    total,
+    count: eligible.length,
+    status: 'baseline',
+    createdAt: admin.firestore.FieldValue.serverTimestamp()
+  });
+
+  return { ok: true, count: eligible.length, total, batchRef };
+}
+
+module.exports = { runSettlement, markBaseline };
