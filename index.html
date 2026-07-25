@@ -1554,7 +1554,7 @@ function closeGiftOverlay(){
 
 let promoActive = true;    // mirrors settings/promo, defaults true until loaded
 let selection = {
-  data:{network:null, plan:null, typeFilter:'ALL'},
+  data:{network:null, plan:null, typeFilter:'ALL', catalog:[], _catalogByNet:{}},
   airtime:{network:null, amount:null},
   cable:{provider:null, plan:null},
   electricity:{disco:null, meterType:'prepaid', amount:null},
@@ -2164,22 +2164,32 @@ function renderRateBar(containerId, network){
    BUY DATA
    ============================================================ */
 const DATA_TYPE_LABELS = {ALL:'All plans', GIFTING:'Gifting', SME:'SME', SME2:'SME2', DATATRANSFER:'Data Transfer'};
+// Flat gain per plan, applied to whatever Bigisub actually charges us live —
+// this is our ONLY pricing rule now. No hardcoded local catalog, no size
+// string guessing. GIFTING plans carry a ₦5 gain, everything else (SME,
+// SME2, DataTransfer) carries ₦10 — same margin the old static catalog used,
+// just applied to the live number instead of a number typed in by hand.
+function dataPlanGain(plantype){ return String(plantype||'').toUpperCase()==='GIFTING' ? 5 : 10; }
+
 function renderPromoBanner(){
   const el = document.getElementById('dataPromoBanner');
   if(!el) return;
   const net = selection.data.network;
   if(!net || !PROFILE || !PROFILE.oneGigPromo){ el.innerHTML = ''; return; }
-  const plans = PRICING.networks[net];
-  const promoIdx = plans.findIndex(p => p.restricted === 'oneGigPromo');
-  if(promoIdx === -1){ el.innerHTML = ''; return; }
-  const p = plans[promoIdx];
-  el.innerHTML = `<div class="promo-banner" onclick="selectDataPlan(${promoIdx}); document.getElementById('dataPlanList').scrollIntoView({behavior:'smooth'})">
+  const plans = selection.data.catalog || [];
+  // Pick the cheapest live 1GB plan as the promo anchor — still sourced from
+  // Bigisub's real catalog (with a real id), just filtered for the "1GB" size.
+  const candidates = plans.filter(p => /^1(\.0)?GB$/i.test(String(p.size||'').replace(/\s+/g,'')));
+  if(!candidates.length){ el.innerHTML = ''; return; }
+  const p = candidates.slice().sort((a,b)=>a.buy-b.buy)[0];
+  const idx = plans.indexOf(p);
+  el.innerHTML = `<div class="promo-banner" onclick="selectDataPlan(${idx}); document.getElementById('dataPlanList').scrollIntoView({behavior:'smooth'})">
     <div class="pb-icon">🎁</div>
     <div class="pb-body">
-      <p class="pb-title">Special Offer — ${p.name}</p>
-      <p class="pb-sub">${p.validity} validity · Tap to select</p>
+      <p class="pb-title">Special Offer — ${p.size}</p>
+      <p class="pb-sub">${p.validity||'—'} validity · Tap to select</p>
     </div>
-    <div class="pb-price">₦${p.price}</div>
+    <div class="pb-price">₦100</div>
   </div>`;
 }
 function renderDataScreen(){
@@ -2195,13 +2205,58 @@ function renderDataScreen(){
   updateDataSummary();
   renderRateBar('dataRateBar', selection.data.network);
   document.getElementById('dataPhone').oninput = (e)=>{ e.target.value = digitsOnly(e.target.value).slice(0,11); updateDataSummary(); };
+  // If we already have a network selected (e.g. coming back to this screen)
+  // and no live catalog yet, load it.
+  if(selection.data.network && !selection.data.catalog.length){ loadDataPlansLive(selection.data.network); }
 }
-function selectDataNet(net){ selection.data.network = net; selection.data.plan = null; selection.data.typeFilter = 'ALL'; renderDataScreen(); renderPromoBanner(); }
+function selectDataNet(net){
+  selection.data.network = net;
+  selection.data.plan = null;
+  selection.data.typeFilter = 'ALL';
+  selection.data.catalog = selection.data._catalogByNet[net] || [];
+  renderDataScreen();
+  loadDataPlansLive(net);
+}
+// Pulls the live plan list straight from Bigisub for the chosen network —
+// same pattern as betting billers. Each plan keeps Bigisub's own `id`, so
+// checkout later sends that id back with zero guessing/matching involved.
+async function loadDataPlansLive(net){
+  const list = document.getElementById('dataPlanList');
+  const cached = selection.data._catalogByNet[net];
+  if(cached && cached.length){
+    selection.data.catalog = cached;
+    renderDataTypeTabs(); renderDataPlans(); renderPromoBanner(); updateDataSummary();
+    return;
+  }
+  list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">Loading live plans…</div>`;
+  document.getElementById('dataTypeTabs').innerHTML = '';
+  const netId = NET_ID_MAP[net];
+  const res = await fetchBigisubPlans(netId);
+  if(selection.data.network !== net) return; // user switched networks while this was loading
+  if(isTimeoutRes(res) || !res.httpOk || !res.success){
+    list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">Could not load plans. <a onclick="loadDataPlansLive('${net}')" style="text-decoration:underline; cursor:pointer; color:var(--gold-2);">Tap to retry</a></div>`;
+    return;
+  }
+  const catalog = (res.data || [])
+    .filter(p => !p.plan_disabled)
+    .map(p => {
+      const plantype = String(p.plantype || 'GIFTING').toUpperCase();
+      const buy = Number(p.amount) || 0;
+      return { id: p.id, size: p.size, plantype, validity: p.validity || '', buy, price: buy + dataPlanGain(plantype) };
+    })
+    .sort((a,b) => a.buy - b.buy);
+  selection.data._catalogByNet[net] = catalog;
+  selection.data.catalog = catalog;
+  renderDataTypeTabs();
+  renderDataPlans();
+  renderPromoBanner();
+  updateDataSummary();
+}
 function renderDataTypeTabs(){
   const wrap = document.getElementById('dataTypeTabs');
   if(!selection.data.network){ wrap.innerHTML = ''; return; }
-  const plans = PRICING.networks[selection.data.network];
-  const typesPresent = ['ALL', ...new Set(plans.map(p => p.type || 'GIFTING'))];
+  const plans = selection.data.catalog || [];
+  const typesPresent = ['ALL', ...new Set(plans.map(p => p.plantype || 'GIFTING'))];
   wrap.innerHTML = typesPresent.map(t => `
     <div class="type-tab ${selection.data.typeFilter===t?'sel':''}" onclick="selectDataType('${t}')">${DATA_TYPE_LABELS[t] || t}</div>`).join('');
 }
@@ -2209,21 +2264,17 @@ function selectDataType(t){ selection.data.typeFilter = t; selection.data.plan =
 function renderDataPlans(){
   const list = document.getElementById('dataPlanList');
   if(!selection.data.network){ list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">Choose a network to see available plans</div>`; return; }
-  const plans = PRICING.networks[selection.data.network];
+  const plans = selection.data.catalog || [];
+  if(!plans.length) return; // loadDataPlansLive owns the loading/error state here
   const filter = selection.data.typeFilter || 'ALL';
-  const indices = plans.map((p,i) => i).filter(i => {
-    const p = plans[i];
-    if(filter!=='ALL' && (p.type || 'GIFTING')!==filter) return false;
-    if(p.restricted && !(PROFILE && PROFILE[p.restricted])) return false;
-    return true;
-  });
+  const indices = plans.map((p,i) => i).filter(i => filter==='ALL' || (plans[i].plantype||'GIFTING')===filter);
   if(!indices.length){ list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">No plans in this category</div>`; return; }
   list.innerHTML = indices.map(i => {
     const p = plans[i];
     let price = getDataPlanPrice(p);
-    const type = p.type || 'GIFTING';
+    const type = p.plantype || 'GIFTING';
     return `<div class="glass plan-row ${selection.data.plan===i?'sel':''}" onclick="selectDataPlan(${i})">
-      <div class="pl-l"><b>${p.name}</b><span>${p.validity} validity <span class="badge type-${type.toLowerCase()}">${type}</span></span></div>
+      <div class="pl-l"><b>${p.size}</b><span>${p.validity||'—'} validity <span class="badge type-${type.toLowerCase()}">${type}</span></span></div>
       <div class="pl-r">₦${naira(price)}</div>
     </div>`;
   }).join('');
@@ -2233,10 +2284,9 @@ function renderDataPlans(){
 // the price a customer sees is guaranteed to be the price they pay. Also
 // hard-floors at our own buy cost so no discount can ever sell at a loss.
 function getDataPlanPrice(plan){
-  if(plan.restricted) return plan.price; // manually-priced promo plan — no discount stacking, no cost floor
   let price = plan.price;
   if(!PROFILE?.firstPurchaseDone){
-    price = (promoActive && plan.name.includes('1GB') && plan.validity==='1 Day')
+    price = (promoActive && /^1(\.0)?GB$/i.test(String(plan.size||'').replace(/\s+/g,'')) && plan.plantype!=='DATATRANSFER')
       ? Math.round(price*0.7)
       : Math.round(price*0.9);
     price = Math.max(price, plan.buy);
@@ -2252,11 +2302,11 @@ function updateDataSummary(){
     box.innerHTML = `<div class="hint mb0">Select a network, a plan, and enter a valid phone number to continue.</div>`;
     btn.disabled = true; return;
   }
-  const plan = PRICING.networks[selection.data.network][selection.data.plan];
+  const plan = selection.data.catalog[selection.data.plan];
   const price = getDataPlanPrice(plan);
   const discountNote = price < plan.price ? 'First purchase discount applied' : '';
   box.innerHTML = `
-    <div class="summary-line"><span>${NET_META[selection.data.network].label} · ${plan.name}</span><b>${plan.validity}</b></div>
+    <div class="summary-line"><span>${NET_META[selection.data.network].label} · ${plan.size}</span><b>${plan.validity||'—'}</b></div>
     <div class="summary-line"><span>Phone number</span><b>${phone}</b></div>
     ${discountNote?`<div class="summary-line"><span>${discountNote}</span></div>`:''}
     <div class="summary-total"><span>Total</span><b>₦${naira(price)}</b></div>`;
@@ -2703,11 +2753,11 @@ function updateIspSummary(){
    ============================================================ */
 function buildPurchasePayload(type){
   if(type==='data'){
-    const plan = PRICING.networks[selection.data.network][selection.data.plan];
+    const plan = selection.data.catalog[selection.data.plan];
     const price = getDataPlanPrice(plan);
-    const base = { type, network:selection.data.network, planName:plan.name, planType:plan.type, validity:plan.validity, phone:digitsOnly(document.getElementById('dataPhone').value), amount:price, buyPrice:plan.buy };
-    if(plan.restricted) base.restricted = plan.restricted;
-    return base;
+    // planId is Bigisub's own live plan id — captured at selection time, so
+    // checkout sends back exactly the plan the customer saw, no re-matching.
+    return { type, network:selection.data.network, planId:plan.id, planName:plan.size, planType:plan.plantype, validity:plan.validity, phone:digitsOnly(document.getElementById('dataPhone').value), amount:price, buyPrice:plan.buy };
   }
   if(type==='airtime'){
     return { type, network:selection.airtime.network, phone:digitsOnly(document.getElementById('airtimePhone').value), amount:selection.airtime.amount, buyPrice:selection.airtime.amount };
@@ -3371,13 +3421,6 @@ async function bigisubCall(path, method, body){
   }
 }
 
-// Extracts a Bigisub-style size token ("1.5GB", "20MB") out of our local
-// plan names, which are often descriptive ("20MB Facebook", "1GB Weekly SME").
-function extractSize(name){
-  const m = String(name||'').match(/(\d+(\.\d+)?)\s*(MB|GB)/i);
-  return m ? (m[1] + m[3].toUpperCase()) : null;
-}
-
 // A proxy/network timeout means the outcome is UNKNOWN — Bigisub may have
 // already delivered. It must never be reported the same way as a confirmed
 // failure, or callers will refund money for orders that actually went through.
@@ -3399,102 +3442,23 @@ async function callBigisubAPI(payload){
   }
 
   if(payload.type === 'data'){
+    // No matching, no guessing: the plan id came straight from Bigisub's
+    // live plan list at selection time (see loadDataPlansLive), so we just
+    // hand it back. This is the same pattern betting uses with billerCode —
+    // Bigisub's own identifier, never re-derived from a name or a size string.
     const netId = NET_ID_MAP[payload.network] || '';
-    let plansRes = await fetchBigisubPlans(netId);
-    if(isTimeoutRes(plansRes)) return { ok:false, timeout:true, ref:null };
-    if(!plansRes.httpOk || !plansRes.success) return { ok:false, ref:null };
-
-    // Per Bigisub's actual API docs: `size` is already a full string like
-    // "3GB" / "1.5GB" (NOT a bare number), and `plan_volume` is a SEPARATE
-    // MB-converted value like "3072MB" — it is NOT the unit, and comparing
-    // it against "GB"/"MB" (what earlier code did) is a bug, not a fix.
-    // `plantype` ("SME"/"GIFTING"/etc.) maps directly to our own catalog's
-    // `type` field and is a much more reliable second key than price ever was.
-    const wantSize = extractSize(payload.planName); // e.g. "3GB", "1.5GB"
-    const wantSizeNorm = wantSize ? wantSize.replace(/\s+/g,'').toUpperCase() : null;
-    const wantType = String(payload.planType || '').toUpperCase();
-    const wantPrice = payload.buyPrice;
-
-    const sizeMatch = (p) => {
-      if(p.plan_disabled) return false;
-      return String(p.size||'').replace(/\s+/g,'').toUpperCase() === wantSizeNorm;
-    };
-    let candidates = (plansRes.data || []).filter(sizeMatch);
-
-    // Cache safety net: the plan list is cached client-side for the rest of
-    // this session. If the very first fetch happened to catch Bigisub
-    // mid-glitch and came back incomplete, retry once with a fresh,
-    // uncached fetch before giving up.
-    if(candidates.length === 0){
-      console.warn('No', wantSize, payload.network, 'plan in cached list — retrying with a fresh fetch in case the cache is stale.');
-      delete _planCache[netId];
-      const freshRes = await fetchBigisubPlans(netId);
-      if(!isTimeoutRes(freshRes) && freshRes.httpOk && freshRes.success){
-        plansRes = freshRes;
-        candidates = (plansRes.data || []).filter(sizeMatch);
-      }
-    }
-    let priceDrifted = false;
-
-    let match = null;
-    if(candidates.length === 1){
-      match = candidates[0];
-    } else if(candidates.length > 1){
-      // Same size, multiple plans — prefer matching plantype first (SME vs
-      // GIFTING etc.), since that's the real distinguishing field Bigisub
-      // documents. Fall back to name keywords, then nearest price.
-      match = candidates.find(p => String(p.plantype||'').toUpperCase() === wantType);
-      if(!match){
-        const name = String(payload.planName || '').toUpperCase();
-        if(name.includes('FACEBOOK') || name.includes('FB')){
-          match = candidates.find(p => String(p.validity||'').toUpperCase().includes('FACEBOOK'));
-        } else if(name.includes('WHATSAPP') || name.includes('WHATS')){
-          match = candidates.find(p => String(p.validity||'').toUpperCase().includes('WHAT'));
-        } else if(name.includes('SOCIAL')){
-          match = candidates.find(p => String(p.validity||'').toUpperCase().includes('SOCIAL'));
-        }
-      }
-      if(!match){
-        match = candidates.slice().sort((a,b) => Math.abs(a.amount-wantPrice) - Math.abs(b.amount-wantPrice))[0];
-      }
-    }
-    if(match) priceDrifted = match.amount !== wantPrice;
-
-    if(!match){
-      const debugInfo = {
-        reason: 'plan_unavailable',
-        wantedSize: wantSizeNorm, wantedType: wantType, wantedPrice: wantPrice,
-        allPlansForNetwork: (plansRes.data||[]).map(p => ({ id:p.id, size:p.size, plantype:p.plantype, amount:p.amount, disabled:!!p.plan_disabled }))
-      };
-      console.error('No matching Bigisub data plan for', payload.planName, debugInfo);
-      // Record what was actually available so a failure is diagnosable from
-      // the admin panel's Raw view instead of showing nothing at all.
-      return { ok:false, ref:null, extra: { rawResponse: debugInfo } };
-    }
-    if(priceDrifted){
-      console.log('Bigisub live price differs from catalog — using live price:', match.id, 'amount:', match.amount, 'vs catalog', wantPrice);
-    }
-    console.log('Bigisub purchase attempt — plan id:', match.id, 'phone:', payload.phone);
+    if(!payload.planId){ console.error('Data purchase attempted with no planId', payload); return { ok:false, ref:null }; }
+    console.log('Bigisub data purchase attempt — plan id:', payload.planId, 'phone:', payload.phone);
     const res = await bigisubCall('api/v2/vtu/data/purchase/', 'POST', {
       phone_number: payload.phone,
       network: Number(netId),
-      plan: match.id
+      plan: payload.planId
+      // pin is injected server-side by the proxy — never sent from here
     });
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
-    const bigisubOkData = res.success === true;
-    if(!res.httpOk || !bigisubOkData) console.error('Bigisub purchase failed — raw response:', JSON.stringify(res));
-    return {
-      ok: res.httpOk && bigisubOkData,
-      ref: res.data?.reference || res.data?.transaction_id || null,
-      extra: {
-        rawResponse: res,
-        // If Bigisub's live price differed from our cached catalog price,
-        // this is what they actually charged. processDelivery uses this to
-        // correct the transaction's buyPrice so settlement totals reflect
-        // the real cost, not a stale catalog number.
-        actualBuyPrice: priceDrifted ? match.amount : undefined
-      }
-    };
+    const bigisubOk = res.success === true && (res.data?.status === 'successful');
+    if(!res.httpOk || !bigisubOk) console.error('Bigisub data purchase failed — raw response:', JSON.stringify(res));
+    return { ok: res.httpOk && bigisubOk, ref: res.data?.reference || res.data?.transaction_id || null, extra: { rawResponse: res } };
   }
 
   if(payload.type === 'cable'){
