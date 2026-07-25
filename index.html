@@ -2163,13 +2163,39 @@ function renderRateBar(containerId, network){
 /* ============================================================
    BUY DATA
    ============================================================ */
-const DATA_TYPE_LABELS = {ALL:'All plans', GIFTING:'Gifting', SME:'SME', SME2:'SME2', DATATRANSFER:'Data Transfer'};
+const DATA_TYPE_LABELS = {ALL:'All plans', GIFTING:'Gifting', SME:'SME', SME2:'SME2', DATATRANSFER:'Data Transfer', CGIFTING:'CG Gifting'};
 // Flat gain per plan, applied to whatever Bigisub actually charges us live —
 // this is our ONLY pricing rule now. No hardcoded local catalog, no size
 // string guessing. GIFTING plans carry a ₦5 gain, everything else (SME,
 // SME2, DataTransfer) carries ₦10 — same margin the old static catalog used,
 // just applied to the live number instead of a number typed in by hand.
 function dataPlanGain(plantype){ return String(plantype||'').toUpperCase()==='GIFTING' ? 5 : 10; }
+
+// Bigisub's `size` field is inconsistent across networks/plan types — some
+// come back as "1.5GB", others as a bare number with no unit at all (e.g.
+// GLO returning "45" instead of "45MB"). `plan_volume` is a separate field
+// that's always a clean MB figure (e.g. "1536MB" for a 1.5GB plan) when
+// present, so we trust that first and only fall back to guessing from a
+// bare `size` number when plan_volume isn't there.
+function formatPlanSize(size, planVolume){
+  const volMatch = String(planVolume||'').trim().match(/^(\d+(\.\d+)?)\s*MB$/i);
+  if(volMatch){
+    const mb = parseFloat(volMatch[1]);
+    if(mb >= 1000){
+      const gb = Math.round((mb/1024)*100)/100;
+      return (Number.isInteger(gb) ? gb : gb.toFixed(2).replace(/0$/,'').replace(/\.$/,'')) + 'GB';
+    }
+    return Math.round(mb) + 'MB';
+  }
+  const sizeStr = String(size||'').trim();
+  if(/MB|GB/i.test(sizeStr)) return sizeStr.replace(/\s+/g,'').toUpperCase();
+  // Bare number with no plan_volume to confirm it against: a bare "20"
+  // could genuinely mean either 20MB or 20GB, and those are wildly
+  // different products. Guessing wrong here would show a customer a unit
+  // that doesn't match what they're actually buying — worse than no unit
+  // at all — so we show the raw figure as-is instead of asserting one.
+  return sizeStr || '—';
+}
 
 function renderPromoBanner(){
   const el = document.getElementById('dataPromoBanner');
@@ -2242,7 +2268,7 @@ async function loadDataPlansLive(net){
     .map(p => {
       const plantype = String(p.plantype || 'GIFTING').toUpperCase();
       const buy = Number(p.amount) || 0;
-      return { id: p.id, size: p.size, plantype, validity: p.validity || '', buy, price: buy + dataPlanGain(plantype) };
+      return { id: p.id, size: formatPlanSize(p.size, p.plan_volume), plantype, validity: p.validity || '', buy, price: buy + dataPlanGain(plantype) };
     })
     .sort((a,b) => a.buy - b.buy);
   selection.data._catalogByNet[net] = catalog;
