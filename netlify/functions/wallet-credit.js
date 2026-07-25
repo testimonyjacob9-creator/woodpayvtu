@@ -116,7 +116,13 @@ exports.handler = async (event) => {
       const updates = { walletBalance: newBalance };
       tx.update(userRef, updates);
 
-      // Write transaction record for wallet_funding (purchases write their own records)
+      // Write a transaction record so the balance change actually shows up
+      // in the user's history — not just a silently different number.
+      // Self-service wallet funding (Flutterwave) gets its own record here;
+      // any other admin-initiated edit (plain credit/debit from admin.html's
+      // editWallet, which sends no type/paymentRef) needs one too, since
+      // index.html's txLabel() already renders admin_credit/admin_debit as
+      // "From WoodPay" — it was just never being written.
       if (type === 'wallet_funding' && paymentRef) {
         const txRef = db.collection('transactions').doc();
         tx.set(txRef, {
@@ -126,6 +132,16 @@ exports.handler = async (event) => {
           status: 'success',
           paymentRef: paymentRef || null,
           reason: reason || 'Wallet funding',
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } else if (isVerifiedAdmin) {
+        const txRef = db.collection('transactions').doc();
+        tx.set(txRef, {
+          userId: uid,
+          type: delta >= 0 ? 'admin_credit' : 'admin_debit',
+          amount: Number(delta),
+          status: 'success',
+          description: reason || 'From WoodPay',
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
       }
