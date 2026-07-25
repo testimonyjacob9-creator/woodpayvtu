@@ -3400,76 +3400,79 @@ async function callBigisubAPI(payload){
 
   if(payload.type === 'data'){
     const netId = NET_ID_MAP[payload.network] || '';
-    const plansRes = await fetchBigisubPlans(netId);
+    let plansRes = await fetchBigisubPlans(netId);
     if(isTimeoutRes(plansRes)) return { ok:false, timeout:true, ref:null };
     if(!plansRes.httpOk || !plansRes.success) return { ok:false, ref:null };
-    // New matching strategy: size + unit + exact buy price.
-    // This sidesteps plantype label mismatches (e.g. our catalog says GIFTING
-    // but Bigisub returns DataTransfer or SME2 for the same plan).
-    // payload.buyPrice is our local `buy` cost which must equal Bigisub's `amount`.
-    const wantSize = extractSize(payload.planName);
-    const parsedSize = wantSize ? parseFloat(wantSize) : null;
-    const parsedUnit = wantSize ? wantSize.replace(/[\d.]/g, '') : null; // 'MB' or 'GB'
+
+    // Per Bigisub's actual API docs: `size` is already a full string like
+    // "3GB" / "1.5GB" (NOT a bare number), and `plan_volume` is a SEPARATE
+    // MB-converted value like "3072MB" — it is NOT the unit, and comparing
+    // it against "GB"/"MB" (what earlier code did) is a bug, not a fix.
+    // `plantype` ("SME"/"GIFTING"/etc.) maps directly to our own catalog's
+    // `type` field and is a much more reliable second key than price ever was.
+    const wantSize = extractSize(payload.planName); // e.g. "3GB", "1.5GB"
+    const wantSizeNorm = wantSize ? wantSize.replace(/\s+/g,'').toUpperCase() : null;
+    const wantType = String(payload.planType || '').toUpperCase();
     const wantPrice = payload.buyPrice;
 
-    // Find all candidates matching size + unit + exact price (skip disabled plans)
-    const sizeUnitMatch = (p) => {
+    const sizeMatch = (p) => {
       if(p.plan_disabled) return false;
-      const pSize = parseFloat(p.size);
-      const pUnit = String(p.plan_volume || '').toUpperCase();
-      return pSize === parsedSize && pUnit === parsedUnit;
+      return String(p.size||'').replace(/\s+/g,'').toUpperCase() === wantSizeNorm;
     };
-    let candidates = (plansRes.data || []).filter(p => sizeUnitMatch(p) && p.amount === wantPrice);
-    let usedFallbackPrice = false;
+    let candidates = (plansRes.data || []).filter(sizeMatch);
 
-    // Bigisub's live price can drift by a naira or two from what our catalog
-    // has cached (e.g. their price changes momentarily under load). An exact
-    // match failing here used to hard-fail the whole order even though the
-    // plan clearly exists — now fall back to the closest price within a
-    // small tolerance instead of giving up.
-    const PRICE_TOLERANCE = 10;
+    // Cache safety net: the plan list is cached client-side for the rest of
+    // this session. If the very first fetch happened to catch Bigisub
+    // mid-glitch and came back incomplete, retry once with a fresh,
+    // uncached fetch before giving up.
     if(candidates.length === 0){
-      const nearby = (plansRes.data || [])
-        .filter(p => sizeUnitMatch(p) && Math.abs(p.amount - wantPrice) <= PRICE_TOLERANCE)
-        .sort((a,b) => Math.abs(a.amount - wantPrice) - Math.abs(b.amount - wantPrice));
-      if(nearby.length > 0){
-        candidates = nearby.filter(p => p.amount === nearby[0].amount); // keep only the closest price tier
-        usedFallbackPrice = true;
-        console.warn('Bigisub price drifted for', payload.planName, '— catalog wanted', wantPrice, 'using nearest live price', nearby[0].amount);
+      console.warn('No', wantSize, payload.network, 'plan in cached list — retrying with a fresh fetch in case the cache is stale.');
+      delete _planCache[netId];
+      const freshRes = await fetchBigisubPlans(netId);
+      if(!isTimeoutRes(freshRes) && freshRes.httpOk && freshRes.success){
+        plansRes = freshRes;
+        candidates = (plansRes.data || []).filter(sizeMatch);
       }
     }
+    let priceDrifted = false;
 
     let match = null;
     if(candidates.length === 1){
       match = candidates[0];
     } else if(candidates.length > 1){
-      // Disambiguate plans that share identical size/unit/price
-      // (e.g. MTN 20MB Facebook vs 20MB WhatsApp vs 200MB Social)
-      const name = String(payload.planName || '').toUpperCase();
-      if(name.includes('FACEBOOK') || name.includes('FB')){
-        match = candidates.find(p => String(p.validity||'').toUpperCase().includes('FACEBOOK')) || candidates[0];
-      } else if(name.includes('WHATSAPP') || name.includes('WHATS')){
-        match = candidates.find(p => String(p.validity||'').toUpperCase().includes('WHAT')) || candidates[0];
-      } else if(name.includes('SOCIAL')){
-        match = candidates.find(p => String(p.validity||'').toUpperCase().includes('SOCIAL')) || candidates[0];
-      } else {
-        match = candidates[0];
+      // Same size, multiple plans — prefer matching plantype first (SME vs
+      // GIFTING etc.), since that's the real distinguishing field Bigisub
+      // documents. Fall back to name keywords, then nearest price.
+      match = candidates.find(p => String(p.plantype||'').toUpperCase() === wantType);
+      if(!match){
+        const name = String(payload.planName || '').toUpperCase();
+        if(name.includes('FACEBOOK') || name.includes('FB')){
+          match = candidates.find(p => String(p.validity||'').toUpperCase().includes('FACEBOOK'));
+        } else if(name.includes('WHATSAPP') || name.includes('WHATS')){
+          match = candidates.find(p => String(p.validity||'').toUpperCase().includes('WHAT'));
+        } else if(name.includes('SOCIAL')){
+          match = candidates.find(p => String(p.validity||'').toUpperCase().includes('SOCIAL'));
+        }
+      }
+      if(!match){
+        match = candidates.slice().sort((a,b) => Math.abs(a.amount-wantPrice) - Math.abs(b.amount-wantPrice))[0];
       }
     }
+    if(match) priceDrifted = match.amount !== wantPrice;
 
     if(!match){
       const debugInfo = {
-        reason: 'no_matching_plan',
-        wantedSize: parsedSize, wantedUnit: parsedUnit, wantedPrice: wantPrice,
-        availablePlansForSizeUnit: (plansRes.data||[]).filter(sizeUnitMatch).map(p => ({ id:p.id, amount:p.amount, disabled:!!p.plan_disabled }))
+        reason: 'plan_unavailable',
+        wantedSize: wantSizeNorm, wantedType: wantType, wantedPrice: wantPrice,
+        allPlansForNetwork: (plansRes.data||[]).map(p => ({ id:p.id, size:p.size, plantype:p.plantype, amount:p.amount, disabled:!!p.plan_disabled }))
       };
       console.error('No matching Bigisub data plan for', payload.planName, debugInfo);
       // Record what was actually available so a failure is diagnosable from
       // the admin panel's Raw view instead of showing nothing at all.
       return { ok:false, ref:null, extra: { rawResponse: debugInfo } };
     }
-    if(usedFallbackPrice){
-      console.log('Proceeding with nearest-price match:', match.id, 'amount:', match.amount, 'vs catalog', wantPrice);
+    if(priceDrifted){
+      console.log('Bigisub live price differs from catalog — using live price:', match.id, 'amount:', match.amount, 'vs catalog', wantPrice);
     }
     console.log('Bigisub purchase attempt — plan id:', match.id, 'phone:', payload.phone);
     const res = await bigisubCall('api/v2/vtu/data/purchase/', 'POST', {
@@ -3485,11 +3488,11 @@ async function callBigisubAPI(payload){
       ref: res.data?.reference || res.data?.transaction_id || null,
       extra: {
         rawResponse: res,
-        // If we matched via price-drift fallback, this is what Bigisub
-        // actually charged — different from our catalog's cached price.
-        // processDelivery uses this to correct the transaction's buyPrice
-        // so settlement totals reflect the real cost, not a stale number.
-        actualBuyPrice: usedFallbackPrice ? match.amount : undefined
+        // If Bigisub's live price differed from our cached catalog price,
+        // this is what they actually charged. processDelivery uses this to
+        // correct the transaction's buyPrice so settlement totals reflect
+        // the real cost, not a stale catalog number.
+        actualBuyPrice: priceDrifted ? match.amount : undefined
       }
     };
   }
