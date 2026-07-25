@@ -693,7 +693,7 @@ async function editWallet(uid, name, currentBalance){
       body: JSON.stringify({ uid, delta, idToken })
     });
     const data = await res.json();
-    if(!data.ok) throw new Error(data.error || 'Update failed');
+    if(!data.ok) throw new Error(data.error || `Unexpected server response (no error detail) — raw: ${JSON.stringify(data).slice(0,200)}`);
     const u = ALL_USERS.find(x=>x.id===uid);
     if(u) u.walletBalance = data.newBalance;
     renderUsersTable();
