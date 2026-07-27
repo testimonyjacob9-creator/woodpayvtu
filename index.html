@@ -243,10 +243,16 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 @keyframes tileIn{ from{ opacity:0; transform:translateY(14px) scale(.97); } to{ opacity:1; transform:translateY(0) scale(1); } }
 .service-tile.anim-in{ opacity:0; animation:tileIn .45s cubic-bezier(.2,.8,.2,1) forwards; }
 #screen-services .service-grid{ margin-top:6px; }
-.service-tile{ padding:20px 16px; cursor:pointer; }
-.service-tile .si{ width:42px;height:42px;border-radius:13px; display:flex;align-items:center;justify-content:center; margin-bottom:14px; }
-.service-tile h3{ font-size:15px; font-weight:600; }
-.service-tile p{ font-size:12.5px; margin-top:4px; }
+.service-tile{ padding:14px 12px; cursor:pointer; transition:transform .12s ease, box-shadow .12s ease; }
+.service-tile:active{ transform:scale(.95); }
+.service-tile .si{ width:34px;height:34px;border-radius:11px; display:flex;align-items:center;justify-content:center; margin-bottom:10px; font-size:16px; }
+.service-tile h3{ font-size:13.5px; font-weight:600; }
+.service-tile p{ font-size:11px; margin-top:3px; }
+.service-tile-spin{ background:linear-gradient(135deg, rgba(217,178,92,.14), rgba(217,178,92,.04)); border:1px solid rgba(217,178,92,.35); animation:spinGlow 2.4s ease-in-out infinite; }
+.service-tile-spin .si{ font-size:20px; background:none !important; animation:spinWiggle 1.8s ease-in-out infinite; }
+@keyframes spinGlow{ 0%,100%{ box-shadow:0 0 0 rgba(217,178,92,0); } 50%{ box-shadow:0 0 18px rgba(217,178,92,.25); } }
+@keyframes spinWiggle{ 0%,100%{ transform:rotate(-8deg); } 50%{ transform:rotate(8deg); } }
+@keyframes spinPop{ 0%{ transform:scale(.3) rotate(-15deg); opacity:0; } 60%{ transform:scale(1.15) rotate(5deg); opacity:1; } 100%{ transform:scale(1) rotate(0); } }
 
 .section-title{ display:flex; align-items:center; justify-content:space-between; margin:34px 0 14px; }
 .section-title h2{ font-size:19px; }
@@ -743,6 +749,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       <div class="wallet-amt">₦<span id="walletBal">0.00</span></div>
       <div class="wallet-actions">
         <button class="btn btn-gold btn-sm" style="flex:1;" onclick="openFundWallet()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg> Fund wallet</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="openSendMoney()">Send money</button>
         <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="go('history')">History</button>
       </div>
     </div>
@@ -752,11 +759,9 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       <div class="glass glass-hover quick-item" onclick="go('airtime')"><div class="qi" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4l3 3-2 2a13 13 0 006 6l2-2 3 3-2 3a2 2 0 01-2 .6A16 16 0 014 6a2 2 0 01.6-2z" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Airtime</span></div>
       <div class="glass glass-hover quick-item" onclick="go('cable')"><div class="qi" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M12 18v3" stroke-linecap="round"/></svg></div><span>TV</span></div>
       <div class="glass glass-hover quick-item" onclick="go('electricity')"><div class="qi" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke-linejoin="round"/></svg></div><span>Power</span></div>
-      <div class="glass glass-hover quick-item" onclick="go('resultchecker')"><div class="qi" style="background:rgba(108,92,231,.16); color:#B3A6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 11l3 3L22 4M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Result</span></div>
-      <div class="glass glass-hover quick-item" onclick="go('rechargepin')"><div class="qi" style="background:rgba(79,124,255,.16); color:#8FB0FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 11h2M11 11h2" stroke-linecap="round"/></svg></div><span>Pins</span></div>
-      <div class="glass glass-hover quick-item" onclick="go('betting')"><div class="qi" style="background:rgba(34,211,238,.14); color:#7FE3F2;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>Betting</span></div>
-      <div class="glass glass-hover quick-item" onclick="go('isp')"><div class="qi" style="background:rgba(217,178,92,.15); color:var(--gold-2);"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 12a10 10 0 0114 0M8.5 15.5a5 5 0 017 0M12 19h.01" stroke-linecap="round" stroke-linejoin="round"/></svg></div><span>ISP</span></div>
     </div>
+    <div style="text-align:center; margin:10px 0 4px;"><span class="back-link" style="font-size:12.5px; opacity:.8;" onclick="go('services')">See all services →</span></div>
+
 
     <div class="section-title"><h2>Recent activity</h2><a onclick="go('history')">See all</a></div>
     <div class="glass" id="recentTxWrap" style="padding:2px 4px; min-height:80px;">
@@ -769,7 +774,11 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
     <div class="screen-head"><h2>Services</h2></div>
     <p class="hint" style="margin:2px 4px 18px;">Everything you can pay for, in one place.</p>
     <div class="service-grid" id="servicesGrid">
-      <div class="glass glass-hover service-tile anim-in" style="animation-delay:0ms" onclick="go('data')">
+      <div class="glass glass-hover service-tile service-tile-spin anim-in" style="animation-delay:0ms" onclick="openSpinSheet()">
+        <div class="si" style="background:rgba(217,178,92,.18); color:var(--gold-2);">🎁</div>
+        <h3>Spin &amp; Win</h3><p>Free daily reward</p>
+      </div>
+      <div class="glass glass-hover service-tile anim-in" style="animation-delay:20ms" onclick="go('data')">
         <div class="si" style="background:rgba(108,92,231,.16); color:#B3A6FF;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         <h3>Buy Data</h3><p>MTN, Airtel, Glo, 9mobile</p>
       </div>
@@ -807,6 +816,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   <!-- ============ BUY DATA ============ -->
   <section class="screen" id="screen-data">
     <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Buy Data</h2></div>
+    <div id="buyAgainCard"></div>
     <div class="net-grid" id="dataNetGrid"></div>
     <div id="dataRateBar"></div>
     <div class="field"><label>Phone number</label><input type="tel" id="dataPhone" placeholder="08065702702" maxlength="11"></div>
@@ -1318,6 +1328,39 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   </div>
 </div>
 
+<div class="overlay" id="spinSheet">
+  <div class="glass sheet" style="text-align:center;">
+    <div class="sheet-handle"></div>
+    <div id="spinIdleView">
+      <div style="font-size:52px; margin:6px 0 12px;" id="spinEmoji">🎁</div>
+      <h3 style="font-size:18px; margin-bottom:6px;">Spin &amp; Win</h3>
+      <p style="font-size:13px; color:var(--text-mute); margin:0 0 22px;">Claim a free wallet reward — once every day.</p>
+      <button class="btn btn-gold" id="spinClaimBtn" onclick="claimSpin()">Claim today's reward</button>
+      <button class="btn btn-ghost mt16" onclick="closeSheet('spinSheet')">Close</button>
+    </div>
+    <div id="spinResultView" class="hide">
+      <div style="font-size:52px; margin:6px 0 12px; animation:spinPop .5s cubic-bezier(.2,1.4,.4,1);">🎉</div>
+      <h3 style="font-size:19px; margin-bottom:6px;">You won <span id="spinRewardAmt" style="color:var(--gold-2);">₦0</span>!</h3>
+      <p style="font-size:13px; color:var(--text-mute); margin:0 0 22px;">Added straight to your wallet balance.</p>
+      <button class="btn btn-primary" onclick="closeSheet('spinSheet')">Nice, thanks!</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="sendMoneySheet">
+  <div class="glass sheet">
+    <div class="sheet-handle"></div>
+    <h3 style="font-size:18px; margin-bottom:6px;">Send to a WoodPay user</h3>
+    <p style="font-size:13px; color:var(--text-mute); margin:0 0 18px;">Instant transfer to any WoodPay wallet by phone number.</p>
+    <div class="field"><label>Recipient's phone number</label><input type="tel" id="sendPhone" placeholder="08065702702" maxlength="11" oninput="onSendPhoneInput()"></div>
+    <div id="sendRecipientPreview" style="font-size:13px; margin:-8px 0 14px; min-height:18px;"></div>
+    <div class="field mb0"><label>Amount (₦)</label><input type="number" id="sendAmount" placeholder="Enter amount"></div>
+    <div class="error-text" id="sendMoneyError"></div>
+    <button class="btn btn-primary mt24" onclick="initiateSendMoney()">Send money</button>
+    <button class="btn btn-ghost mt16" onclick="closeSheet('sendMoneySheet')">Cancel</button>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    ICONS (inline SVG strings, stroke = currentColor)
@@ -1326,6 +1369,7 @@ const ICON = {
   data:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   airtime:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4l3 3-2 2a13 13 0 006 6l2-2 3 3-2 3a2 2 0 01-2 .6A16 16 0 014 6a2 2 0 01.6-2z" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   tv:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M8 21h8M12 18v3" stroke-linecap="round"/></svg>`,
+
   bolt:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" stroke-linejoin="round"/></svg>`,
   shield:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-4z"/></svg>`,
   zap:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4 14h7l-1 8 9-12h-7l1-8z"/></svg>`,
@@ -1396,7 +1440,10 @@ window.dispatchEvent(new Event('fb-ready'));
     document.body.appendChild(s);
   }
 </script>
-<script src="https://checkout.flutterwave.com/v3.js" onerror="console.error('[flutterwave] Failed to load checkout.flutterwave.com/v3.js — check network/ad-blocker.')"></script>
+<!-- checkout.flutterwave.com/v3.js is loaded lazily by ensureFlutterwaveScript(),
+     only when someone actually opens a Flutterwave checkout — see
+     openFlutterwaveCheckout(). Previously loaded synchronously here on every
+     page view, blocking first paint for users who never touch it that visit. -->
 
 <script>
 /* ============================================================
@@ -2279,7 +2326,9 @@ function selectDataNet(net){
 async function loadDataPlansLive(net){
   const list = document.getElementById('dataPlanList');
   const cached = selection.data._catalogByNet[net];
-  if(cached && cached.length){
+  const cachedAt = selection.data._catalogFetchedAt?.[net] || 0;
+  const CACHE_TTL_MS = 3 * 60 * 1000; // 3 min — long enough that flipping between networks feels instant, short enough that prices can't drift far
+  if(cached && cached.length && (Date.now() - cachedAt) < CACHE_TTL_MS){
     selection.data.catalog = cached;
     renderDataTypeTabs(); renderDataPlans(); renderPromoBanner(); updateDataSummary();
     return;
@@ -3157,8 +3206,33 @@ async function handleFlutterwaveComplete(response, ref, payload){
   }
 }
 
-function openFlutterwaveCheckout(payload){
+// Loads checkout.flutterwave.com/v3.js on first actual use instead of on
+// every page view — cached in-flight so concurrent calls share one load
+// instead of injecting the script twice.
+let _fwScriptPromise = null;
+function ensureFlutterwaveScript(){
+  if(typeof FlutterwaveCheckout !== 'undefined') return Promise.resolve();
+  if(_fwScriptPromise) return _fwScriptPromise;
+  _fwScriptPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://checkout.flutterwave.com/v3.js';
+    s.onload = () => resolve();
+    s.onerror = () => { _fwScriptPromise = null; reject(new Error('script failed to load')); };
+    document.head.appendChild(s);
+  });
+  return _fwScriptPromise;
+}
+
+async function openFlutterwaveCheckout(payload){
   console.log('[flutterwave] openFlutterwaveCheckout called with', payload);
+
+  try{
+    await ensureFlutterwaveScript();
+  }catch(e){
+    console.error('[flutterwave] Failed to load checkout.flutterwave.com/v3.js — check network/ad-blocker.');
+    toast('Payment gateway not ready. Please check your connection and try again.', 'err');
+    return;
+  }
 
   if(typeof FlutterwaveCheckout === 'undefined'){
     console.error('[flutterwave] FlutterwaveCheckout is undefined — the checkout.flutterwave.com/v3.js script did not load (blocked by network/ad-blocker, or offline).');
@@ -3332,6 +3406,25 @@ async function processDelivery(payload, paymentRef){
       if(PROFILE.referredBy && payload.amount > 1000){
         await creditReferral(docRef.id);
       }
+      // "Buy Again" tracking — only for data plans, since that's the one
+      // people re-buy on a schedule (airtime amounts vary too much to be
+      // worth remembering). Counts per unique network+plan+phone combo so
+      // the card can offer the specific plan someone actually keeps
+      // rebuying, not just their most recent purchase of any kind.
+      if(payload.type === 'data' && payload.planId && payload.phone){
+        const planKey = `${payload.network}_${payload.planId}_${payload.phone}`.replace(/[^a-zA-Z0-9_]/g, '');
+        try{
+          await FB.updateDoc(FB.doc(FB.db,'users',CURRENT_USER.uid), {
+            [`planCounts.${planKey}.count`]: FB.increment(1),
+            [`planCounts.${planKey}.network`]: payload.network,
+            [`planCounts.${planKey}.planId`]: payload.planId,
+            [`planCounts.${planKey}.phone`]: payload.phone,
+            [`planCounts.${planKey}.size`]: payload.planName || '',
+            [`planCounts.${planKey}.amount`]: payload.amount,
+            [`planCounts.${planKey}.lastBought`]: FB.serverTimestamp()
+          });
+        }catch(e){ console.warn('Could not update plan purchase count:', e); }
+      }
       // Play transaction success sound
       if(window.playTransactionSound) window.playTransactionSound();
       showResult(true, payload, result.extra);
@@ -3406,6 +3499,157 @@ async function refundToWallet(amount, reason, attempt = 1){
     });
   }catch(e){ console.error('Could not log failed refund — this needs manual support follow-up', e); }
   return false;
+}
+
+// ── Spin & Win (daily check-in) ──────────────────────────────────
+function openSpinSheet(){
+  const alreadyClaimed = PROFILE && PROFILE.lastCheckIn === todayLagosDateString();
+  document.getElementById('spinIdleView').classList.remove('hide');
+  document.getElementById('spinResultView').classList.add('hide');
+  const btn = document.getElementById('spinClaimBtn');
+  if(alreadyClaimed){
+    btn.disabled = true;
+    btn.textContent = 'Come back tomorrow';
+  } else {
+    btn.disabled = false;
+    btn.textContent = "Claim today's reward";
+  }
+  openSheet('spinSheet');
+}
+
+// Mirrors the server's Africa/Lagos date logic (UTC+1, no DST) purely so the
+// button can show "already claimed" without a network round-trip on open —
+// the real, tamper-proof check still happens server-side in claimSpin().
+function todayLagosDateString(){
+  const lagos = new Date(Date.now() + 60*60*1000);
+  return lagos.toISOString().slice(0,10);
+}
+
+async function claimSpin(){
+  const btn = document.getElementById('spinClaimBtn');
+  btn.disabled = true;
+  btn.textContent = 'Spinning…';
+  try{
+    const idToken = await CURRENT_USER.getIdToken();
+    const res = await fetch('/.netlify/functions/daily-checkin', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, uid: CURRENT_USER.uid })
+    });
+    const data = await res.json();
+    if(!data.ok){
+      toast(data.error || 'Could not claim right now.', data.alreadyClaimed ? 'info' : 'err');
+      if(data.alreadyClaimed){ btn.textContent = 'Come back tomorrow'; }
+      else { btn.disabled = false; btn.textContent = "Claim today's reward"; }
+      return;
+    }
+    document.getElementById('spinRewardAmt').textContent = `₦${data.reward}`;
+    document.getElementById('spinIdleView').classList.add('hide');
+    document.getElementById('spinResultView').classList.remove('hide');
+    if(window.playTransactionSound) window.playTransactionSound();
+  }catch(e){
+    toast('Network error — please try again.', 'err');
+    btn.disabled = false;
+    btn.textContent = "Claim today's reward";
+  }
+}
+
+// ── Send money (P2P transfer) ────────────────────────────────────
+let _sendPhoneDebounce = null;
+let _resolvedRecipientName = null;
+
+function openSendMoney(){
+  document.getElementById('sendPhone').value = '';
+  document.getElementById('sendAmount').value = '';
+  document.getElementById('sendMoneyError').textContent = '';
+  document.getElementById('sendRecipientPreview').textContent = '';
+  _resolvedRecipientName = null;
+  openSheet('sendMoneySheet');
+}
+
+// Looks up and shows the recipient's name as soon as a full phone number is
+// typed — same reassurance bank-transfer apps give ("confirm account name")
+// before the person commits to sending money to the wrong number.
+function onSendPhoneInput(){
+  const el = document.getElementById('sendRecipientPreview');
+  _resolvedRecipientName = null;
+  clearTimeout(_sendPhoneDebounce);
+  const phone = digitsOnly(document.getElementById('sendPhone').value);
+  if(phone.length !== 11){ el.textContent = ''; return; }
+  el.textContent = 'Looking up…';
+  el.style.color = 'var(--text-mute)';
+  _sendPhoneDebounce = setTimeout(async () => {
+    try{
+      const idToken = await CURRENT_USER.getIdToken();
+      const res = await fetch('/.netlify/functions/lookup-user-by-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, phone })
+      });
+      const data = await res.json();
+      // The phone field may have changed while this was in flight — don't
+      // show a stale name against a different number.
+      if(digitsOnly(document.getElementById('sendPhone').value) !== phone) return;
+      if(data.ok){
+        _resolvedRecipientName = data.name;
+        el.textContent = `✓ Sending to ${data.name}`;
+        el.style.color = 'var(--gold-2)';
+      } else {
+        _resolvedRecipientName = null;
+        el.textContent = data.error || 'No WoodPay user found with that number.';
+        el.style.color = 'var(--danger)';
+      }
+    }catch(e){
+      el.textContent = '';
+    }
+  }, 500);
+}
+
+function initiateSendMoney(){
+  const phone = digitsOnly(document.getElementById('sendPhone').value);
+  const amount = Number(document.getElementById('sendAmount').value);
+  const errEl = document.getElementById('sendMoneyError');
+  errEl.textContent = '';
+
+  if(phone.length !== 11){ errEl.textContent = 'Enter a valid 11-digit phone number.'; return; }
+  if(!_resolvedRecipientName){ errEl.textContent = 'Enter a valid WoodPay phone number and wait for the name to confirm.'; return; }
+  if(!(amount > 0)){ errEl.textContent = 'Enter a valid amount.'; return; }
+  if(amount > (PROFILE.walletBalance||0)){ errEl.textContent = 'Insufficient wallet balance.'; return; }
+
+  const recipientName = _resolvedRecipientName;
+  closeSheet('sendMoneySheet');
+  requirePinThen((pin) => submitP2PTransfer(phone, amount, pin, recipientName));
+}
+
+async function submitP2PTransfer(phone, amount, pin, expectedName){
+  showLoader(`Sending to ${expectedName}…`);
+  try{
+    const idToken = await CURRENT_USER.getIdToken();
+    const res = await fetch('/.netlify/functions/p2p-transfer', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, uid: CURRENT_USER.uid, recipientPhone: phone, amount, pin })
+    });
+    const data = await res.json();
+    hideLoader();
+    if(!data.ok){
+      const msg = data.error || 'Transfer failed — please try again.';
+      toast(/[.!?]$/.test(msg) ? msg : msg + '.', 'err');
+      if(data.pinError === 'INVALID_PIN'){
+        document.getElementById('pinEnterInput').value = '';
+        document.getElementById('pinEnterError').textContent = 'Incorrect PIN. Please try again.';
+        document.getElementById('pinEnterError').style.display = 'block';
+        openSheet('pinEnterSheet');
+        _pendingPinAction = (newPin) => submitP2PTransfer(phone, amount, newPin, expectedName);
+      }
+      return;
+    }
+    toast(`₦${amount} sent to ${data.recipientName}`, 'info');
+    if(window.playTransactionSound) window.playTransactionSound();
+  }catch(e){
+    hideLoader();
+    toast('Network error — please try again.', 'err');
+  }
 }
 
 // Referral bonuses can't be paid out from the client — crediting someone

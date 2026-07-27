@@ -15,3 +15,11 @@
 # see STATIC_IP_PROXY_URL in _settlementCore.js), uncomment this:
 # [functions."daily-settlement"]
 #   schedule = "30 22 * * *"
+
+# Runs every day at 07:00 WAT (06:00 UTC) — checks scheduledPurchases for
+# anything due (weekly/monthly recurring data plans) and executes them.
+# Unlike daily-settlement above, this only talks to Firestore + Bigisub, not
+# Flutterwave's Transfers API, so the IP-whitelisting issue doesn't apply.
+[functions."process-scheduled-purchases"]
+  schedule = "0 6 * * *"
+
