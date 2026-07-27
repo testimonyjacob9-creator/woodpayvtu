@@ -1400,7 +1400,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
   getFirestore, doc, setDoc, getDoc, updateDoc, addDoc, collection,
-  query, where, orderBy, limit, getDocs, serverTimestamp, increment, onSnapshot
+  query, where, orderBy, limit, getDocs, serverTimestamp, increment, onSnapshot,
+  Timestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1421,7 +1422,7 @@ window.FB = {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged,
   updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider,
   doc, setDoc, getDoc, updateDoc, addDoc, collection, query, where, orderBy, limit,
-  getDocs, serverTimestamp, increment, onSnapshot
+  getDocs, serverTimestamp, increment, onSnapshot, Timestamp
 };
 window.dispatchEvent(new Event('fb-ready'));
 </script>
@@ -2296,6 +2297,7 @@ function renderPromoBanner(){
   </div>`;
 }
 function renderDataScreen(){
+  renderBuyAgainCard();
   const grid = document.getElementById('dataNetGrid');
   grid.innerHTML = Object.keys(NET_META).map(k => `
     <div class="glass net-chip ${selection.data.network===k?'sel':''}" onclick="selectDataNet('${k}')">
@@ -2312,6 +2314,61 @@ function renderDataScreen(){
   // and no live catalog yet, load it.
   if(selection.data.network && !selection.data.catalog.length){ loadDataPlansLive(selection.data.network); }
 }
+// Returns the single most-recently-bought data plan across all networks
+// (by the lastBought timestamp planCounts tracks per plan), or null if the
+// user has never bought data yet. Used for both the "Buy Again" quick-card
+// and pinning that plan to the top of its network's plan list.
+function getLastBoughtPlan(){
+  const counts = (PROFILE && PROFILE.planCounts) || {};
+  let best = null, bestMs = -1;
+  Object.keys(counts).forEach(k => {
+    const c = counts[k];
+    const ms = c?.lastBought?.toMillis ? c.lastBought.toMillis() : (c?.lastBought?.seconds ? c.lastBought.seconds*1000 : 0);
+    if(c && ms > bestMs){ bestMs = ms; best = { ...c, key:k }; }
+  });
+  return best;
+}
+
+function renderBuyAgainCard(){
+  const container = document.getElementById('buyAgainCard');
+  if(!container) return;
+  const best = getLastBoughtPlan();
+  if(!best){ container.innerHTML = ''; return; }
+  const label = NET_META[best.network]?.label || best.network;
+  container.innerHTML = `
+    <div class="glass glass-hover" style="padding:14px 16px; margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:12px; border:1px solid rgba(217,178,92,.3); cursor:pointer;" onclick="buyAgainQuick('${best.key}')">
+      <div style="text-align:left;">
+        <div style="font-size:11px; color:var(--gold-2); font-weight:700; text-transform:uppercase; letter-spacing:.5px;">Buy again</div>
+        <div style="font-size:14.5px; font-weight:600; margin-top:2px;">${best.size} ${label} — ${best.phone}</div>
+      </div>
+      <div style="font-size:13px; color:var(--gold-2); font-weight:700;">₦${naira(best.amount)} →</div>
+    </div>`;
+}
+
+// One-tap rebuy: selects the network, loads its live catalog, then finds
+// and selects that exact plan by id (Bigisub's own id, not our array
+// index — the only reliable match across a fresh live-plan fetch).
+async function buyAgainQuick(key){
+  const counts = (PROFILE && PROFILE.planCounts) || {};
+  const c = counts[key];
+  if(!c) return;
+  selection.data.network = c.network;
+  selection.data.plan = null;
+  selection.data.typeFilter = 'ALL';
+  selection.data.catalog = selection.data._catalogByNet[c.network] || [];
+  renderDataScreen();
+  document.getElementById('dataPhone').value = c.phone;
+  await loadDataPlansLive(c.network);
+  const idx = selection.data.catalog.findIndex(p => String(p.id) === String(c.planId));
+  if(idx >= 0){
+    selection.data.plan = idx;
+    renderDataPlans();
+    updateDataSummary();
+  } else {
+    toast('That plan is no longer available — pick a new one below.', 'info');
+  }
+}
+
 function selectDataNet(net){
   selection.data.network = net;
   selection.data.plan = null;
@@ -2372,14 +2429,27 @@ function renderDataPlans(){
   const plans = selection.data.catalog || [];
   if(!plans.length) return; // loadDataPlansLive owns the loading/error state here
   const filter = selection.data.typeFilter || 'ALL';
-  const indices = plans.map((p,i) => i).filter(i => filter==='ALL' || (plans[i].plantype||'GIFTING')===filter);
+  let indices = plans.map((p,i) => i).filter(i => filter==='ALL' || (plans[i].plantype||'GIFTING')===filter);
   if(!indices.length){ list.innerHTML = `<div class="glass" style="padding:22px; text-align:center; color:var(--text-mute); font-size:13.5px;">No plans in this category</div>`; return; }
+
+  // Pin whichever plan the person last bought on THIS network to the top,
+  // so re-buying the same bundle doesn't mean scrolling to find it again.
+  const lastBought = getLastBoughtPlan();
+  const lastBoughtId = (lastBought && lastBought.network === selection.data.network) ? String(lastBought.planId) : null;
+  if(lastBoughtId){
+    const pinnedIdx = indices.find(i => String(plans[i].id) === lastBoughtId);
+    if(pinnedIdx !== undefined){
+      indices = [pinnedIdx, ...indices.filter(i => i !== pinnedIdx)];
+    }
+  }
+
   list.innerHTML = indices.map(i => {
     const p = plans[i];
     let price = getDataPlanPrice(p);
     const type = p.plantype || 'GIFTING';
+    const isLastBought = lastBoughtId && String(p.id) === lastBoughtId;
     return `<div class="glass plan-row ${selection.data.plan===i?'sel':''}" onclick="selectDataPlan(${i})">
-      <div class="pl-l"><b>${p.size}</b><span>${p.validity||'—'} validity <span class="badge type-${type.toLowerCase()}">${type}</span></span></div>
+      <div class="pl-l"><b>${p.size}</b><span>${p.validity||'—'} validity <span class="badge type-${type.toLowerCase()}">${type}</span>${isLastBought?' <span class="badge" style="background:rgba(217,178,92,.16); color:var(--gold-2);">Last bought</span>':''}</span></div>
       <div class="pl-r">₦${naira(price)}</div>
     </div>`;
   }).join('');
@@ -2414,7 +2484,15 @@ function updateDataSummary(){
     <div class="summary-line"><span>${NET_META[selection.data.network].label} · ${plan.size}</span><b>${plan.validity||'—'}</b></div>
     <div class="summary-line"><span>Phone number</span><b>${phone}</b></div>
     ${discountNote?`<div class="summary-line"><span>${discountNote}</span></div>`:''}
-    <div class="summary-total"><span>Total</span><b>₦${naira(price)}</b></div>`;
+    <div class="summary-total"><span>Total</span><b>₦${naira(price)}</b></div>
+    <label style="display:flex; align-items:center; gap:8px; margin-top:14px; padding-top:14px; border-top:1px solid rgba(255,255,255,.08); font-size:13px; cursor:pointer;">
+      <input type="checkbox" id="autoRenewToggle" style="width:16px;height:16px; accent-color:var(--gold-2);">
+      <span>🔁 Auto-renew this plan</span>
+      <select id="autoRenewFreq" style="margin-left:auto; background:rgba(255,255,255,.06); color:inherit; border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:4px 8px; font-size:12.5px;">
+        <option value="weekly">Weekly</option>
+        <option value="monthly" selected>Monthly</option>
+      </select>
+    </label>`;
   btn.disabled = false;
 }
 
@@ -3424,6 +3502,36 @@ async function processDelivery(payload, paymentRef){
             [`planCounts.${planKey}.lastBought`]: FB.serverTimestamp()
           });
         }catch(e){ console.warn('Could not update plan purchase count:', e); }
+      }
+      // Auto-renew — only offered/checked for data plans (see the toggle in
+      // updateDataSummary()). Client sets the *initial* nextRunDate here;
+      // Firestore rules block the client from ever updating it afterward —
+      // only process-scheduled-purchases.js (Admin SDK) advances it once a
+      // renewal actually runs.
+      if(payload.type === 'data' && payload.planId){
+        const autoRenewEl = document.getElementById('autoRenewToggle');
+        if(autoRenewEl && autoRenewEl.checked){
+          const freq = document.getElementById('autoRenewFreq')?.value || 'monthly';
+          const next = new Date();
+          if(freq === 'weekly') next.setDate(next.getDate() + 7);
+          else next.setMonth(next.getMonth() + 1);
+          try{
+            await FB.addDoc(FB.collection(FB.db,'scheduledPurchases'), {
+              userId: CURRENT_USER.uid,
+              type: 'data',
+              network: payload.network,
+              planId: payload.planId,
+              phone: payload.phone,
+              size: payload.planName || '',
+              amount: payload.amount,
+              frequency: freq,
+              active: true,
+              nextRunDate: FB.Timestamp.fromDate(next),
+              createdAt: FB.serverTimestamp()
+            });
+            toast(`Auto-renew set — this plan will repeat ${freq}.`, 'info');
+          }catch(e){ console.warn('Could not create auto-renew schedule:', e); }
+        }
       }
       // Play transaction success sound
       if(window.playTransactionSound) window.playTransactionSound();
