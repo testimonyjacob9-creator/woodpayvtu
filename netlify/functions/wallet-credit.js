@@ -13,6 +13,7 @@
 
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 const crypto = require('crypto');
+const { notifyUser } = require('./_notify');
 
 // Must exactly match the client's hashing scheme in index.html:
 //   sha256Hex(`${pin}:${uid}`)  — see _pinHashInput() / submitCreatePin()
@@ -146,6 +147,16 @@ exports.handler = async (event) => {
         });
       }
     });
+
+    if (isVerifiedAdmin) {
+      const isCredit = delta >= 0;
+      await notifyUser(admin, db, uid, {
+        title: isCredit ? 'Wallet credited ✅' : 'Wallet debited',
+        body: `₦${Math.abs(Number(delta))} was ${isCredit ? 'added to' : 'removed from'} your wallet by WoodPay. ${reason ? 'Reason: ' + reason : ''}`.trim(),
+        type: isCredit ? 'success' : 'warning',
+        url: '/'
+      });
+    }
 
     return {
       statusCode: 200,

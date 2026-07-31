@@ -19,8 +19,100 @@
 
 const crypto = require('crypto');
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
+const { notifyUser } = require('./_notify');
 
 const FLW_WEBHOOK_SECRET_HASH = process.env.FLW_WEBHOOK_SECRET_HASH || '';
+
+// Must match FEE_RATE in create-virtual-account.js / create-permanent-account.js.
+// For dynamic accounts the customer pays amount+fee upfront (fee added on).
+// For a static/permanent account there's no "requested amount" ahead of
+// time — whatever lands, we deduct our fee from it and credit the rest.
+const FEE_RATE = 0.0215;
+
+// Handles a transfer into a user's permanent (static) virtual account —
+// i.e. one that wasn't a match for any pending dynamic-account transaction.
+// Unlike the dynamic flow, there's no reference we generated ahead of time
+// to match against, so we match by the Flutterwave customer id embedded in
+// the webhook payload instead, against the flwCustomerId cached on each
+// user's profile.
+//
+// NOTE: this relies on data.customer (or data.customer_id) being present
+// in the webhook payload — confirmed present in Flutterwave's charge
+// examples for card payments, but worth verifying with one real sandbox
+// bank-transfer webhook before trusting this in production.
+async function handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount) {
+  const customerId = data.customer || data.customer_id || (data.customer && data.customer.id) || null;
+
+  if (!customerId || status !== 'succeeded') {
+    console.warn('flw-v4-webhook: no matching pending transaction and no static-account match possible', { reference, status, customerId });
+    return { statusCode: 200, body: 'No matching transaction' };
+  }
+
+  const userQuery = await db.collection('users')
+    .where('flwCustomerId', '==', customerId)
+    .limit(1)
+    .get();
+
+  if (userQuery.empty) {
+    console.warn('flw-v4-webhook: no user found for customer id', customerId);
+    return { statusCode: 200, body: 'No matching user for static transfer' };
+  }
+
+  const userDoc = userQuery.docs[0];
+  const uid = userDoc.id;
+
+  if (!userDoc.data().permanentAccount) {
+    console.warn('flw-v4-webhook: customer matched but has no permanent account on file', uid);
+    return { statusCode: 200, body: 'User has no permanent account' };
+  }
+
+  // Idempotency — webhooks can be delivered more than once for the same charge.
+  const existing = await db.collection('transactions')
+    .where('reference', '==', reference)
+    .where('type', '==', 'wallet_funding_static')
+    .limit(1)
+    .get();
+  if (!existing.empty) {
+    return { statusCode: 200, body: 'Already processed (static)' };
+  }
+
+  const fee = Math.round(amount * FEE_RATE);
+  const netCredit = amount - fee;
+  if (netCredit <= 0) {
+    console.warn('flw-v4-webhook: static transfer amount too small to cover fee', { amount, fee, uid });
+    return { statusCode: 200, body: 'Amount too small — not credited' };
+  }
+
+  const userRef = db.collection('users').doc(uid);
+  const txRef = db.collection('transactions').doc();
+
+  await db.runTransaction(async (tx) => {
+    const userSnap = await tx.get(userRef);
+    if (!userSnap.exists) throw new Error('User not found for static wallet credit.');
+    const currentBalance = userSnap.data().walletBalance || 0;
+    tx.update(userRef, { walletBalance: currentBalance + netCredit });
+    tx.set(txRef, {
+      userId: uid,
+      type: 'wallet_funding_static',
+      amount: netCredit,
+      grossAmount: amount,
+      fee,
+      status: 'success',
+      reference,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      creditedAt: admin.firestore.FieldValue.serverTimestamp()
+    });
+  });
+
+  await notifyUser(admin, db, uid, {
+    title: 'Wallet funded ✅',
+    body: `₦${netCredit} was added to your wallet (₦${amount} received, ₦${fee} fee deducted).`,
+    type: 'success',
+    url: '/'
+  });
+
+  return { statusCode: 200, body: 'Static account wallet credited' };
+}
 
 function isValidSignature(rawBody, signatureHeader) {
   if (!FLW_WEBHOOK_SECRET_HASH || !signatureHeader) return false;
@@ -85,8 +177,7 @@ exports.handler = async (event) => {
       .get();
 
     if (txQuery.empty) {
-      console.warn('flw-v4-webhook: no matching pending transaction for reference', reference);
-      return { statusCode: 200, body: 'No matching transaction' };
+      return await handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount);
     }
 
     const txDoc = txQuery.docs[0];
@@ -97,9 +188,29 @@ exports.handler = async (event) => {
       return { statusCode: 200, body: 'Already processed' };
     }
 
+    // Flutterwave can send more than one webhook call for the same charge —
+    // e.g. an intermediate status before the final one. Only treat it as a
+    // real failure if the status is an explicit terminal-failure value.
+    // Anything else (pending, processing, or a status we don't recognize
+    // yet) is left as 'pending' so a later 'succeeded' webhook can still
+    // credit the wallet normally, instead of the transaction being
+    // permanently marked failed before the real outcome is known.
+    const TERMINAL_FAILURE_STATUSES = ['failed', 'cancelled', 'expired', 'declined'];
+
     if (status !== 'succeeded') {
-      await txDoc.ref.update({ status: 'failed', flwStatus: status });
-      return { statusCode: 200, body: 'Recorded non-success status' };
+      if (TERMINAL_FAILURE_STATUSES.includes(status)) {
+        await txDoc.ref.update({ status: 'failed', flwStatus: status });
+        await notifyUser(admin, db, txData.userId, {
+          title: 'Wallet funding failed',
+          body: `Your funding of ₦${txData.amount} did not go through. If money left your account, contact support.`,
+          type: 'danger',
+          url: '/'
+        });
+        return { statusCode: 200, body: 'Recorded terminal failure status' };
+      }
+      // Non-terminal status — log it but leave the transaction pending.
+      console.log('flw-v4-webhook: non-terminal status received, leaving pending:', status, reference);
+      return { statusCode: 200, body: 'Non-terminal status — left pending' };
     }
 
     // Verify amount matches what we expected before crediting anything.
@@ -123,6 +234,13 @@ exports.handler = async (event) => {
       const newBalance = currentBalance + Number(txData.amount);
       tx.update(userRef, { walletBalance: newBalance });
       tx.update(txDoc.ref, { status: 'success', creditedAt: admin.firestore.FieldValue.serverTimestamp() });
+    });
+
+    await notifyUser(admin, db, uid, {
+      title: 'Wallet funded ✅',
+      body: `₦${txData.amount} was added to your wallet.`,
+      type: 'success',
+      url: '/'
     });
 
     return { statusCode: 200, body: 'Wallet credited' };
