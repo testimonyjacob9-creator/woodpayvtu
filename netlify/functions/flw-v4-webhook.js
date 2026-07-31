@@ -31,30 +31,64 @@ const FEE_RATE = 0.0215;
 
 // Handles a transfer into a user's permanent (static) virtual account —
 // i.e. one that wasn't a match for any pending dynamic-account transaction.
-// Unlike the dynamic flow, there's no reference we generated ahead of time
-// to match against, so we match by the Flutterwave customer id embedded in
-// the webhook payload instead, against the flwCustomerId cached on each
-// user's profile.
 //
-// NOTE: this relies on data.customer (or data.customer_id) being present
-// in the webhook payload — confirmed present in Flutterwave's charge
-// examples for card payments, but worth verifying with one real sandbox
-// bank-transfer webhook before trusting this in production.
-async function handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount) {
-  const customerId = data.customer || data.customer_id || (data.customer && data.customer.id) || null;
+// IMPORTANT: for a bank transfer, the `customer` object in the webhook is
+// the SENDER's Flutterwave customer record (whoever transferred the
+// money), NOT the receiving WoodPay user. Matching by customer id only
+// works for card payments where the payer *is* the account holder. For a
+// static bank-transfer account we instead match by the DESTINATION
+// account number — the fixed, known static account number we created for
+// the user — since that identifies which of our accounts got paid,
+// regardless of who paid it.
+//
+// The exact JSON path Flutterwave puts the destination account number in
+// isn't 100% pinned down yet, so we check several likely locations. If
+// none match, we log the full raw payload so the real field name can be
+// confirmed from a live webhook and added here.
+function extractDestinationAccountNumber(data) {
+  const candidates = [
+    data.virtual_account && data.virtual_account.account_number,
+    data.payment_method && data.payment_method.virtual_account && data.payment_method.virtual_account.account_number,
+    data.payment_method && data.payment_method.bank_transfer && data.payment_method.bank_transfer.account_number,
+    data.payment_method && data.payment_method.bank_transfer && data.payment_method.bank_transfer.virtual_account && data.payment_method.bank_transfer.virtual_account.account_number,
+    data.account_number,
+    data.meta && data.meta.account_number
+  ];
+  return candidates.find(v => typeof v === 'string' && v.length > 0) || null;
+}
 
-  if (!customerId || status !== 'succeeded') {
-    console.warn('flw-v4-webhook: no matching pending transaction and no static-account match possible', { reference, status, customerId });
+async function handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount) {
+  if (status !== 'succeeded') {
+    console.warn('flw-v4-webhook: no matching pending transaction and status is not succeeded', { reference, status });
     return { statusCode: 200, body: 'No matching transaction' };
   }
 
-  const userQuery = await db.collection('users')
-    .where('flwCustomerId', '==', customerId)
-    .limit(1)
-    .get();
+  const destinationAccountNumber = extractDestinationAccountNumber(data);
+  const customerId = data.customer || data.customer_id || (data.customer && data.customer.id) || null;
+
+  let userQuery = { empty: true, docs: [] };
+
+  if (destinationAccountNumber) {
+    userQuery = await db.collection('users')
+      .where('permanentAccount.accountNumber', '==', destinationAccountNumber)
+      .limit(1)
+      .get();
+  } else {
+    console.warn('flw-v4-webhook: could not find a destination account number in payload — full payload for above warn:', JSON.stringify(data));
+  }
+
+  // Fallback: some payloads may still key off customer id (e.g. if Flutterwave
+  // ever does echo the merchant-side customer for this flow). Kept as a
+  // secondary check only, never the primary match for a bank transfer.
+  if (userQuery.empty && customerId) {
+    userQuery = await db.collection('users')
+      .where('flwCustomerId', '==', customerId)
+      .limit(1)
+      .get();
+  }
 
   if (userQuery.empty) {
-    console.warn('flw-v4-webhook: no user found for customer id', customerId);
+    console.warn('flw-v4-webhook: no user found for destination account / customer id', { destinationAccountNumber, customerId, fullPayload: JSON.stringify(data) });
     return { statusCode: 200, body: 'No matching user for static transfer' };
   }
 
