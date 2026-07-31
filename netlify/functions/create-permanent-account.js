@@ -20,7 +20,7 @@
 // production — confirm the webhook payload actually includes the
 // customer id in the field this code expects, and adjust if not.
 //
-// Body:  { idToken, uid, nin }
+// Body:  { idToken, uid, nin, ninName }
 // Returns: { ok, accountNumber, bankName } or { ok:false, error }
 
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
@@ -42,13 +42,17 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch (e) { return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Invalid JSON' }) }; }
 
-  const { idToken, uid, nin } = body;
+  const { idToken, uid, nin, ninName } = body;
 
-  if (!idToken || !uid || !nin) {
+  if (!idToken || !uid || !nin || !ninName) {
     return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: 'Missing required fields' }) };
   }
   if (!NIN_REGEX.test(String(nin))) {
     return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: 'NIN must be exactly 11 digits.' }) };
+  }
+  const cleanName = String(ninName).trim().replace(/\s+/g, ' ');
+  if (cleanName.length < 3 || !cleanName.includes(' ')) {
+    return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: 'Enter a full name (first and last).' }) };
   }
 
   const db = admin.firestore();
@@ -85,8 +89,8 @@ exports.handler = async (event) => {
     }
 
     const email = userData.email || decoded.email;
-    const name = userData.name || 'WoodPayVTU Customer';
-    const [first, ...rest] = String(name).trim().split(' ');
+    const name = cleanName; // use the name they entered as-on-their-NIN, not the old profile name
+    const [first, ...rest] = name.split(' ');
     const last = rest.join(' ') || first;
 
     const token = await getFlwV4Token();
@@ -144,8 +148,17 @@ exports.handler = async (event) => {
     }
 
     // Deliberately NOT storing the raw NIN in Firestore — it's only ever
-    // passed through to Flutterwave for the verification/creation call.
+    // passed through to Flutterwave for the account-creation call.
+    //
+    // The profile name is synced here too, only now that account creation
+    // actually succeeded — this is a straightforward self-declared sync to
+    // what they typed as being on their NIN, not a cryptographic
+    // verification against NIMC's records. Flutterwave's virtual-account
+    // endpoint we use here doesn't return a verified name to check it
+    // against — that would require their separate, dedicated NIN/BVN
+    // verification product, which needs its own approval + consent flow.
     await userRef.update({
+      name,
       flwCustomerId: customerId,
       permanentAccount: {
         accountNumber: vaData.data.account_number,
