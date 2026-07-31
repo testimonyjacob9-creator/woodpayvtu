@@ -83,6 +83,7 @@ exports.handler = async (event) => {
         body: JSON.stringify({
           ok: true,
           accountNumber: userData.permanentAccount.accountNumber,
+          accountName: userData.permanentAccount.accountName || userData.name,
           bankName: userData.permanentAccount.bankName
         })
       };
@@ -162,6 +163,7 @@ exports.handler = async (event) => {
       flwCustomerId: customerId,
       permanentAccount: {
         accountNumber: vaData.data.account_number,
+        accountName: name,
         bankName: vaData.data.account_bank_name,
         virtualAccountId: vaData.data.id,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
@@ -174,6 +176,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         ok: true,
         accountNumber: vaData.data.account_number,
+        accountName: name,
         bankName: vaData.data.account_bank_name
       })
     };

@@ -77,6 +77,18 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;');
 }
 
+// Replaces {first name} and {name} merge tags in admin broadcast emails
+// with the actual recipient's name. Case-insensitive and tolerant of
+// stray spaces inside the braces (e.g. "{ first name }") since this gets
+// typed by hand in the admin panel.
+function applyMergeTags(str, toName) {
+  const fullName = (toName || '').trim() || 'there';
+  const firstName = fullName.split(' ')[0] || 'there';
+  return String(str || '')
+    .replace(/\{\s*first\s*name\s*\}/gi, firstName)
+    .replace(/\{\s*name\s*\}/gi, fullName);
+}
+
 exports.handler = async (event) => {
   console.log('send-email FN VERSION v12 — received body:', event.body);
   if (ADMIN_INIT_ERROR) {
@@ -208,8 +220,17 @@ exports.handler = async (event) => {
   if (body.type === 'custom') {
     kind = 'custom';
     toEmail = body.toEmail;
-    subject = body.data?.subject || '(no subject)';
-    html = body.data?.html || '';
+    const rawSubject = body.data?.subject || '(no subject)';
+    const rawHtml = body.data?.html || '';
+    subject = applyMergeTags(rawSubject, body.toName);
+    // Admin only ever types the inner message — wrap it in the same
+    // branded header/footer every other WoodPay email uses, so broadcasts
+    // don't go out as bare unstyled HTML.
+    html = emailShell({
+      headerGradient: 'linear-gradient(135deg,#1a7a4a 0%,#0d5c35 100%)',
+      tagline: 'Data · Airtime · TV · Electricity',
+      bodyHtml: applyMergeTags(rawHtml, body.toName)
+    });
   } else if (body.toEmail) {
     // sendWoodPayEmail() payload: { type: 'welcome'|'transaction'|'failed', toEmail, toName, data }
     kind = 'notification';
