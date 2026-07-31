@@ -166,6 +166,13 @@ exports.handler = async (event) => {
         accountName: name,
         bankName: vaData.data.account_bank_name,
         virtualAccountId: vaData.data.id,
+        // Flutterwave reuses this exact reference on every future
+        // charge.completed webhook for this static account — it's the
+        // only reliable way to match an incoming transfer back to this
+        // user, since the webhook payload for a static bank transfer
+        // never includes a destination account number, and the
+        // `customer` object in the payload is the sender, not us.
+        reference,
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       }
     });

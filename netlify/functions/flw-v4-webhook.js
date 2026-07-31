@@ -34,17 +34,21 @@ const FEE_RATE = 0.0215;
 //
 // IMPORTANT: for a bank transfer, the `customer` object in the webhook is
 // the SENDER's Flutterwave customer record (whoever transferred the
-// money), NOT the receiving WoodPay user. Matching by customer id only
-// works for card payments where the payer *is* the account holder. For a
-// static bank-transfer account we instead match by the DESTINATION
-// account number — the fixed, known static account number we created for
-// the user — since that identifies which of our accounts got paid,
-// regardless of who paid it.
+// money), NOT the receiving WoodPay user, and `payment_method.bank_transfer`
+// only carries the sender's (originator) bank name/account/name — v4 does
+// NOT send a destination/receiving account number anywhere in this
+// payload (confirmed from a live webhook). So neither of those can be used
+// to identify which of our users got paid.
 //
-// The exact JSON path Flutterwave puts the destination account number in
-// isn't 100% pinned down yet, so we check several likely locations. If
-// none match, we log the full raw payload so the real field name can be
-// confirmed from a live webhook and added here.
+// What IS reliable: `data.reference`. Flutterwave reuses the exact same
+// reference that was sent when the static account was created for every
+// subsequent charge into that account. So we match by looking up
+// permanentAccount.reference — this is the primary and only real match
+// for a static bank transfer.
+//
+// destinationAccountNumber / customerId are kept as a best-effort fallback
+// only, in case Flutterwave ever adds one of these fields for some payload
+// variant — they should not be relied on.
 function extractDestinationAccountNumber(data) {
   const candidates = [
     data.virtual_account && data.virtual_account.account_number,
@@ -57,7 +61,7 @@ function extractDestinationAccountNumber(data) {
   return candidates.find(v => typeof v === 'string' && v.length > 0) || null;
 }
 
-async function handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount) {
+async function handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount, chargeId) {
   if (status !== 'succeeded') {
     console.warn('flw-v4-webhook: no matching pending transaction and status is not succeeded', { reference, status });
     return { statusCode: 200, body: 'No matching transaction' };
@@ -66,20 +70,23 @@ async function handlePossibleStaticAccountTransfer(db, payload, data, reference,
   const destinationAccountNumber = extractDestinationAccountNumber(data);
   const customerId = data.customer || data.customer_id || (data.customer && data.customer.id) || null;
 
-  let userQuery = { empty: true, docs: [] };
+  // Primary match: the reused static-account creation reference.
+  let userQuery = await db.collection('users')
+    .where('permanentAccount.reference', '==', reference)
+    .limit(1)
+    .get();
 
-  if (destinationAccountNumber) {
+  // Fallback 1: destination account number, in case Flutterwave ever
+  // starts sending it for some payload variant.
+  if (userQuery.empty && destinationAccountNumber) {
     userQuery = await db.collection('users')
       .where('permanentAccount.accountNumber', '==', destinationAccountNumber)
       .limit(1)
       .get();
-  } else {
-    console.warn('flw-v4-webhook: could not find a destination account number in payload — full payload for above warn:', JSON.stringify(data));
   }
 
-  // Fallback: some payloads may still key off customer id (e.g. if Flutterwave
-  // ever does echo the merchant-side customer for this flow). Kept as a
-  // secondary check only, never the primary match for a bank transfer.
+  // Fallback 2: customer id, in case Flutterwave ever does echo the
+  // merchant-side customer for this flow.
   if (userQuery.empty && customerId) {
     userQuery = await db.collection('users')
       .where('flwCustomerId', '==', customerId)
@@ -88,7 +95,7 @@ async function handlePossibleStaticAccountTransfer(db, payload, data, reference,
   }
 
   if (userQuery.empty) {
-    console.warn('flw-v4-webhook: no user found for destination account / customer id', { destinationAccountNumber, customerId, fullPayload: JSON.stringify(data) });
+    console.warn('flw-v4-webhook: no user found for reference / destination account / customer id', { reference, destinationAccountNumber, customerId, fullPayload: JSON.stringify(data) });
     return { statusCode: 200, body: 'No matching user for static transfer' };
   }
 
@@ -101,13 +108,23 @@ async function handlePossibleStaticAccountTransfer(db, payload, data, reference,
   }
 
   // Idempotency — webhooks can be delivered more than once for the same charge.
-  const existing = await db.collection('transactions')
-    .where('reference', '==', reference)
-    .where('type', '==', 'wallet_funding_static')
-    .limit(1)
-    .get();
-  if (!existing.empty) {
-    return { statusCode: 200, body: 'Already processed (static)' };
+  //
+  // IMPORTANT: we key this off the charge id (data.id, e.g. "chg_..."),
+  // NOT `reference` — for static accounts, Flutterwave reuses the exact
+  // same reference across every charge into that account, so matching on
+  // reference here would treat every top-up after the first as a
+  // duplicate and silently skip crediting it.
+  if (!chargeId) {
+    console.warn('flw-v4-webhook: static transfer has no charge id — cannot safely dedupe, proceeding once', { reference });
+  } else {
+    const existing = await db.collection('transactions')
+      .where('chargeId', '==', chargeId)
+      .where('type', '==', 'wallet_funding_static')
+      .limit(1)
+      .get();
+    if (!existing.empty) {
+      return { statusCode: 200, body: 'Already processed (static)' };
+    }
   }
 
   const fee = Math.round(amount * FEE_RATE);
@@ -133,6 +150,7 @@ async function handlePossibleStaticAccountTransfer(db, payload, data, reference,
       fee,
       status: 'success',
       reference,
+      chargeId: chargeId || null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       creditedAt: admin.firestore.FieldValue.serverTimestamp()
     });
@@ -192,6 +210,7 @@ exports.handler = async (event) => {
 
   const data = payload.data || {};
   const reference = data.reference;
+  const chargeId = data.id; // unique per charge, e.g. "chg_..." — unlike reference, never reused
   const status = data.status; // expect "succeeded"
   const amount = Number(data.amount || 0);
 
@@ -211,7 +230,7 @@ exports.handler = async (event) => {
       .get();
 
     if (txQuery.empty) {
-      return await handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount);
+      return await handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount, chargeId);
     }
 
     const txDoc = txQuery.docs[0];
