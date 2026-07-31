@@ -1218,10 +1218,11 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 
     <div id="permAcctStepForm">
       <h3 style="font-size:18px; margin-bottom:6px;">Get a permanent account</h3>
-      <p style="opacity:.75; font-size:13px; margin-bottom:18px;">One account number, forever — fund your wallet with any amount, any time, no expiry. We verify your NIN to create it (required by our payment provider, not stored by us beyond this step).</p>
+      <p style="opacity:.75; font-size:13px; margin-bottom:18px;">One account number, forever — fund your wallet with any amount, any time, no expiry. Enter your details exactly as they appear on your NIN — your WoodPay name will be updated to match.</p>
+      <div class="field"><label>Full name (exactly as on your NIN)</label><input type="text" id="permAcctName" placeholder="e.g. Testimony Jacob Oliver"></div>
       <div class="field mb0"><label>National Identity Number (NIN)</label><input type="text" inputmode="numeric" maxlength="11" id="permAcctNin" placeholder="11-digit NIN"></div>
       <div class="error-text" id="permAcctError"></div>
-      <button class="btn btn-primary mt24" id="permAcctSubmitBtn" onclick="submitPermanentAccount()">Verify & create account</button>
+      <button class="btn btn-primary mt24" id="permAcctSubmitBtn" onclick="submitPermanentAccount()">Create account</button>
       <button class="btn btn-ghost mt16" onclick="closeSheet('permAcctSheet')">Cancel</button>
     </div>
 
@@ -4219,6 +4220,7 @@ function openPermanentAccountSheet(){
   } else {
     document.getElementById('permAcctStepForm').style.display = '';
     document.getElementById('permAcctStepDone').style.display = 'none';
+    document.getElementById('permAcctName').value = '';
     document.getElementById('permAcctNin').value = '';
     document.getElementById('permAcctError').textContent = '';
   }
@@ -4226,10 +4228,15 @@ function openPermanentAccountSheet(){
 }
 
 async function submitPermanentAccount(){
+  const name = document.getElementById('permAcctName').value.trim();
   const nin = document.getElementById('permAcctNin').value.trim();
   const errEl = document.getElementById('permAcctError');
   errEl.textContent = '';
 
+  if(name.length < 3 || !name.includes(' ')){
+    errEl.textContent = 'Enter your full name as it appears on your NIN.';
+    return;
+  }
   if(!/^[1-9][0-9]{10}$/.test(nin)){
     errEl.textContent = 'Enter a valid 11-digit NIN.';
     return;
@@ -4238,19 +4245,19 @@ async function submitPermanentAccount(){
 
   const btn = document.getElementById('permAcctSubmitBtn');
   btn.disabled = true;
-  btn.textContent = 'Verifying…';
+  btn.textContent = 'Creating account…';
 
   try{
     const idToken = await CURRENT_USER.getIdToken();
     const res = await fetch('/.netlify/functions/create-permanent-account', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken, uid: CURRENT_USER.uid, nin })
+      body: JSON.stringify({ idToken, uid: CURRENT_USER.uid, nin, ninName: name })
     });
     const data = await res.json();
 
     if(!data.ok){
-      errEl.textContent = data.error || 'Could not verify NIN. Please try again.';
+      errEl.textContent = data.error || 'Could not create account. Please try again.';
       return;
     }
 
@@ -4260,12 +4267,12 @@ async function submitPermanentAccount(){
     document.getElementById('permAcctNumber').textContent = data.accountNumber;
     toast('Permanent account created!', 'ok');
     // The live users/{uid} listener (userUnsub) will pick up PROFILE.permanentAccount
-    // shortly on its own and swap the dashboard banner over automatically.
+    // and PROFILE.name shortly on its own and update the dashboard automatically.
   }catch(e){
     errEl.textContent = 'Could not reach payment server. Please try again.';
   }finally{
     btn.disabled = false;
-    btn.textContent = 'Verify & create account';
+    btn.textContent = 'Create account';
   }
 }
 
