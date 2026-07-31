@@ -500,7 +500,12 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 .notification-item{
   background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm);
   padding:14px; margin-bottom:10px; animation:slideDown .3s ease;
-  display:flex; gap:12px; align-items:flex-start;
+  display:flex; gap:12px; align-items:flex-start; cursor:pointer;
+}
+.notification-item.unread{ background:var(--panel-2, var(--panel)); position:relative; }
+.notification-item.unread::before{
+  content:''; position:absolute; top:14px; right:14px; width:8px; height:8px;
+  border-radius:50%; background:var(--blue);
 }
 @keyframes slideDown{ from{opacity:0; transform:translateY(-10px);} to{opacity:1; transform:translateY(0);} }
 .notification-item.success{ border-left:4px solid var(--success); }
@@ -743,6 +748,9 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
     </div>
 
     <div class="promo-strip hide" id="dashboardBanner" style="margin:14px 0 0;"><span class="dot"></span> <span id="dashboardBannerText"></span></div>
+
+    <div class="promo-strip" id="permAcctBanner" style="margin:10px 0 0; cursor:pointer;" onclick="openPermanentAccountSheet()"><span class="dot"></span> <span>Get a permanent account — fund any amount, any time →</span></div>
+    <div class="promo-strip hide" id="permAcctInfoLine" style="margin:10px 0 0; cursor:pointer;" onclick="openPermanentAccountSheet()"><span class="dot"></span> <span>Your permanent account: <b id="permAcctInfoNumber">—</b> — tap to copy →</span></div>
 
     <div class="glass wallet-card">
       <div class="eyebrow">Wallet balance</div>
@@ -1204,6 +1212,32 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   </div>
 </div>
 
+<div class="overlay" id="permAcctSheet">
+  <div class="glass sheet">
+    <div class="sheet-handle"></div>
+
+    <div id="permAcctStepForm">
+      <h3 style="font-size:18px; margin-bottom:6px;">Get a permanent account</h3>
+      <p style="opacity:.75; font-size:13px; margin-bottom:18px;">One account number, forever — fund your wallet with any amount, any time, no expiry. We verify your NIN to create it (required by our payment provider, not stored by us beyond this step).</p>
+      <div class="field mb0"><label>National Identity Number (NIN)</label><input type="text" inputmode="numeric" maxlength="11" id="permAcctNin" placeholder="11-digit NIN"></div>
+      <div class="error-text" id="permAcctError"></div>
+      <button class="btn btn-primary mt24" id="permAcctSubmitBtn" onclick="submitPermanentAccount()">Verify & create account</button>
+      <button class="btn btn-ghost mt16" onclick="closeSheet('permAcctSheet')">Cancel</button>
+    </div>
+
+    <div id="permAcctStepDone" style="display:none;">
+      <h3 style="font-size:18px; margin-bottom:6px;">Your permanent account ✅</h3>
+      <p style="opacity:.75; font-size:13px; margin-bottom:18px;">Save these details — transfer any amount here, any time, and your wallet is credited automatically (minus a small transfer fee).</p>
+      <div class="glass" style="text-align:left; padding:16px;">
+        <div class="summary-line"><span>Bank</span><b id="permAcctBankName">—</b></div>
+        <div class="summary-line"><span>Account number</span><b id="permAcctNumber" style="font-size:17px; letter-spacing:.5px;">—</b></div>
+      </div>
+      <button class="btn btn-ghost mt16" onclick="copyPermanentAccount()">Copy account number</button>
+      <button class="btn btn-primary mt16" onclick="closeSheet('permAcctSheet')">Done</button>
+    </div>
+  </div>
+</div>
+
 <div class="overlay" id="nameSheet">
   <div class="glass sheet">
     <div class="sheet-handle"></div>
@@ -1399,7 +1433,7 @@ import {
   reauthenticateWithCredential, EmailAuthProvider
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-auth.js";
 import {
-  getFirestore, doc, setDoc, getDoc, updateDoc, addDoc, collection,
+  getFirestore, doc, setDoc, getDoc, updateDoc, addDoc, deleteDoc, collection,
   query, where, orderBy, limit, getDocs, serverTimestamp, increment, onSnapshot,
   Timestamp
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
@@ -1421,7 +1455,7 @@ window.FB = {
   auth, db,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged,
   updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider,
-  doc, setDoc, getDoc, updateDoc, addDoc, collection, query, where, orderBy, limit,
+  doc, setDoc, getDoc, updateDoc, addDoc, deleteDoc, collection, query, where, orderBy, limit,
   getDocs, serverTimestamp, increment, onSnapshot, Timestamp
 };
 window.dispatchEvent(new Event('fb-ready'));
@@ -1970,10 +2004,12 @@ waitFb().then(()=>{
       updateGreeting();
       triggerLoginConfetti();
       listenTransactions();
+      startNotificationListener(user.uid);
     } else {
       PROFILE = null;
       document.getElementById('topbarGuest').classList.remove('hide');
       go('landing');
+      startNotificationListener(null);
     }
   });
   loadPromoState();
@@ -2010,6 +2046,11 @@ function populateDashboard(){
   const initials = (PROFILE.name||'W P').split(' ').map(s=>s[0]).slice(0,2).join('').toUpperCase();
   document.getElementById('avatarInit').textContent = initials;
   document.getElementById('walletBal').textContent = naira(PROFILE.walletBalance);
+
+  const hasPermAcct = PROFILE.permanentAccount && PROFILE.permanentAccount.accountNumber;
+  document.getElementById('permAcctBanner').classList.toggle('hide', !!hasPermAcct);
+  document.getElementById('permAcctInfoLine').classList.toggle('hide', !hasPermAcct);
+  if(hasPermAcct) document.getElementById('permAcctInfoNumber').textContent = PROFILE.permanentAccount.accountNumber;
 }
 
 let txUnsub = null;
@@ -2031,7 +2072,7 @@ function txIcon(type){
   if(type==='airtime') return ICON.airtime;
   if(type==='cable') return ICON.tv;
   if(type==='electricity') return ICON.bolt;
-  if(type==='wallet_funding') return ICON.plus;
+  if(type==='wallet_funding' || type==='wallet_funding_v4' || type==='wallet_funding_static') return ICON.plus;
   if(type==='admin_credit') return ICON.plus;
   return ICON.receipt;
 }
@@ -2060,6 +2101,8 @@ function txLabel(t){
   if(t.type==='betting') return `${t.billerName||'Betting'} wallet funding`;
   if(t.type==='isp') return `${(ISP_META[t.provider]||{}).label||t.provider} — ${t.planLabel||''}`;
   if(t.type==='wallet_funding') return 'Wallet funding';
+  if(t.type==='wallet_funding_v4') return 'Wallet funding (transfer)';
+  if(t.type==='wallet_funding_static') return 'Wallet funding (permanent account)';
   if(t.type==='admin_credit' || t.type==='admin_debit') return t.description || 'From WoodPay';
   return 'Transaction';
 }
@@ -4161,6 +4204,81 @@ function copySterlingAccount(){
   });
 }
 
+/* ============================================================
+   PERMANENT (STATIC) ACCOUNT — NIN opt-in
+   ============================================================ */
+function openPermanentAccountSheet(){
+  if(!CURRENT_USER){ toast('You are not signed in. Please refresh and log in again.', 'err'); return; }
+
+  // Already has one — skip straight to the "done" view showing it.
+  if(PROFILE && PROFILE.permanentAccount && PROFILE.permanentAccount.accountNumber){
+    document.getElementById('permAcctStepForm').style.display = 'none';
+    document.getElementById('permAcctStepDone').style.display = '';
+    document.getElementById('permAcctBankName').textContent = PROFILE.permanentAccount.bankName || 'Sterling Bank';
+    document.getElementById('permAcctNumber').textContent = PROFILE.permanentAccount.accountNumber;
+  } else {
+    document.getElementById('permAcctStepForm').style.display = '';
+    document.getElementById('permAcctStepDone').style.display = 'none';
+    document.getElementById('permAcctNin').value = '';
+    document.getElementById('permAcctError').textContent = '';
+  }
+  openSheet('permAcctSheet');
+}
+
+async function submitPermanentAccount(){
+  const nin = document.getElementById('permAcctNin').value.trim();
+  const errEl = document.getElementById('permAcctError');
+  errEl.textContent = '';
+
+  if(!/^[1-9][0-9]{10}$/.test(nin)){
+    errEl.textContent = 'Enter a valid 11-digit NIN.';
+    return;
+  }
+  if(!CURRENT_USER){ toast('You are not signed in. Please refresh and log in again.', 'err'); return; }
+
+  const btn = document.getElementById('permAcctSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Verifying…';
+
+  try{
+    const idToken = await CURRENT_USER.getIdToken();
+    const res = await fetch('/.netlify/functions/create-permanent-account', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, uid: CURRENT_USER.uid, nin })
+    });
+    const data = await res.json();
+
+    if(!data.ok){
+      errEl.textContent = data.error || 'Could not verify NIN. Please try again.';
+      return;
+    }
+
+    document.getElementById('permAcctStepForm').style.display = 'none';
+    document.getElementById('permAcctStepDone').style.display = '';
+    document.getElementById('permAcctBankName').textContent = data.bankName || 'Sterling Bank';
+    document.getElementById('permAcctNumber').textContent = data.accountNumber;
+    toast('Permanent account created!', 'ok');
+    // The live users/{uid} listener (userUnsub) will pick up PROFILE.permanentAccount
+    // shortly on its own and swap the dashboard banner over automatically.
+  }catch(e){
+    errEl.textContent = 'Could not reach payment server. Please try again.';
+  }finally{
+    btn.disabled = false;
+    btn.textContent = 'Verify & create account';
+  }
+}
+
+function copyPermanentAccount(){
+  const num = document.getElementById('permAcctNumber').textContent;
+  if(!num || num === '—') return;
+  navigator.clipboard.writeText(num).then(()=>{
+    toast('Account number copied.', 'ok');
+  }).catch(()=>{
+    toast('Could not copy — please copy it manually.', 'err');
+  });
+}
+
 function closeSterlingSheet(){
   if(stTxUnsub){ stTxUnsub(); stTxUnsub = null; }
   closeSheet('sterlingSheet');
@@ -4785,22 +4903,52 @@ async function sendContactMessage(){
   }
 }
 
-/* Notification Center */
+/* Notification Center
+   ------------------------------------------------------------
+   Rebuilt to be backed by Firestore (users/{uid}/notifications) instead
+   of an in-memory array. The old version only ever got filled by a live
+   service-worker push message while the tab was open in the foreground,
+   and reset to empty on every reload — so it never showed real history.
+   Real events (funding success/failure, admin wallet credit/debit) are
+   now written server-side via netlify/functions/_notify.js, and this
+   listens live so the bell always reflects what's actually happened,
+   persists across reloads, and shows a real unread count.
+*/
 let notificationQueue = [];
+let notifUnsub = null;
 
-function addNotification(title, body, type = 'info', url = '/'){
-  const notification = {
-    id: Date.now(),
-    title,
-    body,
-    type,
-    url,
-    timestamp: new Date()
-  };
-  
-  notificationQueue.push(notification);
-  updateNotificationCenter();
-  showNotificationBadge();
+function startNotificationListener(uid){
+  if(notifUnsub) { notifUnsub(); notifUnsub = null; }
+  if(!uid) { notificationQueue = []; updateNotificationCenter(); hideNotificationBadge(); return; }
+
+  const q = FB.query(
+    FB.collection(FB.db, 'users', uid, 'notifications'),
+    FB.orderBy('createdAt', 'desc'),
+    FB.limit(30)
+  );
+
+  notifUnsub = FB.onSnapshot(q, (snap) => {
+    notificationQueue = snap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        title: data.title,
+        body: data.body,
+        type: data.type || 'info',
+        url: data.url || '/',
+        read: !!data.read,
+        // createdAt can briefly be null right after a write, before the
+        // server timestamp round-trips back — fall back to "now" so it
+        // doesn't render as a broken date in that split second.
+        timestamp: data.createdAt ? data.createdAt.toDate() : new Date()
+      };
+    });
+    updateNotificationCenter();
+    const unreadCount = notificationQueue.filter(n => !n.read).length;
+    if(unreadCount > 0) showNotificationBadge(unreadCount); else hideNotificationBadge();
+  }, (err) => {
+    console.log('Notification listener error:', err.message);
+  });
 }
 
 function updateNotificationCenter(){
@@ -4813,14 +4961,14 @@ function updateNotificationCenter(){
   }
   
   list.innerHTML = notificationQueue.map(n => `
-    <div class="notification-item ${n.type}">
+    <div class="notification-item ${n.type}${n.read ? '' : ' unread'}" onclick="markNotificationRead('${n.id}')">
       <div class="notif-icon">${getNotificationIcon(n.type)}</div>
       <div class="notif-content">
         <div class="notif-title">${n.title}</div>
         <div class="notif-body">${n.body}</div>
         <div class="notif-time">${formatTime(n.timestamp)}</div>
       </div>
-      <div class="notif-close" onclick="removeNotification(${n.id})">✕</div>
+      <div class="notif-close" onclick="event.stopPropagation(); removeNotification('${n.id}')">✕</div>
     </div>
   `).join('');
 }
@@ -4835,10 +4983,20 @@ function getNotificationIcon(type){
   return icons[type] || 'ℹ';
 }
 
-function removeNotification(id){
-  notificationQueue = notificationQueue.filter(n => n.id !== id);
-  updateNotificationCenter();
-  if(notificationQueue.length === 0) hideNotificationBadge();
+async function markNotificationRead(id){
+  const user = FB?.auth?.currentUser;
+  if(!user) return;
+  try {
+    await FB.updateDoc(FB.doc(FB.db, 'users', user.uid, 'notifications', id), { read: true });
+  } catch(e){ console.log('markNotificationRead failed:', e.message); }
+}
+
+async function removeNotification(id){
+  const user = FB?.auth?.currentUser;
+  if(!user) return;
+  try {
+    await FB.deleteDoc(FB.doc(FB.db, 'users', user.uid, 'notifications', id));
+  } catch(e){ console.log('removeNotification failed:', e.message); }
 }
 
 function showNotificationCenter(){
@@ -4851,10 +5009,10 @@ function hideNotificationCenter(){
   if(center) center.classList.remove('show');
 }
 
-function showNotificationBadge(){
+function showNotificationBadge(count){
   const badge = document.getElementById('notificationBadge');
   if(badge){
-    badge.textContent = notificationQueue.length;
+    badge.textContent = count;
     badge.classList.remove('hide');
   }
 }
@@ -4879,12 +5037,15 @@ function formatTime(date){
   return date.toLocaleDateString();
 }
 
-/* Listen for push notifications from service worker */
+/* Foreground push messages (tab already open when a push arrives) still
+   get a quick toast for immediate feedback — the persisted bell entry
+   itself comes from Firestore above, written server-side, so it shows up
+   there too without needing this listener to duplicate it. */
 if('serviceWorker' in navigator){
   navigator.serviceWorker.addEventListener('message', (event) => {
     if(event.data && event.data.type === 'PUSH_NOTIFICATION'){
-      const {title, body, url} = event.data;
-      addNotification(title, body, 'info', url);
+      const {title, body} = event.data;
+      toast(`${title}: ${body}`, 'info');
     }
   });
 }
@@ -5086,7 +5247,20 @@ function triggerInstall(){
 // can't see it unless we explicitly attach it to window.
 window.triggerInstall = triggerInstall;
 
-const VAPID_PUBLIC_KEY = 'BJDn0ER_blc2Ga4onqhSEfEdO-GtO0QtrTwtW7BDDzNB-lMgeAJXUOh6xctoA5nqpit42hF4m1g8NK1XUuydmrQ';
+// NOTE: there used to be a hardcoded VAPID_PUBLIC_KEY constant here. It was
+// removed on purpose — if it ever went out of sync with the VAPID_PUBLIC_KEY
+// (and matching VAPID_PRIVATE_KEY) that send-push.js actually signs with,
+// every push would silently fail for every subscriber. We now fetch the key
+// from the server at subscribe-time so there is only ever one source of truth.
+let _vapidKeyCache = null;
+async function getVapidPublicKey() {
+  if (_vapidKeyCache) return _vapidKeyCache;
+  const res = await fetch('/.netlify/functions/get-vapid-key');
+  if (!res.ok) throw new Error('Could not fetch VAPID key');
+  const data = await res.json();
+  _vapidKeyCache = data.publicKey;
+  return _vapidKeyCache;
+}
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -5103,9 +5277,10 @@ async function subscribeToPush(reg, forceNew = false) {
     if (existing) { await savePushSubscription(existing); return existing; }
     const perm = await Notification.requestPermission();
     if (perm !== 'granted') return null;
+    const vapidKey = await getVapidPublicKey();
     const sub = await reg.pushManager.subscribe({
       userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+      applicationServerKey: urlBase64ToUint8Array(vapidKey)
     });
     await savePushSubscription(sub);
     return sub;
