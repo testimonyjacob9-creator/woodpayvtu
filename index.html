@@ -487,14 +487,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   .chatbot-quick-actions{ grid-template-columns:1fr; }
 }
 
-/* ============ Push Notification Center ============ */
-.notification-center{
-  position:fixed; top:0; right:0; bottom:0; left:0; z-index:200; 
-  background:rgba(0,0,0,.5); display:flex; align-items:flex-start; padding:60px 20px 20px;
-  overflow-y:auto; visibility:hidden; opacity:0; transition:.3s ease;
-}
-.notification-center.show{ visibility:visible; opacity:1; }
-.notification-list{
+/* ============ Notifications ============ */
   width:100%; max-width:500px; margin:0 auto;
 }
 .notification-item{
@@ -521,9 +514,10 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 .notif-close:hover{ color:var(--text); }
 
 .notification-badge{
-  position:absolute; top:60px; right:20px; background:var(--danger); color:white;
-  border-radius:50%; width:24px; height:24px; display:flex; align-items:center;
-  justify-content:center; font-size:12px; font-weight:700; z-index:201;
+  position:absolute; top:-2px; right:-2px; background:var(--danger); color:white;
+  border-radius:50%; min-width:18px; height:18px; display:flex; align-items:center;
+  justify-content:center; font-size:10.5px; font-weight:700; z-index:5; padding:0 3px;
+  line-height:1; border:2px solid var(--bg, #111);
 }
 
 .hide{ display:none !important; }
@@ -741,7 +735,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
     <div class="topbar" style="padding:0 0 4px;">
       <div class="greet-row" style="width:100%; gap:12px;">
         <div class="who" style="flex:1;"><span id="greetTime">Good morning,</span><b id="greetName">—</b></div>
-        <button class="icon-btn" onclick="showNotificationCenter()" title="Notifications" style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; position:relative;">🔔</button>
+        <button class="icon-btn" onclick="go('notifications')" title="Notifications" style="width:40px; height:40px; display:flex; align-items:center; justify-content:center; position:relative;">🔔<span class="notification-badge hide" id="notificationBadge">0</span></button>
         <button class="icon-btn" id="themeToggle" onclick="toggleTheme()" title="Toggle theme" style="width:40px; height:40px; display:flex; align-items:center; justify-content:center;"><span id="themeIcon">🌙</span></button>
         <div class="avatar" id="avatarInit">•</div>
       </div>
@@ -749,8 +743,20 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 
     <div class="promo-strip hide" id="dashboardBanner" style="margin:14px 0 0;"><span class="dot"></span> <span id="dashboardBannerText"></span></div>
 
-    <div class="promo-strip" id="permAcctBanner" style="margin:10px 0 0; cursor:pointer;" onclick="openPermanentAccountSheet()"><span class="dot"></span> <span>Get a permanent account — fund any amount, any time →</span></div>
-    <div class="promo-strip hide" id="permAcctInfoLine" style="margin:10px 0 0; cursor:pointer;" onclick="openPermanentAccountSheet()"><span class="dot"></span> <span>Your permanent account: <b id="permAcctInfoNumber">—</b> — tap to copy →</span></div>
+    <!-- Permanent account row — sits directly above the wallet balance card.
+         Two states, toggled in populateDashboard():
+         - no permanent account yet: CTA strip prompting the user to set one up
+         - has one: account number + copy button, its own proper row -->
+    <div class="promo-strip" id="permAcctCta" style="margin:14px 0 0; cursor:pointer;" onclick="openPermanentAccountSheet()"><span class="dot"></span> <span>Get a permanent account — fund any amount, any time →</span></div>
+    <div class="glass hide" id="permAcctRow" style="margin:14px 0 0; padding:12px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px;">
+      <div style="min-width:0;">
+        <div style="font-size:11px; color:var(--text-mute); margin-bottom:2px;">Your permanent account</div>
+        <div style="font-size:15px; font-weight:700; font-family:var(--font-m); letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" id="permAcctRowNumber">—</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" style="flex-shrink:0; display:flex; align-items:center; gap:6px;" onclick="copyPermanentAccountRow()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg> Copy
+      </button>
+    </div>
 
     <div class="glass wallet-card">
       <div class="eyebrow">Wallet balance</div>
@@ -975,6 +981,16 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
     </div>
   </section>
 
+  <!-- ============ NOTIFICATIONS ============ -->
+  <section class="screen" id="screen-notifications">
+    <div class="screen-head">
+      <span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <h2>Notifications</h2>
+      <span class="back-link" style="margin-left:auto; font-size:12.5px;" id="notifMarkAllBtn" onclick="markAllNotificationsRead()">Mark all read</span>
+    </div>
+    <div class="notification-list" id="notificationList" style="max-width:none; margin:0; padding:2px 0;"></div>
+  </section>
+
   <!-- ============ REFERRAL ============ -->
   <section class="screen" id="screen-referral">
     <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Refer & Earn 🤝</h2></div>
@@ -1168,23 +1184,44 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   </div>
 
 
-<!-- ============ NOTIFICATION CENTER ============ -->
-<div class="notification-center" id="notificationCenter" onclick="if(event.target.id === 'notificationCenter') hideNotificationCenter()">
-  <div class="notification-list" id="notificationList"></div>
-</div>
-<div class="notification-badge hide" id="notificationBadge">0</div>
-
 </div>
 
 <!-- ============ SHEETS / MODALS ============ -->
 <div class="overlay" id="fundSheet">
   <div class="glass sheet">
     <div class="sheet-handle"></div>
-    <h3 style="font-size:18px; margin-bottom:18px;">Fund wallet</h3>
-    <div class="field mb0"><label>Amount (₦)</label><input type="number" id="fundAmount" placeholder="Enter amount"></div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 20px;" id="fundQuick"></div>
-    <button class="btn btn-primary" onclick="fundWalletViaSterling()">Pay via bank transfer (Sterling)</button>
-    <button class="btn btn-ghost" onclick="closeSheet('fundSheet')">Cancel</button>
+
+    <!-- No permanent account yet: promote creating one first -->
+    <div id="fundStepNoAccount" style="display:none;">
+      <h3 style="font-size:18px; margin-bottom:6px;">Get a permanent account in seconds</h3>
+      <p style="opacity:.75; font-size:13px; margin-bottom:18px;">One account number, forever — fund your wallet with any amount, any time, no expiry, no repeating your account details.</p>
+      <button class="btn btn-primary" onclick="closeSheet('fundSheet'); openPermanentAccountSheet();">Create my account</button>
+      <button class="btn btn-ghost mt16" onclick="showFundAmountStep()">Fund a one-time amount instead</button>
+      <button class="btn btn-ghost" onclick="closeSheet('fundSheet')">Cancel</button>
+    </div>
+
+    <!-- Has a permanent account: show transfer details directly -->
+    <div id="fundStepAccount" style="display:none;">
+      <h3 style="font-size:18px; margin-bottom:6px;">Fund your wallet</h3>
+      <p style="opacity:.75; font-size:13px; margin-bottom:18px;">Transfer any amount to the account below — your wallet is credited automatically (minus a small transfer fee).</p>
+      <div class="glass" style="text-align:left; padding:16px;">
+        <div class="summary-line"><span>Account name</span><b id="fundAcctName" style="font-size:14.5px; text-align:right;">—</b></div>
+        <div class="summary-line"><span>Bank</span><b id="fundAcctBank">—</b></div>
+        <div class="summary-line"><span>Account number</span><b id="fundAcctNumber" style="font-size:17px; letter-spacing:.5px;">—</b></div>
+      </div>
+      <button class="btn btn-ghost mt16" onclick="copyPermanentAccountRow()">Copy account number</button>
+      <button class="btn btn-ghost" onclick="showFundAmountStep()">Fund a one-time amount instead</button>
+      <button class="btn btn-primary mt16" onclick="closeSheet('fundSheet')">Done</button>
+    </div>
+
+    <!-- Original dynamic, exact-amount, 30-min flow — kept as a secondary option -->
+    <div id="fundStepAmount" style="display:none;">
+      <h3 style="font-size:18px; margin-bottom:18px;">Fund a specific amount</h3>
+      <div class="field mb0"><label>Amount (₦)</label><input type="number" id="fundAmount" placeholder="Enter amount"></div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin:14px 0 20px;" id="fundQuick"></div>
+      <button class="btn btn-primary" onclick="fundWalletViaSterling()">Pay via bank transfer (Sterling)</button>
+      <button class="btn btn-ghost" onclick="closeSheet('fundSheet')">Cancel</button>
+    </div>
   </div>
 </div>
 
@@ -1230,6 +1267,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       <h3 style="font-size:18px; margin-bottom:6px;">Your permanent account ✅</h3>
       <p style="opacity:.75; font-size:13px; margin-bottom:18px;">Save these details — transfer any amount here, any time, and your wallet is credited automatically (minus a small transfer fee).</p>
       <div class="glass" style="text-align:left; padding:16px;">
+        <div class="summary-line"><span>Account name</span><b id="permAcctAccountName" style="font-size:14.5px; text-align:right;">—</b></div>
         <div class="summary-line"><span>Bank</span><b id="permAcctBankName">—</b></div>
         <div class="summary-line"><span>Account number</span><b id="permAcctNumber" style="font-size:17px; letter-spacing:.5px;">—</b></div>
       </div>
@@ -1650,7 +1688,7 @@ let selection = {
 /* ============================================================
    NAVIGATION
    ============================================================ */
-const SCREENS = ['landing','auth','verify','dashboard','services','data','airtime','cable','electricity','resultchecker','rechargepin','betting','isp','history','referral','support','contact','profile'];
+const SCREENS = ['landing','auth','verify','dashboard','services','data','airtime','cable','electricity','resultchecker','rechargepin','betting','isp','history','notifications','referral','support','contact','profile'];
 function go(name){
   SCREENS.forEach(s => document.getElementById('screen-'+s).classList.toggle('active', s===name));
   document.getElementById('bottomNav').classList.toggle('hide', !CURRENT_USER || name==='landing' || name==='auth');
@@ -1671,6 +1709,7 @@ function go(name){
   if(name==='betting') renderBettingScreen();
   if(name==='isp') renderIspScreen();
   if(name==='history') renderHistory();
+  if(name==='notifications') updateNotificationCenter();
   if(name==='referral') renderReferral();
   if(name==='profile'){ renderProfile(); initPushToggle(); }
 }
@@ -2049,9 +2088,9 @@ function populateDashboard(){
   document.getElementById('walletBal').textContent = naira(PROFILE.walletBalance);
 
   const hasPermAcct = PROFILE.permanentAccount && PROFILE.permanentAccount.accountNumber;
-  document.getElementById('permAcctBanner').classList.toggle('hide', !!hasPermAcct);
-  document.getElementById('permAcctInfoLine').classList.toggle('hide', !hasPermAcct);
-  if(hasPermAcct) document.getElementById('permAcctInfoNumber').textContent = PROFILE.permanentAccount.accountNumber;
+  document.getElementById('permAcctCta').classList.toggle('hide', !!hasPermAcct);
+  document.getElementById('permAcctRow').classList.toggle('hide', !hasPermAcct);
+  if(hasPermAcct) document.getElementById('permAcctRowNumber').textContent = PROFILE.permanentAccount.accountNumber;
 }
 
 let txUnsub = null;
@@ -4107,7 +4146,24 @@ function showResult(success, payload, extra){
 function openFundWallet(){
   const quick = document.getElementById('fundQuick');
   quick.innerHTML = [1000,2000,5000,10000,20000].map(a => `<button class="btn btn-ghost btn-sm" onclick="document.getElementById('fundAmount').value=${a}">₦${a.toLocaleString()}</button>`).join('');
+
+  const hasPermAcct = PROFILE.permanentAccount && PROFILE.permanentAccount.accountNumber;
+  document.getElementById('fundStepNoAccount').style.display = hasPermAcct ? 'none' : 'block';
+  document.getElementById('fundStepAccount').style.display = hasPermAcct ? 'block' : 'none';
+  document.getElementById('fundStepAmount').style.display = 'none';
+
+  if(hasPermAcct){
+    document.getElementById('fundAcctName').textContent = PROFILE.permanentAccount.accountName || PROFILE.name || '—';
+    document.getElementById('fundAcctBank').textContent = PROFILE.permanentAccount.bankName || '—';
+    document.getElementById('fundAcctNumber').textContent = PROFILE.permanentAccount.accountNumber || '—';
+  }
+
   openSheet('fundSheet');
+}
+function showFundAmountStep(){
+  document.getElementById('fundStepNoAccount').style.display = 'none';
+  document.getElementById('fundStepAccount').style.display = 'none';
+  document.getElementById('fundStepAmount').style.display = 'block';
 }
 function fundWallet(){
   const amt = Number(document.getElementById('fundAmount').value||0);
@@ -4263,6 +4319,7 @@ async function submitPermanentAccount(){
 
     document.getElementById('permAcctStepForm').style.display = 'none';
     document.getElementById('permAcctStepDone').style.display = '';
+    document.getElementById('permAcctAccountName').textContent = data.accountName || name;
     document.getElementById('permAcctBankName').textContent = data.bankName || 'Sterling Bank';
     document.getElementById('permAcctNumber').textContent = data.accountNumber;
     toast('Permanent account created!', 'ok');
@@ -4278,6 +4335,16 @@ async function submitPermanentAccount(){
 
 function copyPermanentAccount(){
   const num = document.getElementById('permAcctNumber').textContent;
+  if(!num || num === '—') return;
+  navigator.clipboard.writeText(num).then(()=>{
+    toast('Account number copied.', 'ok');
+  }).catch(()=>{
+    toast('Could not copy — please copy it manually.', 'err');
+  });
+}
+
+function copyPermanentAccountRow(){
+  const num = document.getElementById('permAcctRowNumber').textContent;
   if(!num || num === '—') return;
   navigator.clipboard.writeText(num).then(()=>{
     toast('Account number copied.', 'ok');
@@ -5006,20 +5073,26 @@ async function removeNotification(id){
   } catch(e){ console.log('removeNotification failed:', e.message); }
 }
 
-function showNotificationCenter(){
-  const center = document.getElementById('notificationCenter');
-  if(center) center.classList.add('show');
+function markAllUnreadInList(){
+  return notificationQueue.filter(n => !n.read);
 }
 
-function hideNotificationCenter(){
-  const center = document.getElementById('notificationCenter');
-  if(center) center.classList.remove('show');
+async function markAllNotificationsRead(){
+  const user = FB?.auth?.currentUser;
+  if(!user) return;
+  const unread = markAllUnreadInList();
+  if(unread.length === 0) return;
+  try {
+    await Promise.all(unread.map(n =>
+      FB.updateDoc(FB.doc(FB.db, 'users', user.uid, 'notifications', n.id), { read: true })
+    ));
+  } catch(e){ console.log('markAllNotificationsRead failed:', e.message); }
 }
 
 function showNotificationBadge(count){
   const badge = document.getElementById('notificationBadge');
   if(badge){
-    badge.textContent = count;
+    badge.textContent = count > 99 ? '99+' : count;
     badge.classList.remove('hide');
   }
 }
