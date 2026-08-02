@@ -1,7 +1,7 @@
 // service-worker.js
 // Bump CACHE_VERSION on every deploy where you want to force a fast refresh
 // for users who already have the app open/installed as a PWA.
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v12';
 const CACHE_NAME = `woodpayvtu-${CACHE_VERSION}`;
 const APP_SHELL = ['/', '/index.html'];
 
