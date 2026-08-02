@@ -61,6 +61,7 @@ exports.handler = async (event) => {
     });
 
     await db.collection('admins').doc(newUser.uid).set({
+      isAdmin: true, // matches your existing admin allowlist field — keeps current Firestore rules working
       role: 'subadmin',
       email: newUser.email,
       createdBy: decoded.uid,
