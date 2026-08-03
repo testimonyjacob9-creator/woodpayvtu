@@ -554,12 +554,20 @@ async function enterDashboard(){
   document.getElementById('adminShell').classList.add('show');
   document.getElementById('adminEmailBadge').textContent = FB.auth.currentUser ? FB.auth.currentUser.email : 'admin';
 
-  // Look up this admin's role from admins/{uid}. If the doc is missing or
-  // unreadable, fail SAFE by treating them as a subadmin (more restricted),
-  // not as owner — a missing allowlist entry should never grant settlement access.
+  // Look up this admin's role via a server function — /admins is (correctly)
+  // fully locked to direct client reads in your Firestore rules, so we
+  // can't read it from here. This function uses the Admin SDK server-side
+  // to check on our behalf. If anything goes wrong, fail SAFE toward
+  // subadmin (more restricted), never toward owner.
   try {
-    const roleSnap = await FB.getDoc(FB.doc(FB.db, 'admins', FB.auth.currentUser.uid));
-    ADMIN_ROLE = (roleSnap.exists() && roleSnap.data().role === 'owner') ? 'owner' : 'subadmin';
+    const idToken = await FB.auth.currentUser.getIdToken();
+    const res = await fetch('/.netlify/functions/get-admin-role', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken })
+    });
+    const data = await res.json();
+    ADMIN_ROLE = (data.ok && data.role === 'owner') ? 'owner' : 'subadmin';
   } catch (e) {
     ADMIN_ROLE = 'subadmin';
   }
