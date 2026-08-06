@@ -1522,9 +1522,9 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       <button class="btn btn-ghost mt16" onclick="closeSheet('spinSheet')">Close</button>
     </div>
     <div id="spinResultView" class="hide">
-      <div style="font-size:52px; margin:6px 0 12px; animation:spinPop .5s cubic-bezier(.2,1.4,.4,1);">🎉</div>
-      <h3 style="font-size:19px; margin-bottom:6px;">You won <span id="spinRewardAmt" style="color:var(--gold-2);">₦0</span>!</h3>
-      <p style="font-size:13px; color:var(--text-mute); margin:0 0 22px;">Added straight to your wallet balance.</p>
+      <div style="font-size:52px; margin:6px 0 12px; animation:spinPop .5s cubic-bezier(.2,1.4,.4,1);" id="spinResultEmoji">🎉</div>
+      <h3 style="font-size:19px; margin-bottom:6px;" id="spinResultTitle">You won <span id="spinRewardAmt" style="color:var(--gold-2);">₦0</span>!</h3>
+      <p style="font-size:13px; color:var(--text-mute); margin:0 0 22px;" id="spinResultSub">Added straight to your wallet balance.</p>
       <button class="btn btn-primary" onclick="closeSheet('spinSheet')">Nice, thanks!</button>
     </div>
   </div>
@@ -2372,31 +2372,35 @@ function renderTxReceipt(t){
    ============================================================ */
 const NET_ID_MAP = { mtn:'1', glo:'2', airtel:'3', '9mobile':'4' };
 
-async function fetchNetworkRate(network){
-  // NOTE: Bigisub's real API has no "network delivery rate" endpoint (checked
-  // their docs — 11 categories, none of them this). This always returns null
-  // so the UI shows "status unavailable" instead of making a request that
-  // can never succeed.
-  return null;
+async function fetchNetworkRate(network, type){
+  try{
+    const res = await fetch(`/.netlify/functions/network-status?network=${encodeURIComponent(network)}&type=${encodeURIComponent(type)}`);
+    const data = await res.json();
+    if(!data.ok || data.pct === null) return null;
+    return { pct: data.pct, sampleSize: data.sampleSize };
+  }catch(e){
+    return null;
+  }
 }
 
-function renderRateBar(containerId, network){
+function renderRateBar(containerId, network, type){
   const el = document.getElementById(containerId);
   if(!el) return;
   if(!network){ el.innerHTML=''; return; }
   const label = NET_META[network]?.label || network;
   el.innerHTML = `<div class="net-rate-bar rate-load"><div class="rate-dot"></div>Checking ${label} delivery rate…</div>`;
-  fetchNetworkRate(network).then(rate => {
+  fetchNetworkRate(network, type).then(result => {
     if(!document.getElementById(containerId)) return;
-    if(rate === null){
+    if(!result){
       el.innerHTML = `<div class="net-rate-bar rate-load"><div class="rate-dot"></div>${label} network status unavailable</div>`;
       return;
     }
-    const pct = Math.round(Number(rate));
+    const { pct, sampleSize } = result;
     let cls = pct >= 90 ? 'rate-good' : pct >= 70 ? 'rate-warn' : 'rate-bad';
-    let msg = pct >= 90 ? `${label} delivery rate: ${pct}% — Excellent ✓`
-            : pct >= 70 ? `${label} delivery rate: ${pct}% — Some delays possible`
-            : `${label} delivery rate: ${pct}% — High traffic, consider another network`;
+    const sampleNote = sampleSize < 5 ? ` (based on ${sampleSize} order${sampleSize===1?'':'s'})` : '';
+    let msg = pct >= 90 ? `${label} delivery rate: ${pct}% — Excellent ✓${sampleNote}`
+            : pct >= 70 ? `${label} delivery rate: ${pct}% — Some delays possible${sampleNote}`
+            : `${label} delivery rate: ${pct}% — High traffic, consider another network${sampleNote}`;
     el.innerHTML = `<div class="net-rate-bar ${cls}"><div class="rate-dot"></div>${msg}</div>`;
   });
 }
@@ -2501,7 +2505,7 @@ function renderDataScreen(){
   renderDataPlans();
   renderPromoBanner();
   updateDataSummary();
-  renderRateBar('dataRateBar', selection.data.network);
+  renderRateBar('dataRateBar', selection.data.network, 'data');
   document.getElementById('dataPhone').oninput = (e)=>{ e.target.value = digitsOnly(e.target.value).slice(0,11); updateDataSummary(); };
   // If we already have a network selected (e.g. coming back to this screen)
   // and no live catalog yet, load it.
@@ -2703,7 +2707,7 @@ function renderAirtimeScreen(){
   quick.innerHTML = [100,200,500,1000,2000,5000].map(a => `<button class="btn btn-ghost btn-sm" onclick="setAirtimeAmt(${a})">₦${a.toLocaleString()}</button>`).join('');
   document.getElementById('airtimePhone').oninput = (e)=>{ e.target.value = digitsOnly(e.target.value).slice(0,11); updateAirtimeSummary(); };
   document.getElementById('airtimeAmount').oninput = updateAirtimeSummary;
-  renderRateBar('airtimeRateBar', selection.airtime.network);
+  renderRateBar('airtimeRateBar', selection.airtime.network, 'airtime');
   updateAirtimeSummary();
 }
 function selectAirtimeNet(net){ selection.airtime.network = net; renderAirtimeScreen(); }
@@ -3866,10 +3870,18 @@ async function claimSpin(){
       else { btn.disabled = false; btn.textContent = "Claim today's reward"; }
       return;
     }
-    document.getElementById('spinRewardAmt').textContent = `₦${data.reward}`;
+    if(data.reward > 0){
+      document.getElementById('spinResultEmoji').textContent = '🎉';
+      document.getElementById('spinResultTitle').innerHTML = `You won <span id="spinRewardAmt" style="color:var(--gold-2);">₦${data.reward}</span>!`;
+      document.getElementById('spinResultSub').textContent = 'Added straight to your wallet balance.';
+      if(window.playTransactionSound) window.playTransactionSound();
+    } else {
+      document.getElementById('spinResultEmoji').textContent = '🙃';
+      document.getElementById('spinResultTitle').textContent = 'No reward this time';
+      document.getElementById('spinResultSub').textContent = "You're still checked in for today — try again tomorrow for another shot.";
+    }
     document.getElementById('spinIdleView').classList.add('hide');
     document.getElementById('spinResultView').classList.remove('hide');
-    if(window.playTransactionSound) window.playTransactionSound();
   }catch(e){
     toast('Network error — please try again.', 'err');
     btn.disabled = false;
