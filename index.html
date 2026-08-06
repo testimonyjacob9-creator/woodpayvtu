@@ -2326,7 +2326,7 @@ function renderTxReceipt(t){
   const status = t.status || 'pending';
   const statusMeta = {
     success:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 12l6 6L20 6" stroke-linecap="round" stroke-linejoin="round"/></svg>`, cls:'ok', title:'Payment successful', sub:'Your order has been delivered.' },
-    failed:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>`, cls:'fail', title:'Delivery failed', sub:'This payment was refunded to your wallet.' },
+    failed:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>`, cls:'fail', title:'Delivery failed', sub:'This payment was refunded to your wallet.' + (t.reason ? ' Reason: ' + t.reason : '') },
     pending:{ icon:`<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg>`, cls:'pending', title:'Still confirming', sub:"We're confirming this with the network. It'll update automatically — no need to retry." }
   }[status] || { icon:'', cls:'pending', title:'Pending', sub:'' };
 
@@ -3088,7 +3088,7 @@ async function selectIspProvider(p){
   const res = await bigisubCall(`api/v2/isp/${p}/plans/`, 'GET');
   if(selection.isp.provider !== p) return;
   if(isTimeoutRes(res) || !res.httpOk || !res.success){
-    loadEl.textContent = 'Could not load plans for this provider — the ISP endpoint path needs confirming against Bigisub\'s docs.';
+    loadEl.textContent = 'Could not load plans for this provider right now — please try again shortly.';
     return;
   }
   loadEl.textContent = '';
@@ -3609,12 +3609,12 @@ async function verifyFlutterwavePayment(transactionId, expectedAmount, expectedT
 // allow update: if isAdmin()) — that's intentional, so a user can't forge
 // their own "success" status. This calls a trusted server function instead,
 // which verifies ownership then writes with Admin credentials.
-async function setTxStatus(txId, status, providerRef, providerExtra){
+async function setTxStatus(txId, status, providerRef, providerExtra, reason){
   const idToken = await CURRENT_USER.getIdToken();
   const res = await fetch('/.netlify/functions/tx-status-update', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ idToken, uid: CURRENT_USER.uid, txId, status, providerRef, providerExtra })
+    body: JSON.stringify({ idToken, uid: CURRENT_USER.uid, txId, status, providerRef, providerExtra, reason })
   });
   const data = await res.json().catch(()=>({}));
   if(!data.ok) console.error('setTxStatus failed:', data.error);
@@ -3636,6 +3636,11 @@ async function processDelivery(payload, paymentRef){
     toast('Could not save your transaction. Contact support.', 'err');
     return;
   }
+  // Any purchase attempt (success or fail) counts as real activity — this
+  // is what the inactive-user win-back job (reengage-inactive-users.js)
+  // checks against, so someone actively buying every day never gets a
+  // "we miss you" nudge just because a couple of purchases failed.
+  try{ FB.updateDoc(FB.doc(FB.db,'users',CURRENT_USER.uid), { lastActivityAt: FB.serverTimestamp() }).catch(()=>{}); }catch(e){}
 
   try{
     const result = await callBigisubAPI(payload);
@@ -3648,11 +3653,17 @@ async function processDelivery(payload, paymentRef){
     // user plainly instead of showing a false failure.
     if(result.timeout){
       hideLoader();
+      // Persist whatever provider reference we have (if any) even though
+      // the outcome is unknown — without this, a later reconciliation job
+      // (reconcile-pending-transactions.js) has no way to look this
+      // transaction up with the provider afterward.
+      if(result.ref){ try{ await setTxStatus(docRef.id, 'pending', result.ref, result.extra||null); }catch(e){} }
       toast("Your order is taking longer than usual to confirm. We'll update you shortly — check Transaction History before retrying.", 'info');
       return;
     }
 
-    await setTxStatus(docRef.id, result.ok ? 'success' : 'failed', result.ref||null, result.extra||null);
+    await setTxStatus(docRef.id, result.ok ? 'success' : 'failed', result.ref||null, result.extra||null,
+      result.ok ? null : 'Delivery failed — provider declined or did not confirm delivery');
     // If Bigisub's live price had drifted and we matched on nearest price
     // instead of an exact one, correct buyPrice to what was actually
     // charged — otherwise the Bigisub settlement total would silently be
@@ -3660,6 +3671,17 @@ async function processDelivery(payload, paymentRef){
     if(result.ok && result.extra && typeof result.extra.actualBuyPrice === 'number'){
       try{ await FB.updateDoc(docRef, { buyPrice: result.extra.actualBuyPrice, buyPriceCorrected: true }); }
       catch(e){ console.warn('Could not correct buyPrice after price-drift fallback:', e); }
+      // Fire-and-forget admin heads-up — never blocks the purchase flow.
+      if(typeof payload.buyPrice === 'number' && payload.buyPrice !== result.extra.actualBuyPrice){
+        fetch('/.netlify/functions/price-alert', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({
+            planName: payload.planName || payload.type, network: payload.network,
+            expectedBuy: payload.buyPrice, actualBuy: result.extra.actualBuyPrice,
+            sellPrice: payload.amount, ref: txRef
+          })
+        }).catch(()=>{});
+      }
     }
     hideLoader();
     if(result.ok){
@@ -3748,7 +3770,7 @@ async function processDelivery(payload, paymentRef){
     // which is handled above. So anything landing in this catch is a real,
     // confirmed local error, and refunding is safe.
     console.error('processDelivery error:', e);
-    try{ await setTxStatus(docRef.id, 'failed'); }catch(_){}
+    try{ await setTxStatus(docRef.id, 'failed', null, null, 'Delivery error — ' + (e?.message || 'unexpected client error')); }catch(_){}
     await refundToWallet(payload.amount, 'Delivery error — auto refund');
     hideLoader();
     showResult(false, payload);

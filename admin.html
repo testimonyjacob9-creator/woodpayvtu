@@ -231,6 +231,7 @@ canvas{ width:100% !important; }
       <div class="glass stat-card"><div class="eyebrow">Sales this month</div><b id="statMonth">₦0.00</b></div>
       <div class="glass stat-card cyan"><div class="eyebrow">Total users</div><b id="statUsers">0</b></div>
       <div class="glass stat-card gold"><div class="eyebrow">Profit this week</div><b id="netWeek">₦0.00</b></div>
+      <div class="glass stat-card gold"><div class="eyebrow">Total profit (last 500 tx)</div><b id="netAllTime">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);">Sales minus provider cost — wallet funding excluded. Based on the most recent 500 transactions loaded.</p></div>
     </div>
 
     <div style="margin-top:24px; margin-bottom:20px; font-size:14px; font-weight:700; letter-spacing:.05em;">Bigisub settlement</div>
@@ -652,7 +653,16 @@ function updateRevenueStats(){
   weekStart.setDate(weekStart.getDate() - weekStart.getDay());
 
   let salesToday = 0, salesWeek = 0, bigisubSpendToday = 0, bigisubSpendWeek = 0, walletFundingToday = 0;
+  let salesAllTime = 0, bigisubSpendAllTime = 0;
   let successCountToday = 0, failedCountToday = 0;
+
+  // All three wallet-funding transaction types must be excluded from
+  // sales/profit — only 'wallet_funding' was excluded before, so funding
+  // done via bank transfer (wallet_funding_v4) or a permanent account
+  // (wallet_funding_static) was silently being counted as sales revenue
+  // and inflating both "Total sales" and "Actual profit". Deposits are
+  // not revenue; only the margin on actual orders is.
+  const FUNDING_TYPES = ['wallet_funding', 'wallet_funding_v4', 'wallet_funding_static'];
 
   ALL_TX.forEach(tx => {
     const txDate = tx.createdAt?.toDate?.() || new Date(tx.createdAt);
@@ -661,7 +671,7 @@ function updateRevenueStats(){
     const isThisWeek = txTime >= weekStart;
     const amount = parseFloat(tx.amount) || 0;
 
-    if(tx.type === 'wallet_funding'){
+    if(FUNDING_TYPES.includes(tx.type)){
       if(tx.status === 'success' && isToday) walletFundingToday += amount;
       return; // wallet funding never counts toward sales/success/failed order stats
     }
@@ -674,12 +684,14 @@ function updateRevenueStats(){
       const buyPrice = typeof tx.buyPrice === 'number' ? tx.buyPrice : 0;
       if(isToday){ salesToday += amount; bigisubSpendToday += buyPrice; }
       if(isThisWeek){ salesWeek += amount; bigisubSpendWeek += buyPrice; }
+      salesAllTime += amount; bigisubSpendAllTime += buyPrice;
     } else if(tx.status === 'failed'){
       if(isToday) failedCountToday++;
     }
   });
 
   const netToday = salesToday - bigisubSpendToday;
+  const netAllTime = salesAllTime - bigisubSpendAllTime;
   const avgOrder = successCountToday > 0 ? salesToday / successCountToday : 0;
 
   document.getElementById('statSalesToday').textContent = fmtNaira(salesToday);
@@ -689,6 +701,7 @@ function updateRevenueStats(){
   document.getElementById('bigisubSpendToday').textContent = fmtNaira(bigisubSpendToday);
   document.getElementById('netToday').textContent = fmtNaira(netToday);
   document.getElementById('netWeek').textContent = fmtNaira(salesWeek - bigisubSpendWeek);
+  document.getElementById('netAllTime').textContent = fmtNaira(netAllTime);
   document.getElementById('statAvgOrder').textContent = fmtNaira(avgOrder);
 
   updateOverviewSettlementBadges();
@@ -703,6 +716,8 @@ function renderTxLog(){
     const date = toDate(tx.createdAt);
     const dateStr = date.toLocaleDateString('en-NG') + ' ' + date.toLocaleTimeString('en-NG');
     const notes = [];
+    if(tx.status==='failed' && tx.reason) notes.push(tx.reason);
+    else if(tx.status==='failed' && tx.flwStatus) notes.push(`Flutterwave: ${tx.flwStatus}`);
     if(tx.restricted) notes.push('Promo');
     if(tx.paymentRef) notes.push('External');
     if(!tx.paymentRef && tx.status==='success') notes.push('Wallet');
@@ -1021,6 +1036,8 @@ function serviceLabel(t){
   if(t.type==='betting') return `Betting — ${t.billerName||''} (${t.customerId||''})`;
   if(t.type==='isp') return `ISP — ${t.provider||''} ${t.planLabel||''}`;
   if(t.type==='wallet_funding') return 'Wallet funding';
+  if(t.type==='wallet_funding_v4') return 'Wallet funding (transfer)';
+  if(t.type==='wallet_funding_static') return 'Wallet funding (permanent account)';
   if(t.type==='admin_credit') return 'Admin credit — From WoodPay';
   if(t.type==='admin_debit') return 'Admin debit — From WoodPay';
   return t.type||'—';
@@ -1043,7 +1060,7 @@ function renderTxTable(){
     <tr>
       <td class="mono" style="font-size:11.5px;">${(t.txRef||t.id).toString().slice(0,14)}</td>
       <td>${userLabel(t.userId)}</td><td>${serviceLabel(t)}</td><td class="mono">₦${naira(t.amount)}</td>
-      <td>${statusBadge(t.status)}</td><td>${toDate(t.createdAt).toLocaleString('en-NG')}</td>
+      <td>${statusBadge(t.status)}${t.status==='failed' && t.reason ? `<div style="font-size:10.5px;color:var(--text-mute);margin-top:3px;max-width:180px;">${t.reason}</div>` : ''}</td><td>${toDate(t.createdAt).toLocaleString('en-NG')}</td>
       <td style="display:flex;gap:6px;flex-wrap:wrap;">
         <select class="field" style="width:auto;margin:0;padding:6px 8px;font-size:12px;" onchange="changeTxStatus('${t.id}', this.value, '${t.status||'pending'}')">
           <option value="">Change status…</option>

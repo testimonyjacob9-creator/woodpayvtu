@@ -23,3 +23,19 @@
 [functions."process-scheduled-purchases"]
   schedule = "0 6 * * *"
 
+# Runs daily at 08:00 UTC (~09:00 WAT). Actual per-user cadence is every
+# 2 days, enforced inside the function via lastReengagementSentAt — see
+# the comment at the top of reengage-inactive-users.js for why a daily
+# cron + in-function gating is used instead of trying to express "every
+# 2 days" directly in the cron schedule.
+[functions."reengage-inactive-users"]
+  schedule = "0 8 * * *"
+
+# Runs every 20 minutes — looks for transactions stuck in 'pending' and
+# auto-confirms what it safely can (currently: betting only, via Bigisub's
+# confirmed requery endpoint). See the top of
+# reconcile-pending-transactions.js for why other service types are
+# flagged for manual review instead of auto-confirmed.
+[functions."reconcile-pending-transactions"]
+  schedule = "*/20 * * * *"
+
