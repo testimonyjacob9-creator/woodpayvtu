@@ -9,13 +9,17 @@
 
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 
-// Weighted so small rewards are common and the big one is a rare, exciting hit.
+// Weighted 0–100 so a spin is a genuine gamble — zero is a real, fairly
+// common outcome (not just decoration), small wins are the most frequent
+// non-zero result, and the top prize is a rare, exciting hit.
 const REWARD_TABLE = [
-  { amount: 10, weight: 35 },
-  { amount: 20, weight: 30 },
-  { amount: 30, weight: 18 },
-  { amount: 50, weight: 12 },
-  { amount: 100, weight: 5 }
+  { amount: 0, weight: 30 },
+  { amount: 5, weight: 20 },
+  { amount: 10, weight: 18 },
+  { amount: 20, weight: 14 },
+  { amount: 30, weight: 9 },
+  { amount: 50, weight: 6 },
+  { amount: 100, weight: 3 }
 ];
 
 function pickReward() {
@@ -89,7 +93,7 @@ exports.handler = async (event) => {
         type: 'checkin_reward',
         amount: reward,
         status: 'success',
-        description: 'Daily Spin & Win reward',
+        description: reward > 0 ? 'Daily Spin & Win reward' : 'Daily Spin & Win — no reward this time',
         createdAt: admin.firestore.FieldValue.serverTimestamp()
       });
     });
