@@ -20,6 +20,7 @@
 const crypto = require('crypto');
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 const { notifyUser } = require('./_notify');
+const { sendAdminFailureAlert } = require('./_adminAlert');
 
 const FLW_WEBHOOK_SECRET_HASH = process.env.FLW_WEBHOOK_SECRET_HASH || '';
 
@@ -252,13 +253,24 @@ exports.handler = async (event) => {
 
     if (status !== 'succeeded') {
       if (TERMINAL_FAILURE_STATUSES.includes(status)) {
-        await txDoc.ref.update({ status: 'failed', flwStatus: status });
+        await txDoc.ref.update({ status: 'failed', flwStatus: status, reason: `Wallet funding declined by Flutterwave (status: ${status})` });
         await notifyUser(admin, db, txData.userId, {
           title: 'Wallet funding failed',
           body: `Your funding of ₦${txData.amount} did not go through. If money left your account, contact support.`,
           type: 'danger',
           url: '/'
         });
+        // Best-effort admin email alert — this webhook path had no email
+        // notification at all before, only the in-app one above.
+        sendAdminFailureAlert({
+          source: 'Wallet funding webhook (flw-v4-webhook.js)',
+          txType: 'wallet_funding_v4',
+          amount: txData.amount,
+          ref: reference,
+          reason: `Flutterwave status: ${status}`,
+          userEmail: txData.userEmail || '',
+          uid: txData.userId
+        }).catch(() => {});
         return { statusCode: 200, body: 'Recorded terminal failure status' };
       }
       // Non-terminal status — log it but leave the transaction pending.
@@ -285,7 +297,7 @@ exports.handler = async (event) => {
       if (!userSnap.exists) throw new Error('User not found for wallet credit.');
       const currentBalance = userSnap.data().walletBalance || 0;
       const newBalance = currentBalance + Number(txData.amount);
-      tx.update(userRef, { walletBalance: newBalance });
+      tx.update(userRef, { walletBalance: newBalance, lastActivityAt: admin.firestore.FieldValue.serverTimestamp() });
       tx.update(txDoc.ref, { status: 'success', creditedAt: admin.firestore.FieldValue.serverTimestamp() });
     });
 

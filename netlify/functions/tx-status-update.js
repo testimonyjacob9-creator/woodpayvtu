@@ -3,7 +3,7 @@
 // Firestore rules block client writes to transactions (allow update: if isAdmin())
 // so this is the only trusted path.
 //
-// Body: { idToken, uid, txId, status, providerRef?, providerExtra? }
+// Body: { idToken, uid, txId, status, providerRef?, providerExtra?, reason? }
 // Returns: { ok } or { ok: false, error }
 
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
@@ -23,7 +23,7 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch (e) { return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
 
-  const { idToken, uid, txId, status, providerRef, providerExtra } = body;
+  const { idToken, uid, txId, status, providerRef, providerExtra, reason } = body;
 
   if (!idToken || !uid || !txId || !status) {
     return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing required fields' }) };
@@ -80,6 +80,11 @@ exports.handler = async (event) => {
     };
     if (providerRef) update.providerRef = providerRef;
     if (providerExtra) update.providerExtra = providerExtra;
+    // Human-readable failure reason, surfaced in both the user's receipt
+    // sheet and the admin Transaction Log's Notes column — without this,
+    // "why did it fail" only ever lived in the transactional email, never
+    // in Firestore, so admins had no durable record to search or filter on.
+    if (reason) update.reason = reason;
 
     await txRef.update(update);
 

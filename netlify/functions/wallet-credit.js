@@ -154,7 +154,8 @@ exports.handler = async (event) => {
         title: isCredit ? 'Wallet credited ✅' : 'Wallet debited',
         body: `₦${Math.abs(Number(delta))} was ${isCredit ? 'added to' : 'removed from'} your wallet by WoodPay. ${reason ? 'Reason: ' + reason : ''}`.trim(),
         type: isCredit ? 'success' : 'warning',
-        url: '/'
+        url: '/',
+        from: 'admin'
       });
     }
 

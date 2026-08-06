@@ -9,11 +9,16 @@
 // see in their notification history: wallet funding success/failure,
 // admin wallet credit/debit, purchase success/failure, etc.
 
-async function notifyUser(admin, db, uid, { title, body, type = 'info', url = '/' }) {
+// Every automated notification is branded as coming from "Olives" — the
+// name for WoodPay's automated backend assistant, visible to users so
+// they can tell an automated message from a human admin broadcast (which
+// passes from:'admin' to skip this prefix — see admin-notify.js).
+async function notifyUser(admin, db, uid, { title, body, type = 'info', url = '/', from = 'olives' }) {
   if (!uid) return;
+  const finalTitle = from === 'admin' ? title : `🫒 Olives — ${title}`;
   try {
     await db.collection('users').doc(uid).collection('notifications').add({
-      title,
+      title: finalTitle,
       body,
       type,       // 'info' | 'success' | 'warning' | 'danger'
       url,

@@ -63,7 +63,7 @@ exports.handler = async (event) => {
       for (let i = 0; i < uids.length; i += CHUNK) {
         const chunk = uids.slice(i, i + CHUNK);
         await Promise.all(chunk.map((uid) =>
-          notifyUser(admin, db, uid, { title, body: msgBody, type, url: '/' })
+          notifyUser(admin, db, uid, { title, body: msgBody, type, url: '/', from: 'admin' })
         ));
         sent += chunk.length;
       }
@@ -77,7 +77,7 @@ exports.handler = async (event) => {
       return { statusCode: 404, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: 'User not found.' }) };
     }
 
-    await notifyUser(admin, db, targetUid, { title, body: msgBody, type, url: '/' });
+    await notifyUser(admin, db, targetUid, { title, body: msgBody, type, url: '/', from: 'admin' });
     return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: true, sent: 1 }) };
   } catch (e) {
     console.error('admin-notify error:', e.message);

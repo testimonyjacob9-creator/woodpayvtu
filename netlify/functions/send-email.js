@@ -37,6 +37,7 @@
 // dashboard's Messages tab regularly still matters.
 
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
+const { sendAdminFailureAlert } = require('./_adminAlert');
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || '';
@@ -288,6 +289,22 @@ exports.handler = async (event) => {
     subject,
     html
   });
+
+  // Any customer-facing "transaction failed" email should also alert the
+  // admin inbox, regardless of whether the customer email itself sent
+  // successfully — the admin still needs to know a delivery failed.
+  if (kind === 'notification' && body.type === 'failed') {
+    const d = body.data || {};
+    sendAdminFailureAlert({
+      source: 'Customer purchase (send-email.js)',
+      txType: d.type,
+      provider: d.provider,
+      amount: d.amount,
+      ref: d.ref,
+      reason: d.reason,
+      userEmail: recipient
+    }).catch(() => {});
+  }
 
   if (!result.ok) {
     console.warn('Email not sent:', result.reason);
