@@ -520,10 +520,30 @@ let sessionOK = sessionStorage.getItem('wp_admin_ok') === '1';
 let txUnsub = null;
 let usersUnsub = null;
 
+function fbLoginErrorMessage(e){
+  const code = e && e.code ? e.code : '';
+  switch(code){
+    case 'auth/invalid-email':
+      return 'That email address isn\'t formatted correctly.';
+    case 'auth/user-not-found':
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+      return 'Email or password is incorrect.';
+    case 'auth/too-many-requests':
+      return 'Too many failed attempts — Firebase has temporarily locked this account. Wait a few minutes and try again (this is why it "sometimes" works: repeated wrong attempts trip a cooldown).';
+    case 'auth/network-request-failed':
+      return 'Network error reaching Firebase — check your connection and try again.';
+    case 'auth/user-disabled':
+      return 'This admin account has been disabled in Firebase Auth.';
+    default:
+      return code ? `Firebase sign-in failed (${code}).` : 'Firebase sign-in failed — check the admin email/password, or create the admin account first (see chat note).';
+  }
+}
+
 async function attemptLogin(){
   const email = document.getElementById('gateEmail').value.trim();
-  const fbPass = document.getElementById('gatePassOnly').value;
-  const passcode = document.getElementById('gatePass').value;
+  const fbPass = document.getElementById('gatePassOnly').value.trim();
+  const passcode = document.getElementById('gatePass').value.trim();
   const err = document.getElementById('gateError');
   err.style.display = 'none';
 
@@ -538,13 +558,34 @@ async function attemptLogin(){
     return;
   }
   await waitFb();
+
+  const btn = document.querySelector('#gate .btn-primary');
+  if(btn){ btn.disabled = true; btn.textContent = 'Signing in…'; }
+
+  const trySignIn = () => FB.signInWithEmailAndPassword(FB.auth, email, fbPass);
+
   try{
-    await FB.signInWithEmailAndPassword(FB.auth, email, fbPass);
+    try{
+      await trySignIn();
+    }catch(e){
+      // One automatic retry only for transient network blips — a real
+      // wrong-password or too-many-requests error won't change on retry,
+      // so we don't waste time re-attempting those.
+      if(e && e.code === 'auth/network-request-failed'){
+        await new Promise(r => setTimeout(r, 800));
+        await trySignIn();
+      } else {
+        throw e;
+      }
+    }
     sessionStorage.setItem('wp_admin_ok','1');
     enterDashboard();
   }catch(e){
-    err.textContent = 'Firebase sign-in failed — check the admin email/password, or create the admin account first (see chat note).';
+    console.error('Admin login failed:', e.code, e.message);
+    err.textContent = fbLoginErrorMessage(e);
     err.style.display = 'block';
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = 'Enter dashboard'; }
   }
 }
 
