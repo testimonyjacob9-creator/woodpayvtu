@@ -430,7 +430,7 @@ canvas{ width:100% !important; }
     <div class="glass panel">
       <div class="panel-head"><h2>Send in-app notification</h2></div>
       <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 14px;">Lands directly in the user's notification bell/page — separate from email.</p>
-      <div class="field"><label>Send to</label><input type="text" id="anTargetUid" placeholder="User's UID (leave blank to send to ALL users)"></div>
+      <div class="field"><label>Send to</label><input type="email" id="anTargetUid" placeholder="User's email (leave blank to send to ALL users)"></div>
       <div class="field"><label>Title</label><input type="text" id="anTitle" placeholder="e.g. Wallet funding delay"></div>
       <div class="field"><label>Message</label><textarea id="anBody" rows="3" style="width:100%; padding:13px 14px; border-radius:12px; background:rgba(255,255,255,.035); border:1px solid var(--border); color:var(--text); font-size:14.5px; font-family:inherit;" placeholder="We're experiencing a short delay crediting transfers, please bear with us."></textarea></div>
       <div class="field"><label>Type</label>
@@ -1434,7 +1434,7 @@ async function sendBroadcast(){
 }
 
 async function sendAdminNotification(){
-  const targetUidRaw = document.getElementById('anTargetUid').value.trim();
+  const emailRaw = document.getElementById('anTargetUid').value.trim().toLowerCase();
   const title = document.getElementById('anTitle').value.trim();
   const body = document.getElementById('anBody').value.trim();
   const type = document.getElementById('anType').value;
@@ -1443,7 +1443,16 @@ async function sendAdminNotification(){
 
   if(!title || !body){ statusEl.textContent = 'Fill in a title and message first.'; return; }
 
-  const targetUid = targetUidRaw || 'all';
+  let targetUid = 'all';
+  if(emailRaw){
+    const match = ALL_USERS.find(u => (u.email || '').toLowerCase() === emailRaw);
+    if(!match){
+      statusEl.textContent = `No user found with email "${emailRaw}" — make sure users have loaded (check Overview tab) and the email is correct.`;
+      return;
+    }
+    targetUid = match.id;
+  }
+
   if(targetUid === 'all' && !confirm('Send this notification to ALL users? This cannot be undone.')) return;
 
   btn.disabled = true;
