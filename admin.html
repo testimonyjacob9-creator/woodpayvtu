@@ -427,6 +427,24 @@ canvas{ width:100% !important; }
       <div id="bcStatus" style="margin-top:8px;font-size:13px;color:#aaa;"></div>
     </div><!-- end broadcast panel -->
 
+    <div class="glass panel">
+      <div class="panel-head"><h2>Send in-app notification</h2></div>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 14px;">Lands directly in the user's notification bell/page — separate from email.</p>
+      <div class="field"><label>Send to</label><input type="text" id="anTargetUid" placeholder="User's UID (leave blank to send to ALL users)"></div>
+      <div class="field"><label>Title</label><input type="text" id="anTitle" placeholder="e.g. Wallet funding delay"></div>
+      <div class="field"><label>Message</label><textarea id="anBody" rows="3" style="width:100%; padding:13px 14px; border-radius:12px; background:rgba(255,255,255,.035); border:1px solid var(--border); color:var(--text); font-size:14.5px; font-family:inherit;" placeholder="We're experiencing a short delay crediting transfers, please bear with us."></textarea></div>
+      <div class="field"><label>Type</label>
+        <select id="anType" style="width:100%; padding:13px 14px; border-radius:12px; background:rgba(255,255,255,.035); border:1px solid var(--border); color:var(--text); font-size:14.5px; font-family:inherit;">
+          <option value="info">Info</option>
+          <option value="success">Success</option>
+          <option value="warning">Warning</option>
+          <option value="danger">Danger</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" style="width:100%;" onclick="sendAdminNotification()" id="anBtn">Send notification</button>
+      <div id="anStatus" style="margin-top:8px;font-size:13px;color:#aaa;"></div>
+    </div><!-- end in-app notification panel -->
+
     <div class="panel" style="margin-top:16px;">
       <div class="panel-head"><h2>📲 Push Notifications (Enhanced)</h2></div>
       
@@ -1413,6 +1431,41 @@ async function sendBroadcast(){
 
   btn.disabled = false;
   statusEl.textContent = `Done — ${sent} sent, ${failed} failed.`;
+}
+
+async function sendAdminNotification(){
+  const targetUidRaw = document.getElementById('anTargetUid').value.trim();
+  const title = document.getElementById('anTitle').value.trim();
+  const body = document.getElementById('anBody').value.trim();
+  const type = document.getElementById('anType').value;
+  const statusEl = document.getElementById('anStatus');
+  const btn = document.getElementById('anBtn');
+
+  if(!title || !body){ statusEl.textContent = 'Fill in a title and message first.'; return; }
+
+  const targetUid = targetUidRaw || 'all';
+  if(targetUid === 'all' && !confirm('Send this notification to ALL users? This cannot be undone.')) return;
+
+  btn.disabled = true;
+  statusEl.textContent = 'Sending…';
+
+  try{
+    const idToken = await FB.auth.currentUser.getIdToken();
+    const res = await fetch('/.netlify/functions/admin-notify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, targetUid, title, body, type })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Failed to send');
+    statusEl.textContent = `Sent to ${data.sent} user(s).`;
+    toast('Notification sent', 'ok');
+  }catch(e){
+    statusEl.textContent = 'Failed: ' + e.message;
+    toast('Failed: ' + e.message, 'err');
+  }finally{
+    btn.disabled = false;
+  }
 }
 
 waitFb().then(()=>{

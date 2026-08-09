@@ -571,14 +571,24 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 }
 
 /* ============ Notifications ============ */
+.notification-list{
   width:100%; max-width:500px; margin:0 auto;
 }
 .notification-item{
-  background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-sm);
+  background:linear-gradient(180deg, rgba(255,255,255,.14), rgba(255,255,255,.05));
+  backdrop-filter:blur(40px) saturate(200%);
+  -webkit-backdrop-filter:blur(40px) saturate(200%);
+  border:1px solid var(--border); border-radius:var(--radius-sm);
+  box-shadow:0 8px 30px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.18);
   padding:14px; margin-bottom:10px; animation:slideDown .3s ease;
   display:flex; gap:12px; align-items:flex-start; cursor:pointer;
+  transition:transform .25s var(--ease), border-color .25s var(--ease), box-shadow .25s var(--ease);
 }
-.notification-item.unread{ background:var(--panel-2, var(--panel)); position:relative; }
+.notification-item:active{ transform:scale(.98); }
+@media(hover:hover){
+  .notification-item:hover{ border-color:var(--border-hi); box-shadow:0 12px 40px rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.24); }
+}
+.notification-item.unread{ background:linear-gradient(180deg, rgba(255,255,255,.20), rgba(255,255,255,.08)); position:relative; }
 .notification-item.unread::before{
   content:''; position:absolute; top:14px; right:14px; width:8px; height:8px;
   border-radius:50%; background:var(--blue);
@@ -588,7 +598,15 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 .notification-item.info{ border-left:4px solid var(--blue); }
 .notification-item.warning{ border-left:4px solid var(--warn); }
 .notification-item.danger{ border-left:4px solid var(--danger); }
-.notif-icon{ font-size:20px; flex-shrink:0; }
+.notif-icon{
+  font-size:16px; flex-shrink:0; width:32px; height:32px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--glass); border:1px solid var(--border);
+}
+.notification-item.success .notif-icon{ color:var(--success); }
+.notification-item.info .notif-icon{ color:var(--blue); }
+.notification-item.warning .notif-icon{ color:var(--warn); }
+.notification-item.danger .notif-icon{ color:var(--danger); }
 .notif-content{ flex:1; }
 .notif-title{ font-weight:600; font-size:14px; margin-bottom:4px; color:var(--text); }
 .notif-body{ font-size:13px; color:var(--text-dim); line-height:1.4; margin-bottom:8px; }
