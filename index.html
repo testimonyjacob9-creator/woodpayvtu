@@ -2215,10 +2215,12 @@ function populateDashboard(){
   document.getElementById('avatarInit').textContent = initials;
   document.getElementById('walletBal').textContent = naira(PROFILE.walletBalance);
 
-  const hasPermAcct = PROFILE.permanentAccount && PROFILE.permanentAccount.accountNumber;
+  const permAcct = PROFILE.permanentAccount;
+  const permAcctIsOldSterling = permAcct && permAcct.bankName && /sterling/i.test(permAcct.bankName);
+  const hasPermAcct = permAcct && permAcct.accountNumber && !permAcctIsOldSterling;
   document.getElementById('permAcctCta').classList.toggle('hide', !!hasPermAcct);
   document.getElementById('permAcctRow').classList.toggle('hide', !hasPermAcct);
-  if(hasPermAcct) document.getElementById('permAcctRowNumber').textContent = PROFILE.permanentAccount.accountNumber;
+  if(hasPermAcct) document.getElementById('permAcctRowNumber').textContent = permAcct.accountNumber;
 }
 
 let txUnsub = null;
@@ -4429,18 +4431,26 @@ function copySterlingAccount(){
 function openPermanentAccountSheet(){
   if(!CURRENT_USER){ toast('You are not signed in. Please refresh and log in again.', 'err'); return; }
 
-  // Already has one — skip straight to the "done" view showing it.
-  if(PROFILE && PROFILE.permanentAccount && PROFILE.permanentAccount.accountNumber){
+  const existing = PROFILE && PROFILE.permanentAccount;
+  const existingIsOldSterling = existing && existing.bankName && /sterling/i.test(existing.bankName);
+
+  // Already has a working (non-Sterling) account — skip straight to the
+  // "done" view showing it.
+  if(existing && existing.accountNumber && !existingIsOldSterling){
     document.getElementById('permAcctStepForm').style.display = 'none';
     document.getElementById('permAcctStepDone').style.display = '';
-    document.getElementById('permAcctBankName').textContent = PROFILE.permanentAccount.bankName || 'Wema Bank';
-    document.getElementById('permAcctNumber').textContent = PROFILE.permanentAccount.accountNumber;
+    document.getElementById('permAcctBankName').textContent = existing.bankName || 'Wema Bank';
+    document.getElementById('permAcctNumber').textContent = existing.accountNumber;
   } else {
+    // No account yet, OR their account is the old broken Sterling one —
+    // show the NIN form again so they can regenerate it on Wema.
     document.getElementById('permAcctStepForm').style.display = '';
     document.getElementById('permAcctStepDone').style.display = 'none';
     document.getElementById('permAcctName').value = '';
     document.getElementById('permAcctNin').value = '';
-    document.getElementById('permAcctError').textContent = '';
+    document.getElementById('permAcctError').textContent = existingIsOldSterling
+      ? 'Your account moved to a new bank — re-enter your details below to get your new account number.'
+      : '';
   }
   openSheet('permAcctSheet');
 }
