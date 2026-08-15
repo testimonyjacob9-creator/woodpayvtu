@@ -1,7 +1,9 @@
 // netlify/functions/create-permanent-account.js
 //
-// Creates a Flutterwave v4 STATIC virtual account (Sterling Bank) for a
-// user, after they submit their NIN. Unlike create-virtual-account.js
+// Creates a Flutterwave v4 STATIC virtual account (Wema Bank) for a
+// user, after they submit their NIN. Switched from Sterling Bank (232) to
+// Wema (035) 15 Aug 2026 after Sterling VAs stopped resolving on NIBSS.
+// Unlike create-virtual-account.js
 // (dynamic, single-use, exact-amount, 30-min expiry), a static account:
 //   - never expires
 //   - is reused for every future top-up
@@ -27,7 +29,7 @@ const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 const { getFlwV4Token } = require('./_flwV4Auth');
 
 const FLW_V4_BASE = 'https://f4bexperience.flutterwave.com';
-const STERLING_BANK_CODE = '232';
+const ISSUING_BANK_CODE = '035'; // Wema Bank
 const NIN_REGEX = /^[1-9][0-9]{10}$/; // Flutterwave's own validation pattern for nin/bvn
 
 exports.handler = async (event) => {
@@ -75,16 +77,22 @@ exports.handler = async (event) => {
     }
     const userData = userSnap.data();
 
-    // Already has one — don't create a second static account for the same user.
-    if (userData.permanentAccount && userData.permanentAccount.accountNumber) {
+    // Already has a Wema static account — don't create a second one.
+    // If they have an old Sterling account on file, fall through and
+    // regenerate on Wema instead (requires the user to resubmit their NIN,
+    // since we never store it — see note above).
+    const existing = userData.permanentAccount;
+    const existingIsOldSterling = existing && existing.bankName && /sterling/i.test(existing.bankName);
+
+    if (existing && existing.accountNumber && !existingIsOldSterling) {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ok: true,
-          accountNumber: userData.permanentAccount.accountNumber,
-          accountName: userData.permanentAccount.accountName || userData.name,
-          bankName: userData.permanentAccount.bankName
+          accountNumber: existing.accountNumber,
+          accountName: existing.accountName || userData.name,
+          bankName: existing.bankName
         })
       };
     }
@@ -136,7 +144,7 @@ exports.handler = async (event) => {
         currency: 'NGN',
         account_type: 'static',
         narration: name,
-        bank_code: STERLING_BANK_CODE,
+        bank_code: ISSUING_BANK_CODE,
         nin: String(nin)
       })
     });

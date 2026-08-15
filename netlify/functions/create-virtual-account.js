@@ -1,7 +1,10 @@
 // netlify/functions/create-virtual-account.js
 //
-// Creates a Flutterwave v4 DYNAMIC virtual account on Sterling Bank
-// (bank_code "232") for a single wallet-funding request.
+// Creates a Flutterwave v4 DYNAMIC virtual account on Wema Bank
+// (bank_code "035") for a single wallet-funding request.
+// Previously Sterling Bank (232) — switched 15 Aug 2026 after Sterling VAs
+// stopped resolving on NIBSS. Wema is used here (not PalmPay) because it's
+// one of Flutterwave's confirmed VA-issuing partner banks.
 //
 // Why dynamic, not static: v4 static (reusable) virtual accounts require
 // the customer's BVN or NIN at creation time — WoodPay doesn't currently
@@ -18,7 +21,11 @@ const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 const { getFlwV4Token } = require('./_flwV4Auth');
 
 const FLW_V4_BASE = 'https://f4bexperience.flutterwave.com'; // v4 production base URL — different from v3's api.flutterwave.com
-const STERLING_BANK_CODE = '232';
+// Switched from Sterling Bank (232) to Wema Bank (035) after Sterling VAs
+// stopped resolving on NIBSS (both static + dynamic accounts returning
+// "Invalid Account" / "No Account Found" as of 15 Aug 2026). Wema is one of
+// Flutterwave's confirmed virtual-account-issuing partner banks.
+const ISSUING_BANK_CODE = '035';
 const EXPIRY_SECONDS = 1800; // 30 minutes — long enough to complete a transfer, short enough not to leave stale accounts lying around
 
 // Flutterwave's dashboard "charge my customer" toggle only auto-applies to
@@ -127,7 +134,7 @@ exports.handler = async (event) => {
         currency: 'NGN',
         account_type: 'dynamic',
         narration: name,
-        bank_code: STERLING_BANK_CODE
+        bank_code: ISSUING_BANK_CODE
       })
     });
     const vaData = await vaRes.json();

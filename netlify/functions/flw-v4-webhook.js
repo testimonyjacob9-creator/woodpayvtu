@@ -1,6 +1,6 @@
 // netlify/functions/flw-v4-webhook.js
 //
-// Receives Flutterwave v4 "charge.completed" webhooks for the Sterling
+// Receives Flutterwave v4 "charge.completed" webhooks for the Wema
 // dynamic virtual accounts created in create-virtual-account.js, and
 // credits the matching user's wallet once a transfer is confirmed.
 //
