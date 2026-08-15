@@ -108,6 +108,15 @@ exports.handler = async (event) => {
 
     const reference = `WPSTATIC${uid.slice(0, 12)}${Date.now().toString(36).toUpperCase()}`;
 
+    // TEMP DIAGNOSTIC — remove once "Invalid authorization key" is resolved.
+    // Logs only length + a masked prefix, never the full secret.
+    console.log('[FLW DIAG] key length:', FLW_SECRET_KEY.length,
+      '| prefix:', JSON.stringify(FLW_SECRET_KEY.slice(0, 8)),
+      '| starts FLWSECK-:', FLW_SECRET_KEY.startsWith('FLWSECK-'),
+      '| starts FLWSECK_TEST-:', FLW_SECRET_KEY.startsWith('FLWSECK_TEST-'),
+      '| has whitespace/newline:', /\s/.test(FLW_SECRET_KEY),
+      '| has quote chars:', /['"]/.test(FLW_SECRET_KEY));
+
     const vaRes = await fetch(`${FLW_V3_BASE}/virtual-account-numbers`, {
       method: 'POST',
       headers: {
@@ -128,6 +137,9 @@ exports.handler = async (event) => {
       })
     });
     const vaData = await vaRes.json();
+
+    // TEMP DIAGNOSTIC — remove once resolved.
+    console.log('[FLW DIAG] status:', vaRes.status, '| body:', JSON.stringify(vaData));
 
     if (!vaRes.ok || vaData.status !== 'success' || !vaData.data || !vaData.data.account_number) {
       console.error('flw v3 static account create error:', vaData);
