@@ -4,7 +4,7 @@
 // fails, so failures show up in an inbox instead of only in Firestore /
 // the admin dashboard. Used by:
 //   - send-email.js        (customer-facing purchase/delivery failures)
-//   - flw-v4-webhook.js    (wallet funding failures reported by Flutterwave)
+//   - flw-v3-webhook.js    (wallet funding failures reported by Flutterwave)
 //
 // Uses the same Brevo config as send-email.js:
 //   BREVO_API_KEY, BREVO_SENDER_EMAIL, ADMIN_NOTIFY_EMAIL

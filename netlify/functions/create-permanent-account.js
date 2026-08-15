@@ -1,39 +1,44 @@
 // netlify/functions/create-permanent-account.js
 //
-// Creates a Flutterwave v4 STATIC virtual account (Wema Bank) for a
-// user, after they submit their NIN. Switched from Sterling Bank (232) to
-// Wema (035) 15 Aug 2026 after Sterling VAs stopped resolving on NIBSS.
-// Unlike create-virtual-account.js
+// Creates a Flutterwave v3 STATIC virtual account (Wema Bank) for a
+// user, after they submit their NIN. Unlike create-virtual-account.js
 // (dynamic, single-use, exact-amount, 30-min expiry), a static account:
 //   - never expires
 //   - is reused for every future top-up
 //   - accepts any amount transferred to it
 //
-// Flutterwave requires either a BVN or a NIN to create a static account
-// (identity verification requirement, not something we can skip). We use
-// NIN here per product decision.
+// Migrated from v4 to v3 (Aug 2026) — see the comment at the top of
+// create-virtual-account.js for why.
+//
+// Flutterwave v3 requires either a BVN or a NIN to create a static
+// account (identity verification requirement — confirmed still true on
+// v3's live docs as of this migration: the `nin` field is accepted in
+// place of `bvn`). We use NIN here per product decision, same as before.
 //
 // Matching incoming transfers back to this account: the webhook
-// (flw-v4-webhook.js) matches primarily on `reference` — Flutterwave
-// reuses this exact reference on every charge into a static account, so
-// it's the reliable match. destination-account-number and flwCustomerId
-// are kept there only as best-effort fallbacks. See the comment above
-// handlePossibleStaticAccountTransfer() in flw-v4-webhook.js for the
+// (flw-v3-webhook.js) matches primarily on `tx_ref` — Flutterwave reuses
+// this exact reference on every charge into a static account, so it's
+// the reliable match, same limitation v3 has as v4 (no destination
+// account number in the webhook payload). See the comment above
+// handlePossibleStaticAccountTransfer() in flw-v3-webhook.js for the
 // full explanation.
 //
 // Body:  { idToken, uid, nin, ninName }
 // Returns: { ok, accountNumber, bankName } or { ok:false, error }
 
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
-const { getFlwV4Token } = require('./_flwV4Auth');
 
-const FLW_V4_BASE = 'https://f4bexperience.flutterwave.com';
+const FLW_V3_BASE = 'https://api.flutterwave.com/v3';
+const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY || '';
 const ISSUING_BANK_CODE = '035'; // Wema Bank
 const NIN_REGEX = /^[1-9][0-9]{10}$/; // Flutterwave's own validation pattern for nin/bvn
 
 exports.handler = async (event) => {
   if (ADMIN_INIT_ERROR) {
     return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: ADMIN_INIT_ERROR }) };
+  }
+  if (!FLW_SECRET_KEY) {
+    return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: 'FLW_SECRET_KEY env var is not set.' }) };
   }
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: JSON.stringify({ error: 'Method Not Allowed' }) };
@@ -76,10 +81,10 @@ exports.handler = async (event) => {
     }
     const userData = userSnap.data();
 
-    // Already has a Wema static account — don't create a second one.
-    // If they have an old Sterling account on file, fall through and
-    // regenerate on Wema instead (requires the user to resubmit their NIN,
-    // since we never store it — see note above).
+    // Already has a working static account (Wema, v3 or v4) — don't create
+    // a second one. If they have an old broken Sterling account on file,
+    // fall through and regenerate on Wema instead (requires the user to
+    // resubmit their NIN, since we never store it — see note below).
     const existing = userData.permanentAccount;
     const existingIsOldSterling = existing && existing.bankName && /sterling/i.test(existing.bankName);
 
@@ -101,56 +106,31 @@ exports.handler = async (event) => {
     const [first, ...rest] = name.split(' ');
     const last = rest.join(' ') || first;
 
-    const token = await getFlwV4Token();
-
-    // Reuse the same cached Flutterwave customer as the dynamic-account flow.
-    let customerId = userData.flwCustomerId || null;
-    if (!customerId) {
-      const custRes = await fetch(`${FLW_V4_BASE}/customers`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-          'X-Idempotency-Key': `cust-${uid}`
-        },
-        body: JSON.stringify({
-          name: { first: first || 'WoodPay', last: last || 'Customer' },
-          email
-        })
-      });
-      const custData = await custRes.json();
-      if (!custRes.ok || !custData.data || !custData.data.id) {
-        console.error('flw v4 customer create error:', custData);
-        return { statusCode: 502, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: 'Could not create payment customer.' }) };
-      }
-      customerId = custData.data.id;
-      await userRef.update({ flwCustomerId: customerId });
-    }
-
     const reference = `WPSTATIC${uid.slice(0, 12)}${Date.now().toString(36).toUpperCase()}`;
 
-    const vaRes = await fetch(`${FLW_V4_BASE}/virtual-accounts`, {
+    const vaRes = await fetch(`${FLW_V3_BASE}/virtual-account-numbers`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': reference
+        'Authorization': `Bearer ${FLW_SECRET_KEY}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        reference,
-        customer_id: customerId,
-        amount: 0, // required to be 0 for static accounts
+        email,
+        tx_ref: reference,
         currency: 'NGN',
-        account_type: 'static',
-        narration: name,
+        is_permanent: true,
         bank_code: ISSUING_BANK_CODE,
+        phonenumber: userData.phone || '',
+        firstname: first || 'WoodPay',
+        lastname: last || 'Customer',
+        narration: name,
         nin: String(nin)
       })
     });
     const vaData = await vaRes.json();
 
-    if (!vaRes.ok || !vaData.data || !vaData.data.account_number) {
-      console.error('flw v4 static account create error:', vaData);
+    if (!vaRes.ok || vaData.status !== 'success' || !vaData.data || !vaData.data.account_number) {
+      console.error('flw v3 static account create error:', vaData);
       const msg = (vaData && (vaData.message || (vaData.error && vaData.error.message))) || 'Could not verify NIN or create account.';
       return { statusCode: 502, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: msg }) };
     }
@@ -167,13 +147,13 @@ exports.handler = async (event) => {
     // verification product, which needs its own approval + consent flow.
     await userRef.update({
       name,
-      flwCustomerId: customerId,
       permanentAccount: {
         accountNumber: vaData.data.account_number,
         accountName: name,
-        bankName: vaData.data.account_bank_name,
-        virtualAccountId: vaData.data.id,
-        // Flutterwave reuses this exact reference on every future
+        bankName: vaData.data.bank_name,
+        flwRef: vaData.data.flw_ref || null,
+        orderRef: vaData.data.order_ref || null,
+        // Flutterwave reuses this exact tx_ref on every future
         // charge.completed webhook for this static account — it's the
         // only reliable way to match an incoming transfer back to this
         // user, since the webhook payload for a static bank transfer
@@ -191,7 +171,7 @@ exports.handler = async (event) => {
         ok: true,
         accountNumber: vaData.data.account_number,
         accountName: name,
-        bankName: vaData.data.account_bank_name
+        bankName: vaData.data.bank_name
       })
     };
   } catch (e) {

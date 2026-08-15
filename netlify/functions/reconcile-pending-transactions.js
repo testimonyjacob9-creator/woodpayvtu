@@ -95,7 +95,7 @@ exports.handler = async () => {
 
   for (const doc of pendingSnap.docs) {
     const tx = doc.data();
-    // Wallet-funding pending states are already owned by flw-v4-webhook.js
+    // Wallet-funding pending states are already owned by flw-v3-webhook.js
     // (driven by Flutterwave's own webhook, not something to poll here).
     if (String(tx.type || '').startsWith('wallet_funding')) continue;
 

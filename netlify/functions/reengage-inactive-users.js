@@ -14,7 +14,7 @@
 // ever messaged about once every 2 days, measured from their own activity.
 //
 // Activity tracking: users.lastActivityAt is stamped by processDelivery()
-// in index.html (any purchase attempt) and by flw-v4-webhook.js (wallet
+// in index.html (any purchase attempt) and by flw-v3-webhook.js (wallet
 // funding) — see those files. Users who've never transacted at all use
 // their account createdAt as the baseline instead.
 //
