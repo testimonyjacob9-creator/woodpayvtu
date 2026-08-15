@@ -1652,12 +1652,13 @@ window.dispatchEvent(new Event('fb-ready'));
    APP CONFIG
    ============================================================ */
 const FLW_CONFIG = {
-  publicKey: "FLWPUBK-391bc550e9925e473b641b8bd20f0298-X",
+  publicKey: "FLWPUBK-559f50a645b3c18956490a9b07d7178f-X",
   currency: "NGN"
   // NOTE: Flutterwave's client-side SDK only ever needs the public key —
   // never the secret key. The secret key belongs on the server only
-  // (verify-payment.js, using the FLW_SECRET_KEY env var) and is used to
-  // re-verify every transaction before delivery or wallet credit happens.
+  // (verify-payment.js, create-virtual-account.js, etc., using the
+  // FLW_SECRET_KEY env var) and is used to re-verify every transaction
+  // before delivery or wallet credit happens.
 };
 // Bigisub calls now go through /.netlify/functions/bigisub-proxy — the
 // token lives server-side only (BIGISUB_TOKEN env var), never in this file.
@@ -4311,7 +4312,15 @@ function openFundWallet(){
   const quick = document.getElementById('fundQuick');
   quick.innerHTML = [1000,2000,5000,10000,20000].map(a => `<button class="btn btn-ghost btn-sm" onclick="document.getElementById('fundAmount').value=${a}">₦${a.toLocaleString()}</button>`).join('');
 
-  const hasPermAcct = PROFILE.permanentAccount && PROFILE.permanentAccount.accountNumber;
+  // Must exclude the old broken Sterling account here too — same check
+  // used in populateDashboard() and openPermanentAccountSheet(). Without
+  // this, a user whose only account on file is the pre-migration Sterling
+  // one (which never resolves on NIBSS) would see "Fund your wallet" go
+  // straight to showing those dead account details instead of routing
+  // them to resubmit their NIN for a new working Wema v3 account.
+  const existing = PROFILE.permanentAccount;
+  const existingIsOldSterling = existing && existing.bankName && /sterling/i.test(existing.bankName);
+  const hasPermAcct = existing && existing.accountNumber && !existingIsOldSterling;
   document.getElementById('fundStepNoAccount').style.display = hasPermAcct ? 'none' : 'block';
   document.getElementById('fundStepAccount').style.display = hasPermAcct ? 'block' : 'none';
   document.getElementById('fundStepAmount').style.display = 'none';
