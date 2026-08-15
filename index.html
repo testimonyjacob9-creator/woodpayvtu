@@ -2242,7 +2242,7 @@ function txIcon(type){
   if(type==='airtime') return ICON.airtime;
   if(type==='cable') return ICON.tv;
   if(type==='electricity') return ICON.bolt;
-  if(type==='wallet_funding' || type==='wallet_funding_v4' || type==='wallet_funding_static') return ICON.plus;
+  if(type==='wallet_funding' || type==='wallet_funding_v4' || type==='wallet_funding_dynamic' || type==='wallet_funding_static') return ICON.plus;
   if(type==='admin_credit') return ICON.plus;
   return ICON.receipt;
 }
@@ -2271,7 +2271,7 @@ function txLabel(t){
   if(t.type==='betting') return `${t.billerName||'Betting'} wallet funding`;
   if(t.type==='isp') return `${(ISP_META[t.provider]||{}).label||t.provider} — ${t.planLabel||''}`;
   if(t.type==='wallet_funding') return 'Wallet funding';
-  if(t.type==='wallet_funding_v4') return 'Wallet funding (transfer)';
+  if(t.type==='wallet_funding_v4' || t.type==='wallet_funding_dynamic') return 'Wallet funding (transfer)';
   if(t.type==='wallet_funding_static') return 'Wallet funding (permanent account)';
   if(t.type==='admin_credit' || t.type==='admin_debit') return t.description || 'From WoodPay';
   return 'Transaction';
@@ -4384,7 +4384,7 @@ async function fundWalletViaSterling(){
       FB.collection(FB.db, 'transactions'),
       FB.where('userId', '==', CURRENT_USER.uid),
       FB.where('reference', '==', data.reference),
-      FB.where('type', '==', 'wallet_funding_v4'),
+      FB.where('type', '==', 'wallet_funding_dynamic'),
       FB.limit(1)
     );
     stTxUnsub = FB.onSnapshot(q, (snap) => {

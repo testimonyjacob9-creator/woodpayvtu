@@ -715,13 +715,16 @@ function updateRevenueStats(){
   let salesAllTime = 0, bigisubSpendAllTime = 0;
   let successCountToday = 0, failedCountToday = 0;
 
-  // All three wallet-funding transaction types must be excluded from
+  // All wallet-funding transaction types must be excluded from
   // sales/profit — only 'wallet_funding' was excluded before, so funding
-  // done via bank transfer (wallet_funding_v4) or a permanent account
-  // (wallet_funding_static) was silently being counted as sales revenue
-  // and inflating both "Total sales" and "Actual profit". Deposits are
-  // not revenue; only the margin on actual orders is.
-  const FUNDING_TYPES = ['wallet_funding', 'wallet_funding_v4', 'wallet_funding_static'];
+  // done via bank transfer (wallet_funding_v4 / wallet_funding_dynamic) or
+  // a permanent account (wallet_funding_static) was silently being counted
+  // as sales revenue and inflating both "Total sales" and "Actual profit".
+  // Deposits are not revenue; only the margin on actual orders is.
+  // wallet_funding_v4 is kept here for historical transactions created
+  // before the Aug 2026 v3 migration — new dynamic-account fundings use
+  // wallet_funding_dynamic (see create-virtual-account.js / flw-v3-webhook.js).
+  const FUNDING_TYPES = ['wallet_funding', 'wallet_funding_v4', 'wallet_funding_dynamic', 'wallet_funding_static'];
 
   ALL_TX.forEach(tx => {
     const txDate = tx.createdAt?.toDate?.() || new Date(tx.createdAt);
@@ -1095,7 +1098,7 @@ function serviceLabel(t){
   if(t.type==='betting') return `Betting — ${t.billerName||''} (${t.customerId||''})`;
   if(t.type==='isp') return `ISP — ${t.provider||''} ${t.planLabel||''}`;
   if(t.type==='wallet_funding') return 'Wallet funding';
-  if(t.type==='wallet_funding_v4') return 'Wallet funding (transfer)';
+  if(t.type==='wallet_funding_v4' || t.type==='wallet_funding_dynamic') return 'Wallet funding (transfer)';
   if(t.type==='wallet_funding_static') return 'Wallet funding (permanent account)';
   if(t.type==='admin_credit') return 'Admin credit — From WoodPay';
   if(t.type==='admin_debit') return 'Admin debit — From WoodPay';
