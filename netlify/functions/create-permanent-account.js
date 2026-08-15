@@ -13,14 +13,13 @@
 // (identity verification requirement, not something we can skip). We use
 // NIN here per product decision.
 //
-// IMPORTANT — before this goes live:
-// The webhook (flw-v4-webhook.js) matches incoming transfers to a static
-// account by the Flutterwave customer_id embedded in the webhook payload,
-// since (unlike the dynamic flow) there's no pending transaction with a
-// known reference to match against for an unprompted top-up. This should
-// be tested with one real sandbox transfer before trusting it in
-// production — confirm the webhook payload actually includes the
-// customer id in the field this code expects, and adjust if not.
+// Matching incoming transfers back to this account: the webhook
+// (flw-v4-webhook.js) matches primarily on `reference` — Flutterwave
+// reuses this exact reference on every charge into a static account, so
+// it's the reliable match. destination-account-number and flwCustomerId
+// are kept there only as best-effort fallbacks. See the comment above
+// handlePossibleStaticAccountTransfer() in flw-v4-webhook.js for the
+// full explanation.
 //
 // Body:  { idToken, uid, nin, ninName }
 // Returns: { ok, accountNumber, bankName } or { ok:false, error }
