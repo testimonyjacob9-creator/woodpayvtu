@@ -576,6 +576,14 @@ body.sheet-open .chatbot-button{ display:none; }
   background:var(--panel-2); color:var(--text); font-size:12px; font-family:inherit;
 }
 .chatbot-input:focus{ border-color:var(--blue); outline:none; }
+.chat-attach-chip{
+  display:flex; align-items:center; gap:6px; margin:0 10px 8px; padding:6px 10px;
+  background:var(--glass); border:1px solid var(--border); border-radius:8px; font-size:11px; color:var(--text-dim);
+}
+.chat-attach-chip img{ width:22px; height:22px; border-radius:5px; object-fit:cover; flex-shrink:0; }
+.chat-attach-chip .caption{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.chat-attach-chip .remove{ cursor:pointer; color:var(--text-mute); font-weight:700; padding:0 2px; }
+.chatbot-message.user img.chat-shot-thumb{ display:block; max-width:140px; border-radius:10px; margin-top:6px; }
 
 @media(max-width:480px){
   .chatbot-widget{ width:calc(100vw - 32px); max-width:320px; height:360px; bottom:100px; }
@@ -3869,8 +3877,15 @@ async function processDelivery(payload, paymentRef){
       return;
     }
 
-    await setTxStatus(docRef.id, result.ok ? 'success' : 'failed', result.ref||null, result.extra||null,
-      result.ok ? null : 'Delivery failed — provider declined or did not confirm delivery');
+    // Prefer Bigisub's own reason (e.g. "You are not eligible for this plan,
+    // go for other plan") over a generic message — this is what gets stored
+    // on the transaction (admin-visible) and emailed to the admin alert.
+    const failureReason = result.ok ? null : (result.message || 'Delivery failed — provider declined or did not confirm delivery');
+    // What the CUSTOMER sees/gets emailed — strips internal/business-side
+    // reasons (e.g. our Bigisub wallet running low) down to a generic
+    // "Delivery failed" so nothing about our provider account leaks.
+    const customerReason = result.ok ? null : customerSafeReason(result.message);
+    await setTxStatus(docRef.id, result.ok ? 'success' : 'failed', result.ref||null, result.extra||null, failureReason);
     // If Bigisub's live price had drifted and we matched on nearest price
     // instead of an exact one, correct buyPrice to what was actually
     // charged — otherwise the Bigisub settlement total would silently be
@@ -3965,9 +3980,12 @@ async function processDelivery(payload, paymentRef){
       // Play error sound for failed transaction
       if(window.playErrorSound) window.playErrorSound();
       await refundToWallet(payload.amount, 'Delivery failed — auto refund');
-      showResult(false, payload);
+      showResult(false, payload, null, customerReason);
+      // reason: what the customer sees in their email. adminReason: full
+      // raw detail (e.g. our Bigisub wallet is low) — always goes to the
+      // admin alert regardless of what the customer is shown.
       sendWoodPayEmail('failed', PROFILE.email || CURRENT_USER.email, PROFILE.name, {
-        type: payload.type, amount: payload.amount, ref: txRef, reason: 'Delivery failed'
+        type: payload.type, amount: payload.amount, ref: txRef, reason: customerReason, adminReason: failureReason
       });
     }
   }catch(e){
@@ -4410,6 +4428,54 @@ async function bigisubCall(path, method, body){
 // failure, or callers will refund money for orders that actually went through.
 function isTimeoutRes(res){ return res && res.timeout === true; }
 
+// Bigisub puts its human-readable failure reason (e.g. "You are not
+// eligible for this plan, go for other plan") in different fields depending
+// on the endpoint — sometimes top-level `message`/`error`, sometimes nested
+// under `data`, sometimes an `errors` array. Pull whichever is present so
+// the user sees the same wording Bigisub itself would show, instead of a
+// generic "delivery failed".
+function extractBigisubMessage(res){
+  if(!res) return null;
+  let msg = res.message || res.error || res.data?.message || res.data?.error || null;
+  if(!msg && Array.isArray(res.errors) && res.errors.length) msg = res.errors.join(' ');
+  else if(!msg && res.errors) msg = res.errors;
+  if(!msg) return null;
+  msg = String(msg).trim();
+  return msg ? msg : null;
+}
+
+// Some Bigisub failure reasons are OUR business's problem, not the
+// customer's (e.g. our Bigisub wallet is low/unfunded) — showing that to a
+// customer looks unprofessional and leaks internal account state. Those
+// get shown to the customer as a plain "Delivery failed" while the full
+// raw reason still goes to the admin alert email and the Firestore record
+// below, so nothing is lost — it's just not customer-facing.
+const INTERNAL_BIGISUB_PATTERNS = [
+  /insufficient\s*(wallet\s*)?balance/i,
+  /insufficient\s*fund/i,
+  /low\s*balance/i,
+  /balance\s*is\s*low/i,
+  /fund\s*your\s*wallet/i,
+  /kindly\s*fund/i,
+  /please\s*fund/i,
+  /recharge\s*your\s*account/i,
+  /top[\s-]?up\s*your\s*(account|wallet)/i,
+  /account\s*balance/i,
+  /not\s*enough\s*balance/i,
+  /wallet\s*balance/i
+];
+function isInternalBigisubIssue(msg){
+  if(!msg) return false;
+  return INTERNAL_BIGISUB_PATTERNS.some(re => re.test(msg));
+}
+// Reason to show the customer: Bigisub's own message, unless it's an
+// internal/business-side issue (see above), in which case fall back to a
+// generic "Delivery failed" so nothing about our provider account leaks.
+function customerSafeReason(msg){
+  if(!msg || isInternalBigisubIssue(msg)) return null;
+  return msg;
+}
+
 async function callBigisubAPI(payload){
   if(payload.type === 'airtime'){
     const res = await bigisubCall('api/v2/vtu/airtime/purchase/', 'POST', {
@@ -4422,7 +4488,7 @@ async function callBigisubAPI(payload){
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
     const bigisubOk = res.success === true && (res.data?.status === 'successful');
     if(!res.httpOk || !bigisubOk) console.error('Bigisub airtime purchase failed — raw response:', JSON.stringify(res));
-    return { ok: res.httpOk && bigisubOk, ref: res.data?.reference || res.data?.transaction_id || null, extra: { rawResponse: res } };
+    return { ok: res.httpOk && bigisubOk, ref: res.data?.reference || res.data?.transaction_id || null, message: bigisubOk ? null : extractBigisubMessage(res), extra: { rawResponse: res } };
   }
 
   if(payload.type === 'data'){
@@ -4442,7 +4508,7 @@ async function callBigisubAPI(payload){
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
     const bigisubOk = res.success === true && (res.data?.status === 'successful');
     if(!res.httpOk || !bigisubOk) console.error('Bigisub data purchase failed — raw response:', JSON.stringify(res));
-    return { ok: res.httpOk && bigisubOk, ref: res.data?.reference || res.data?.transaction_id || null, extra: { rawResponse: res } };
+    return { ok: res.httpOk && bigisubOk, ref: res.data?.reference || res.data?.transaction_id || null, message: bigisubOk ? null : extractBigisubMessage(res), extra: { rawResponse: res } };
   }
 
   if(payload.type === 'cable'){
@@ -4464,7 +4530,7 @@ async function callBigisubAPI(payload){
         customerName = verifyRes.data?.customer_name || verifyRes.data?.name;
         if(!verifyRes.httpOk || !verifyRes.success || !customerName || verifyRes.data?.valid === false){
           console.error('Cable smartcard verify failed', verifyRes);
-          return { ok:false, ref:null };
+          return { ok:false, ref:null, message: extractBigisubMessage(verifyRes) };
         }
       }
     }
@@ -4478,7 +4544,7 @@ async function callBigisubAPI(payload){
     });
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
     const bigisubOkCable = res.success === true;
-    return { ok: res.httpOk && bigisubOkCable, ref: res.data?.reference || res.data?.transaction_id || null, extra: { customerName, rawResponse: res } };
+    return { ok: res.httpOk && bigisubOkCable, ref: res.data?.reference || res.data?.transaction_id || null, message: bigisubOkCable ? null : extractBigisubMessage(res), extra: { customerName, rawResponse: res } };
   }
 
   if(payload.type === 'electricity'){
@@ -4506,7 +4572,7 @@ async function callBigisubAPI(payload){
         customerName = verifyRes.data?.customer_name || verifyRes.data?.name;
         if(!verifyRes.httpOk || !verifyRes.success || !customerName){
           console.error('Meter verify failed', verifyRes);
-          return { ok:false, ref:null };
+          return { ok:false, ref:null, message: extractBigisubMessage(verifyRes) };
         }
       }
     }
@@ -4524,6 +4590,7 @@ async function callBigisubAPI(payload){
     return {
       ok: res.httpOk && bigisubOkElec,
       ref: res.data?.reference || res.data?.transaction_id || null,
+      message: bigisubOkElec ? null : extractBigisubMessage(res),
       extra: { customerName, token: res.data?.token || null, units: res.data?.units || null, rawResponse: res }
     };
   }
@@ -4537,7 +4604,7 @@ async function callBigisubAPI(payload){
     if(!res.httpOk || !ok) console.error('Result checker purchase failed — raw response:', JSON.stringify(res));
     // Bigisub returns one PIN per unit purchased — collect whatever shape comes back.
     const pins = res.data?.pins || res.data?.cards || (Array.isArray(res.data) ? res.data : null);
-    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, extra: { pins, rawResponse: res } };
+    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, message: ok ? null : extractBigisubMessage(res), extra: { pins, rawResponse: res } };
   }
 
   if(payload.type === 'rechargepin'){
@@ -4548,7 +4615,7 @@ async function callBigisubAPI(payload){
     const ok = res.success === true;
     if(!res.httpOk || !ok) console.error('Recharge pin purchase failed — raw response:', JSON.stringify(res));
     const pins = res.data?.pins || res.data?.cards || (Array.isArray(res.data) ? res.data : null);
-    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, extra: { pins, rawResponse: res } };
+    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, message: ok ? null : extractBigisubMessage(res), extra: { pins, rawResponse: res } };
   }
 
   if(payload.type === 'betting'){
@@ -4564,7 +4631,7 @@ async function callBigisubAPI(payload){
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
     if(!res.httpOk || res.success !== true){
       console.error('Betting fund failed — raw response:', JSON.stringify(res));
-      return { ok:false, ref:null };
+      return { ok:false, ref:null, message: extractBigisubMessage(res) };
     }
     const txId = res.data?.transaction_id;
     let statusDetail = String(res.data?.status_detail || '').toLowerCase();
@@ -4584,7 +4651,7 @@ async function callBigisubAPI(payload){
       return { ok:false, timeout:true, ref: txId||null };
     }
     const ok = statusDetail === 'successful' || statusDetail === 'success';
-    return { ok, ref: txId || null, extra: { customerName: payload._customerName, rawResponse: res } };
+    return { ok, ref: txId || null, message: ok ? null : extractBigisubMessage(res), extra: { customerName: payload._customerName, rawResponse: res } };
   }
 
   if(payload.type === 'isp'){
@@ -4594,13 +4661,19 @@ async function callBigisubAPI(payload){
     if(isTimeoutRes(res)) return { ok:false, timeout:true, ref:null };
     const ok = res.success === true;
     if(!res.httpOk || !ok) console.error('ISP top-up failed — raw response:', JSON.stringify(res));
-    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, extra: { customerName: payload._customerName, rawResponse: res } };
+    return { ok: res.httpOk && ok, ref: res.data?.reference || res.data?.transaction_id || null, message: (res.httpOk && ok) ? null : extractBigisubMessage(res), extra: { customerName: payload._customerName, rawResponse: res } };
   }
 
   return { ok:false, ref:null };
 }
 
-function showResult(success, payload, extra){
+// Minimal HTML escaping for text we didn't author ourselves (Bigisub's
+// failure message) before it goes into innerHTML.
+function _escHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function showResult(success, payload, extra, failureReason){
   const inner = document.getElementById('resultSheetInner');
   const tokenBlock = (success && extra && extra.token) ? `
       <div class="glass" style="text-align:left; padding:16px; margin-top:14px; border:1px solid var(--gold-2);">
@@ -4621,7 +4694,7 @@ function showResult(success, payload, extra){
                   : `<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>`}
       </div>
       <h3 style="font-size:20px;">${success ? 'Payment successful' : 'Delivery failed'}</h3>
-      <p style="margin-top:8px;">${success ? 'Your order has been delivered.' : 'Your payment was refunded to your wallet.'}</p>
+      <p style="margin-top:8px;">${success ? 'Your order has been delivered.' : (failureReason ? _escHtml(/[.!?]$/.test(failureReason) ? failureReason : failureReason + '.') + ' Your payment was refunded to your wallet.' : 'Your payment was refunded to your wallet.')}</p>
       <div class="glass" style="text-align:left; padding:16px; margin-top:22px;">
         <div class="summary-line"><span>Amount</span><b>₦${naira(payload.amount)}</b></div>
         <div class="summary-line"><span>Service</span><b>${payload.type}</b></div>
@@ -5559,6 +5632,7 @@ const CHATBOT_FAQ = {
 };
 
 let chatHistory = [];
+let pendingChatAttachment = null; // { base64, name, mime }
 
 function toggleChatbot(){
   document.getElementById('chatbotWidget').classList.toggle('hide');
@@ -5581,28 +5655,72 @@ function handleChatInput(e){
   }
 }
 
+// Screenshots go straight to our support team by email — Olives can't
+// "see" an image, so the honest move is to forward it rather than
+// pretend to analyze it. 5MB cap keeps the Brevo email payload sane.
+function handleChatFileSelect(e){
+  const file = e.target.files && e.target.files[0];
+  e.target.value = '';
+  if(!file) return;
+  if(!file.type.startsWith('image/')){ toast('Please attach an image file.', 'err'); return; }
+  if(file.size > 5 * 1024 * 1024){ toast('Screenshot is too large — please pick one under 5MB.', 'err'); return; }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingChatAttachment = { base64: reader.result.split(',')[1], name: file.name, mime: file.type };
+    renderChatAttachChip();
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderChatAttachChip(){
+  const holder = document.getElementById('chatAttachChip');
+  if(!pendingChatAttachment){ holder.innerHTML = ''; return; }
+  holder.innerHTML = `
+    <div class="chat-attach-chip">
+      <img src="data:${pendingChatAttachment.mime};base64,${pendingChatAttachment.base64}" alt="">
+      <span class="caption">${pendingChatAttachment.name}</span>
+      <span class="remove" onclick="removeChatAttachment()">✕</span>
+    </div>`;
+}
+
+function removeChatAttachment(){
+  pendingChatAttachment = null;
+  renderChatAttachChip();
+}
+
 function sendChatMessage(){
   const input = document.getElementById('chatInput');
   const message = input.value.trim();
-  if(!message) return;
-  
-  // Add user message to chat
-  addChatMessage(message, 'user');
+  const attachment = pendingChatAttachment;
+  if(!message && !attachment) return;
+
+  // Add user message to chat (with a thumbnail if a screenshot was attached)
+  addChatMessage(message || '(screenshot attached)', 'user', attachment);
   input.value = '';
-  
-  // Store in history
-  chatHistory.push({role: 'user', content: message, timestamp: new Date().toISOString()});
+  pendingChatAttachment = null;
+  renderChatAttachChip();
+
+  chatHistory.push({role: 'user', content: message || '(screenshot attached)', timestamp: new Date().toISOString()});
   saveChatHistory();
-  
-  // Show typing indicator
+
   showTypingIndicator();
-  
+
+  // A screenshot means the issue needs human eyes — skip FAQ matching and
+  // go straight to support, same as tapping "Email this to support" would.
+  if(attachment){
+    setTimeout(() => escalateToSupport(message || 'Screenshot attached — see attached image.', attachment), 500);
+    return;
+  }
+
   // Get bot response
   setTimeout(() => {
     const response = getChatbotResponse(message);
     addChatMessage(response, 'bot');
     chatHistory.push({role: 'bot', content: response, timestamp: new Date().toISOString()});
     saveChatHistory();
+    // Always leave a one-tap way to reach a human — Olives doesn't always
+    // get it right, and the user shouldn't have to hunt for Contact Us.
+    appendEscalateAction(message);
   }, 500);
 }
 
@@ -5626,14 +5744,14 @@ function getChatbotResponse(userMessage){
   }
   
   if(query.includes('problem') || query.includes('issue') || query.includes('help') || query.includes('stuck')){
-    return '😟 I\'m sorry you\'re having trouble! Let me help:\n\n1. What service are you trying to use? (Data, Airtime, Cable, etc)\n2. What error message did you see?\n3. When did it happen?\n\nOr I can connect you with our support team right away - what would help?';
+    return '😟 I\'m sorry you\'re having trouble! Let me help:\n\n1. What service are you trying to use? (Data, Airtime, Cable, etc)\n2. What error message did you see?\n3. When did it happen?\n\nOr tap "Email this to support" below and I\'ll forward it straight to our team.';
   }
   
   // Default response with escalation option
-  return '🤔 I\'m not sure about that specific question, but our support team can definitely help!\n\nWould you like me to:\n✉️ Send your message to support@gmail.com\n💬 Give you our WhatsApp number\n📝 Open a contact form\n\nOr you can ask me about data, airtime, transactions, referrals, account issues, etc.';
+  return '🤔 I\'m not sure about that specific question — but tap "Email this to support" below and our team will pick it up directly. You can also ask me about data, airtime, transactions, referrals, or account issues.';
 }
 
-function addChatMessage(message, role){
+function addChatMessage(message, role, attachment){
   const messagesDiv = document.getElementById('chatMessages');
   const messageEl = document.createElement('div');
   messageEl.className = `chatbot-message ${role}`;
@@ -5641,6 +5759,14 @@ function addChatMessage(message, role){
   const spanEl = document.createElement('span');
   spanEl.textContent = message;
   messageEl.appendChild(spanEl);
+
+  if(attachment){
+    const img = document.createElement('img');
+    img.className = 'chat-shot-thumb';
+    img.src = `data:${attachment.mime};base64,${attachment.base64}`;
+    spanEl.appendChild(document.createElement('br'));
+    spanEl.appendChild(img);
+  }
   
   // Remove quick actions if this is the first user message
   const quickActions = messagesDiv.querySelector('.chatbot-quick-actions');
@@ -5650,6 +5776,53 @@ function addChatMessage(message, role){
   
   messagesDiv.appendChild(messageEl);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+// A small, non-intrusive "email this to support" link under the latest bot
+// reply — always available, so a wrong or unhelpful auto-answer never
+// leaves the user stuck with no way to reach a person.
+function appendEscalateAction(lastUserMessage){
+  const messagesDiv = document.getElementById('chatMessages');
+  const wrap = document.createElement('div');
+  wrap.className = 'chatbot-quick-actions';
+  wrap.style.gridTemplateColumns = '1fr';
+  wrap.innerHTML = `<button class="quick-btn" onclick="this.parentElement.remove(); escalateToSupport(${JSON.stringify(lastUserMessage)}, null);">📧 Email this to support</button>`;
+  messagesDiv.appendChild(wrap);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+// Forwards the conversation (plus a screenshot, if any) to the admin inbox
+// via the existing contact-form pathway — it's saved to Firestore
+// `contactMessages` either way, and best-effort emailed with replyTo set
+// to the user's own address so support can just hit reply.
+async function escalateToSupport(message, attachment){
+  showTypingIndicator();
+  const user = typeof FB !== 'undefined' && FB.auth.currentUser;
+  const userEmail = user?.email || (typeof PROFILE !== 'undefined' && PROFILE.email) || 'unknown@user.com';
+  try{
+    const res = await fetch('/.netlify/functions/send-email', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        template: 'contact',
+        email: userEmail,
+        subject: attachment ? 'Olives chat — screenshot attached' : 'Olives chat escalation',
+        message,
+        attachment: attachment ? { content: attachment.base64, name: attachment.name, mime: attachment.mime } : undefined
+      })
+    });
+    const ok = res.ok;
+    document.getElementById('typingIndicator')?.remove();
+    const confirmMsg = ok
+      ? `✅ Forwarded to our support team — they'll reply to ${userEmail} directly. Average response time: 2-4 hours.`
+      : '⚠️ Could not send automatically. Please WhatsApp us at +234 904 677 2152 or email vtusurpport@gmail.com.';
+    addChatMessage(confirmMsg, 'bot');
+    chatHistory.push({role: 'bot', content: confirmMsg, timestamp: new Date().toISOString()});
+    saveChatHistory();
+  }catch(e){
+    document.getElementById('typingIndicator')?.remove();
+    addChatMessage('⚠️ Could not send automatically. Please WhatsApp us at +234 904 677 2152 or email vtusurpport@gmail.com.', 'bot');
+  }
 }
 
 function showTypingIndicator(){
@@ -5694,6 +5867,9 @@ window.toggleChatbot = toggleChatbot;
 window.sendQuickMessage = sendQuickMessage;
 window.handleChatInput = handleChatInput;
 window.sendChatMessage = sendChatMessage;
+window.handleChatFileSelect = handleChatFileSelect;
+window.removeChatAttachment = removeChatAttachment;
+window.escalateToSupport = escalateToSupport;
 
 /* ============================================================
    THEME TOGGLE — Light/Dark Mode
@@ -6301,22 +6477,22 @@ if('serviceWorker' in navigator){
   </div>
 
   <!-- ============ CHATBOT WIDGET ============ -->
-  <div id="chatbotButton" class="chatbot-button" onclick="toggleChatbot()" title="Chat with WoodPay Assistant">
+  <div id="chatbotButton" class="chatbot-button" onclick="toggleChatbot()" title="Chat with Olives">
     <span id="chatbotIcon">💬</span>
   </div>
 
   <div id="chatbotWidget" class="chatbot-widget hide">
     <div class="chatbot-header">
       <div>
-        <b>WoodPay Assistant</b>
-        <p style="font-size:11px; margin:2px 0 0; color:var(--text-mute);">Always here to help</p>
+        <b>Olives</b>
+        <p style="font-size:11px; margin:2px 0 0; color:var(--text-mute);">WoodPay support · Always here to help</p>
       </div>
       <button class="icon-btn" onclick="toggleChatbot()" style="width:32px; height:32px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg></button>
     </div>
     
     <div class="chatbot-messages" id="chatMessages">
       <div class="chatbot-message bot">
-        <span>👋 Hi there! I'm your WoodPay Assistant. How can I help you today?</span>
+        <span>👋 Hi, I'm Olives! Ask me anything about WoodPay — or drop a screenshot if something's not working and I'll pass it straight to our team.</span>
       </div>
       <div class="chatbot-quick-actions">
         <button class="quick-btn" onclick="sendQuickMessage('How do I buy data?')">📱 Buy Data</button>
@@ -6326,7 +6502,10 @@ if('serviceWorker' in navigator){
       </div>
     </div>
 
+    <div id="chatAttachChip"></div>
     <div class="chatbot-input-area">
+      <input type="file" id="chatFileInput" accept="image/*" style="display:none;" onchange="handleChatFileSelect(event)">
+      <button class="icon-btn" onclick="document.getElementById('chatFileInput').click()" style="width:32px; height:32px; flex-shrink:0;" title="Attach a screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       <input type="text" id="chatInput" placeholder="Type your question..." class="chatbot-input" onkeypress="handleChatInput(event)">
       <button class="icon-btn" onclick="sendChatMessage()" style="width:36px; height:36px; flex-shrink:0;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 16.5a1 1 0 01-1.41 1.41l-7.77-7.77a1 1 0 011.41-1.41l7.77 7.77zM4 10a6 6 0 1112 0 6 6 0 01-12 0z"/></svg></button>
     </div>
