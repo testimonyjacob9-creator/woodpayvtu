@@ -1557,6 +1557,20 @@ body.sheet-open .chatbot-button{ display:none; }
   </div>
 </div>
 
+<div class="overlay" id="bioOfferSheet">
+  <div class="glass sheet">
+    <div class="sheet-handle"></div>
+    <div class="fingerprint-btn" style="pointer-events:none; margin:4px auto 16px;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 11c0 3.5-.5 6.5-2 9M8 20a20 20 0 001.5-7c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 1-.1 2-.3 3M12 6a6 6 0 016 6c0 1.5-.1 3-.5 4.5M6 18a17 17 0 001.5-6 4.5 4.5 0 019 0" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <h3 style="font-size:18px; text-align:center; margin-bottom:6px;">Enable fingerprint login?</h3>
+    <p style="font-size:13px; color:var(--text-mute); text-align:center; margin:0 0 22px;">Unlock WoodPay and confirm transfers with your fingerprint instead of typing your password and PIN every time.</p>
+    <button class="btn btn-primary" onclick="acceptBiometricOffer()">Enable fingerprint</button>
+    <button class="btn btn-ghost mt16" onclick="declineBiometricOffer()">Not now</button>
+  </div>
+</div>
+
+
 <div class="overlay" id="pinResetSheet">
   <div class="glass sheet">
     <div class="sheet-handle"></div>
@@ -2135,7 +2149,7 @@ function friendlyAuthError(e){
   return 'Something went wrong. Please try again.';
 }
 
-async function doSignOut(){ await waitFb(); await FB.signOut(FB.auth); toast('Signed out', 'info'); go('landing'); }
+async function doSignOut(){ await waitFb(); await FB.signOut(FB.auth); toast('Signed out', 'info'); routeSignedOutUser(); }
 
 /* ============================================================
    FORGOT PASSWORD
@@ -2221,6 +2235,27 @@ let _appUnlockedThisLoad = false; // once unlocked (biometric/password), stays u
 // The part of sign-in that actually reveals the dashboard — split out so
 // the lock screen can call it too, after a successful unlock, instead of
 // only running right after Firebase auth resolves.
+// Decides where a signed-out visitor should land: the marketing page for
+// genuinely first-time visitors, or straight to the login form for anyone
+// this device already recognizes. Shared by the auth-state listener and
+// doSignOut() so a manual "Sign out" tap can't skip this and dump a
+// returning user back on the landing page.
+function routeSignedOutUser(){
+  const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: fullscreen)').matches
+    || window.navigator.standalone === true;
+  // A device that has ever set up fingerprint login is unambiguously a
+  // returning device even if wp_returning itself somehow got cleared.
+  const hasVisitedBefore = localStorage.getItem('wp_returning') === '1'
+    || !!localStorage.getItem('wp_biometric_credId');
+  if(isStandalone || hasVisitedBefore){
+    go('auth');
+    setAuthTab('signin');
+  } else {
+    go('landing');
+  }
+}
+
 function enterApp(user){
   _appUnlockedThisLoad = true;
   document.getElementById('topbarGuest').classList.add('hide');
@@ -2262,6 +2297,10 @@ function enterApp(user){
   triggerLoginConfetti();
   listenTransactions();
   startNotificationListener(user.uid);
+  // Offer fingerprint setup proactively — most people never go looking
+  // for it in Profile settings, so surface it right here instead. Delayed
+  // slightly so it doesn't collide visually with the login confetti/toast.
+  setTimeout(maybeOfferBiometricSetup, 1400);
 }
 
 waitFb().then(()=>{
@@ -2309,20 +2348,7 @@ waitFb().then(()=>{
       PROFILE = null;
       _appUnlockedThisLoad = false;
       document.getElementById('topbarGuest').classList.remove('hide');
-      // Marketing landing page is only for brand-new visitors on the open
-      // web. Anyone who's used the app before, or is opening it installed
-      // as a PWA (standalone/fullscreen — meaning they already installed
-      // it, so they already know what it is), goes straight to login.
-      const isStandalone = window.matchMedia('(display-mode: standalone)').matches
-        || window.matchMedia('(display-mode: fullscreen)').matches
-        || window.navigator.standalone === true;
-      const hasVisitedBefore = localStorage.getItem('wp_returning') === '1';
-      if(isStandalone || hasVisitedBefore){
-        go('auth');
-        setAuthTab('signin');
-      } else {
-        go('landing');
-      }
+      routeSignedOutUser();
       startNotificationListener(null);
     }
   });
@@ -5353,6 +5379,46 @@ function cancelPinFlow(sheetId){
   closeSheet(sheetId);
   _pendingPinAction = null;
   hideLoader();
+}
+
+// Proactive fingerprint offer — shown automatically after login instead of
+// waiting for someone to find the toggle in Profile settings. Asked at
+// most once per account per device; the answer (yes or no) is remembered
+// so it never nags on later logins.
+let _bioOfferShownThisLoad = false;
+function maybeOfferBiometricSetup(){
+  if(_bioOfferShownThisLoad) return;
+  if(!CURRENT_USER) return;
+  if(biometricAvailableForThisAccount()) return; // already set up on this device
+  const askedKey = 'wp_bio_offered_' + CURRENT_USER.uid;
+  if(localStorage.getItem(askedKey) === '1') return;
+  isBiometricAvailable().then(avail => {
+    if(!avail || !CURRENT_USER) return;
+    _bioOfferShownThisLoad = true;
+    openSheet('bioOfferSheet');
+  });
+}
+function declineBiometricOffer(){
+  if(CURRENT_USER) localStorage.setItem('wp_bio_offered_' + CURRENT_USER.uid, '1');
+  closeSheet('bioOfferSheet');
+}
+function acceptBiometricOffer(){
+  if(CURRENT_USER) localStorage.setItem('wp_bio_offered_' + CURRENT_USER.uid, '1');
+  closeSheet('bioOfferSheet');
+  // Reuses the same PIN gate transactions use — asks to create a PIN if
+  // none exists yet, or confirm the existing one — either way it hands
+  // back the plaintext PIN needed to encrypt and cache locally.
+  requirePinThen(async (pin) => {
+    try{
+      showLoader('Setting up fingerprint…');
+      await registerBiometric(pin);
+      hideLoader();
+      toast('Fingerprint login & transfers enabled', 'ok');
+    }catch(e){
+      hideLoader();
+      toast(e.message || 'Could not enable fingerprint.', 'err');
+    }
+  });
 }
 
 async function submitCreatePin(){
