@@ -491,12 +491,13 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 
 /* ========== CHATBOT WIDGET ========== */
 .chatbot-button{
-  position:fixed; bottom:80px; right:20px; z-index:98; width:56px; height:56px; border-radius:50%;
+  position:fixed; bottom:80px; right:20px; z-index:80; width:56px; height:56px; border-radius:50%;
   background:linear-gradient(135deg, var(--yellow-primary), var(--blue));
   display:flex; align-items:center; justify-content:center; cursor:pointer;
   box-shadow:0 4px 20px rgba(255,215,0,.3);
   font-size:24px; transition:.3s; animation:float 3s ease-in-out infinite;
 }
+body.sheet-open .chatbot-button{ display:none; }
 .chatbot-button:hover{ transform:scale(1.1); box-shadow:0 6px 28px rgba(255,215,0,.4); }
 @keyframes float{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);} }
 
@@ -1887,8 +1888,8 @@ function toast(msg, type='info'){
 }
 function showLoader(text){ document.getElementById('loaderText').textContent = text||'Processing…'; document.getElementById('loaderOverlay').classList.add('show'); }
 function hideLoader(){ document.getElementById('loaderOverlay').classList.remove('show'); }
-function openSheet(id){ document.getElementById(id).classList.add('show'); }
-function closeSheet(id){ document.getElementById(id).classList.remove('show'); }
+function openSheet(id){ document.getElementById(id).classList.add('show'); document.body.classList.add('sheet-open'); }
+function closeSheet(id){ document.getElementById(id).classList.remove('show'); document.body.classList.remove('sheet-open'); }
 
 /* ============================================================
    AUTH FLOWS
