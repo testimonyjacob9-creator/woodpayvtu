@@ -3,7 +3,7 @@
 // Bigisub has no "network delivery rate" endpoint (already confirmed in
 // index.html's fetchNetworkRate comment). Instead of showing nothing,
 // this computes a real number from WoodPay's own order history: the
-// success rate of the last 5 transactions for a given network + service
+// success rate of the last 10 transactions for a given network + service
 // type (e.g. "mtn" + "data"). Global across all users — this is meant to
 // reflect the network's health right now, not any one person's luck.
 //
@@ -36,7 +36,7 @@ exports.handler = async (event) => {
       .where('network', '==', network)
       .where('type', '==', type)
       .orderBy('createdAt', 'desc')
-      .limit(5)
+      .limit(10)
       .get();
 
     if (snap.empty) {

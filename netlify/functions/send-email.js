@@ -43,9 +43,21 @@ const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || '';
 const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'vtusurpport@gmail.com';
 
-async function sendViaBrevo({ to, replyTo, subject, html }) {
+async function sendViaBrevo({ to, replyTo, subject, html, attachment }) {
   if (!BREVO_API_KEY || !BREVO_SENDER_EMAIL) return { ok: false, skipped: true, reason: 'BREVO_API_KEY or BREVO_SENDER_EMAIL not set' };
   try {
+    const payload = {
+      sender: { name: 'WoodPay', email: BREVO_SENDER_EMAIL },
+      to: [{ email: to }],
+      replyTo: replyTo ? { email: replyTo } : undefined,
+      subject,
+      htmlContent: html
+    };
+    // attachment: { content: base64 (no data: prefix), name }. Brevo expects
+    // this exact shape under `attachment` — content already base64-encoded.
+    if (attachment && attachment.content && attachment.name) {
+      payload.attachment = [{ content: attachment.content, name: attachment.name }];
+    }
     const res = await fetch('https://api.brevo.com/v3/smtp/email', {
       method: 'POST',
       headers: {
@@ -53,13 +65,7 @@ async function sendViaBrevo({ to, replyTo, subject, html }) {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({
-        sender: { name: 'WoodPay', email: BREVO_SENDER_EMAIL },
-        to: [{ email: to }],
-        replyTo: replyTo ? { email: replyTo } : undefined,
-        subject,
-        htmlContent: html
-      })
+      body: JSON.stringify(payload)
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
@@ -249,11 +255,21 @@ exports.handler = async (event) => {
     if (!recipientEmail) {
       return { statusCode: 400, body: JSON.stringify({ error: 'Missing sender email' }) };
     }
+    // Rough sanity cap — Brevo attachments are base64, so ~5MB of image
+    // becomes ~6.7MB of base64; keep requests well under typical function
+    // body limits.
+    const attachment = body.attachment && body.attachment.content && body.attachment.name
+      ? { content: body.attachment.content, name: body.attachment.name }
+      : null;
+    if (attachment && attachment.content.length > 9 * 1024 * 1024) {
+      return { statusCode: 400, body: JSON.stringify({ error: 'Attachment too large' }) };
+    }
     try {
       await db.collection('contactMessages').add({
         fromEmail: recipientEmail,
         subject: body.subject || '(no subject)',
         message: body.message || '',
+        hasAttachment: !!attachment,
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         read: false
       });
@@ -268,7 +284,8 @@ exports.handler = async (event) => {
       to: ADMIN_NOTIFY_EMAIL,
       replyTo: recipientEmail,
       subject: `[WoodPay Contact] ${body.subject || '(no subject)'}`,
-      html: `<p><b>From:</b> ${escapeHtml(recipientEmail)}</p><p>${escapeHtml(body.message || '').replace(/\n/g, '<br>')}</p>`
+      html: `<p><b>From:</b> ${escapeHtml(recipientEmail)}</p><p>${escapeHtml(body.message || '').replace(/\n/g, '<br>')}</p>${attachment ? '<p><i>Screenshot attached.</i></p>' : ''}`,
+      attachment
     });
 
     return {
@@ -301,7 +318,11 @@ exports.handler = async (event) => {
       provider: d.provider,
       amount: d.amount,
       ref: d.ref,
-      reason: d.reason,
+      // adminReason carries the full raw provider detail (e.g. our Bigisub
+      // wallet is low) even when the customer-facing reason was sanitized
+      // down to a generic "Delivery failed" — the admin still needs to see
+      // the real cause to act on it.
+      reason: d.adminReason || d.reason,
       userEmail: recipient
     }).catch(() => {});
   }
