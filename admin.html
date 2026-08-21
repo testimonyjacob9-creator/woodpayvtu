@@ -192,6 +192,7 @@ canvas{ width:100% !important; }
       <li><a href="#" data-tab="txlog" onclick="setTab('txlog'); closeSidebar(); return false;">🔍 Transaction Log</a></li>
       <li><a href="#" data-tab="users" onclick="setTab('users'); closeSidebar(); return false;">👥 Users</a></li>
       <li><a href="#" data-tab="settlement" onclick="setTab('settlement'); closeSidebar(); return false;">💸 Settlement</a></li>
+      <li><a href="#" data-tab="withdrawals" onclick="setTab('withdrawals'); closeSidebar(); return false;">🏦 Withdrawals</a></li>
       <li><a href="#" data-tab="settings" onclick="setTab('settings'); closeSidebar(); return false;">⚙️ Settings</a></li>
     </ul>
   </div>
@@ -203,6 +204,7 @@ canvas{ width:100% !important; }
     <div class="tab" data-tab="txlog" onclick="setTab('txlog')">Transaction Log</div>
     <div class="tab" data-tab="users" onclick="setTab('users')">Users</div>
     <div class="tab" data-tab="settlement" onclick="setTab('settlement')">Settlement</div>
+    <div class="tab" data-tab="withdrawals" onclick="setTab('withdrawals')">Withdrawals</div>
     <div class="tab" data-tab="settings" onclick="setTab('settings')">Settings</div>
   </div>
 
@@ -240,6 +242,12 @@ canvas{ width:100% !important; }
       <div class="glass stat-card"><div class="eyebrow">Payout mode</div><b style="font-size:16px;">Manual (via Flutterwave)</b></div>
       <div class="glass stat-card"><div class="eyebrow">Last payout</div><b id="lastSettlementInfo" style="font-size:16px;">—</b></div>
       <div class="glass stat-card cyan"><div class="eyebrow">Pay Bigisub</div><a class="btn btn-ghost btn-sm" onclick="setTab('settlement')" style="margin-top:4px;">Go to Settlement →</a></div>
+    </div>
+
+    <div style="margin-top:24px; margin-bottom:20px; font-size:14px; font-weight:700; letter-spacing:.05em;">Withdrawals</div>
+    <div class="stat-grid">
+      <div class="glass stat-card gold"><div class="eyebrow">Pending withdrawals</div><b id="pendingWithdrawalTotal">₦0.00</b><p style="font-size:11px; margin-top:6px; color:var(--text-mute);" id="pendingWithdrawalCount">0 requests waiting</p></div>
+      <div class="glass stat-card cyan"><div class="eyebrow">Pay users</div><a class="btn btn-ghost btn-sm" onclick="setTab('withdrawals')" style="margin-top:4px;">Go to Withdrawals →</a></div>
     </div>
 
     <div class="two-col">
@@ -380,6 +388,32 @@ canvas{ width:100% !important; }
         <table>
           <thead><tr><th>Date</th><th>Amount</th><th>Orders</th><th>Status</th><th>Bigisub account</th><th>Ref</th></tr></thead>
           <tbody id="settleHistoryBody"><tr class="empty-row"><td colspan="6">No settlements yet</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ---- WITHDRAWALS ---- -->
+  <div class="tab-panel hide" id="panel-withdrawals">
+    <div class="glass panel">
+      <div class="panel-head"><h2>Pending withdrawals</h2><a class="btn btn-ghost btn-sm" onclick="loadWithdrawals()">Refresh</a></div>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 14px;">
+        <b>How to pay:</b> send the amount to the account shown, from your Flutterwave dashboard or any bank app, then click Approve. The user is notified automatically and it's usually paid within 24 hours. If details look wrong or suspicious, click Reject instead — the reserved amount is refunded to their wallet immediately.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Date</th><th>User</th><th>Amount</th><th>Bank</th><th>Account</th><th>Name</th><th>Actions</th></tr></thead>
+          <tbody id="withdrawalsPendingBody"><tr class="empty-row"><td colspan="7">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="glass panel">
+      <div class="panel-head"><h2>Withdrawal history</h2></div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Date</th><th>User</th><th>Amount</th><th>Bank</th><th>Account</th><th>Status</th><th>Note</th></tr></thead>
+          <tbody id="withdrawalsHistoryBody"><tr class="empty-row"><td colspan="7">No withdrawals yet</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -633,14 +667,18 @@ async function enterDashboard(){
   }
 
   const settlementNavItems = document.querySelectorAll('[data-tab="settlement"]');
+  const withdrawalNavItems = document.querySelectorAll('[data-tab="withdrawals"]');
   if (ADMIN_ROLE !== 'owner') {
     settlementNavItems.forEach(el => el.style.display = 'none');
+    withdrawalNavItems.forEach(el => el.style.display = 'none');
     // In case they were deep-linked/land on it anyway, bounce to transactions.
-    if (document.querySelector('.tab[data-tab="settlement"]')?.classList.contains('active')) {
+    if (document.querySelector('.tab[data-tab="settlement"]')?.classList.contains('active') ||
+        document.querySelector('.tab[data-tab="withdrawals"]')?.classList.contains('active')) {
       setTab('transactions');
     }
   } else {
     settlementNavItems.forEach(el => el.style.display = '');
+    withdrawalNavItems.forEach(el => el.style.display = '');
   }
   document.getElementById('subAdminPanel')?.classList.toggle('hide', ADMIN_ROLE !== 'owner');
 
@@ -767,6 +805,7 @@ function updateRevenueStats(){
   document.getElementById('statAvgOrder').textContent = fmtNaira(avgOrder);
 
   updateOverviewSettlementBadges();
+  if(!WITHDRAWALS.length) loadWithdrawals(); else updateOverviewWithdrawalBadge();
 }
 
 function renderTxLog(){
@@ -811,6 +850,10 @@ function setTab(name){
     toast('Settlement is restricted to the owner account.', 'err');
     return;
   }
+  if (name === 'withdrawals' && ADMIN_ROLE !== 'owner') {
+    toast('Withdrawals are restricted to the owner account.', 'err');
+    return;
+  }
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('hide', p.id!=='panel-'+name));
   document.querySelectorAll('.sidebar-menu a').forEach(a => a.classList.toggle('active', a.dataset.tab===name));
@@ -818,6 +861,7 @@ function setTab(name){
   if(name==='txlog') renderTxLog();
   if(name==='users') renderUsersTable();
   if(name==='settlement'){ loadSettlementInterval(); loadSettlementHistory(); }
+  if(name==='withdrawals') loadWithdrawals();
   if(name==='settings') loadNotificationLogs();
 }
 
@@ -1394,6 +1438,110 @@ async function updateOverviewSettlementBadges(){
       ? fmtNaira(lastPaid.total) + ' — ' + new Date(lastPaid.createdAt).toLocaleDateString('en-NG', {day:'numeric', month:'short'})
       : 'None yet';
   }
+}
+
+/* ============================================================
+   WITHDRAWALS — manual bank payout approval queue
+   ============================================================ */
+let WITHDRAWALS = [];
+
+async function loadWithdrawals(){
+  const pendingBody = document.getElementById('withdrawalsPendingBody');
+  const historyBody = document.getElementById('withdrawalsHistoryBody');
+  try{
+    const idToken = await FB.auth.currentUser.getIdToken();
+    const uid = FB.auth.currentUser.uid;
+    const res = await fetch('/.netlify/functions/list-withdrawals', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ idToken, uid, limit:100 })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error);
+    WITHDRAWALS = data.withdrawals || [];
+    renderWithdrawals();
+    updateOverviewWithdrawalBadge();
+  }catch(e){
+    pendingBody.innerHTML = `<tr class="empty-row"><td colspan="7">Could not load: ${e.message}</td></tr>`;
+    historyBody.innerHTML = `<tr class="empty-row"><td colspan="7">Could not load: ${e.message}</td></tr>`;
+  }
+}
+
+function renderWithdrawals(){
+  const pending = WITHDRAWALS.filter(w => w.status==='pending');
+  const history = WITHDRAWALS.filter(w => w.status!=='pending');
+
+  const pendingBody = document.getElementById('withdrawalsPendingBody');
+  pendingBody.innerHTML = pending.length ? pending.map(w => `
+    <tr>
+      <td>${w.createdAt ? new Date(w.createdAt).toLocaleString('en-NG') : '—'}</td>
+      <td style="font-size:12px;">${w.userEmail || w.userId}</td>
+      <td class="mono">${fmtNaira(w.amount)}</td>
+      <td>${w.bankName || '—'}</td>
+      <td class="mono">${w.accountNumber || '—'}</td>
+      <td>${w.accountName || '—'}</td>
+      <td style="white-space:nowrap;">
+        <button class="btn btn-primary btn-sm" onclick="approveWithdrawal('${w.id}')">Approve</button>
+        <button class="btn btn-danger btn-sm" onclick="rejectWithdrawal('${w.id}')">Reject</button>
+      </td>
+    </tr>
+  `).join('') : '<tr class="empty-row"><td colspan="7">No pending withdrawals 🎉</td></tr>';
+
+  const historyBody = document.getElementById('withdrawalsHistoryBody');
+  historyBody.innerHTML = history.length ? history.map(w => `
+    <tr>
+      <td>${(w.approvedAt || w.rejectedAt) ? new Date(w.approvedAt || w.rejectedAt).toLocaleString('en-NG') : '—'}</td>
+      <td style="font-size:12px;">${w.userEmail || w.userId}</td>
+      <td class="mono">${fmtNaira(w.amount)}</td>
+      <td>${w.bankName || '—'}</td>
+      <td class="mono">${w.accountNumber || '—'}</td>
+      <td>${w.status==='success' ? '<span class="badge ok">Paid</span>' : '<span class="badge failed">Rejected</span>'}</td>
+      <td style="font-size:12px;">${w.note || '—'}</td>
+    </tr>
+  `).join('') : '<tr class="empty-row"><td colspan="7">No withdrawals yet</td></tr>';
+}
+
+async function approveWithdrawal(id){
+  const w = WITHDRAWALS.find(x => x.id===id);
+  if(!w) return;
+  if(!confirm(`Confirm you have ALREADY sent ${fmtNaira(w.amount)} to ${w.accountName} — ${w.accountNumber} (${w.bankName})?\n\nThis just marks it as paid — it does not send anything itself.`)) return;
+  try{
+    const idToken = await FB.auth.currentUser.getIdToken();
+    const res = await fetch('/.netlify/functions/admin-approve-withdrawal', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ idToken, withdrawalId:id, action:'approve' })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Approval failed');
+    toast('Marked as paid — user notified', 'ok');
+    loadWithdrawals();
+  }catch(e){ toast('Failed: ' + e.message, 'err'); }
+}
+
+async function rejectWithdrawal(id){
+  const w = WITHDRAWALS.find(x => x.id===id);
+  if(!w) return;
+  const note = prompt(`Reject this ${fmtNaira(w.amount)} withdrawal and refund it to the user's wallet?\n\nOptional reason to show the user:`, '');
+  if(note === null) return;
+  try{
+    const idToken = await FB.auth.currentUser.getIdToken();
+    const res = await fetch('/.netlify/functions/admin-approve-withdrawal', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ idToken, withdrawalId:id, action:'reject', note })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'Rejection failed');
+    toast('Rejected and refunded — user notified', 'ok');
+    loadWithdrawals();
+  }catch(e){ toast('Failed: ' + e.message, 'err'); }
+}
+
+function updateOverviewWithdrawalBadge(){
+  const pending = WITHDRAWALS.filter(w => w.status==='pending');
+  const total = pending.reduce((s,w) => s + (w.amount||0), 0);
+  const totalEl = document.getElementById('pendingWithdrawalTotal');
+  const countEl = document.getElementById('pendingWithdrawalCount');
+  if(totalEl) totalEl.textContent = fmtNaira(total);
+  if(countEl) countEl.textContent = pending.length + (pending.length===1 ? ' request waiting' : ' requests waiting');
 }
 
 async function fetchBigisubBalance(){

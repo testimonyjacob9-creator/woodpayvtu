@@ -892,7 +892,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
       <div class="wallet-actions">
         <button class="btn btn-gold btn-sm" style="flex:1;" onclick="openFundWallet()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg> Fund wallet</button>
         <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="openSendMoney()">Send money</button>
-        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="go('history')">History</button>
+        <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="openWithdraw()">Withdraw</button>
       </div>
     </div>
 
@@ -1562,6 +1562,26 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   </div>
 </div>
 
+<div class="overlay" id="withdrawSheet">
+  <div class="glass sheet">
+    <div class="sheet-handle"></div>
+    <h3 style="font-size:18px; margin-bottom:6px;">Withdraw to bank</h3>
+    <p style="font-size:13px; color:var(--text-mute); margin:0 0 18px;">Sent to your bank account within 24 hours. Minimum ₦500.</p>
+    <div class="field">
+      <label>Bank</label>
+      <select id="withdrawBank" onchange="onWithdrawBankOrAccountChange()">
+        <option value="">Loading banks…</option>
+      </select>
+    </div>
+    <div class="field"><label>Account number</label><input type="tel" id="withdrawAccount" placeholder="0123456789" maxlength="10" oninput="onWithdrawBankOrAccountChange()"></div>
+    <div id="withdrawAccountPreview" style="font-size:13px; margin:-8px 0 14px; min-height:18px;"></div>
+    <div class="field mb0"><label>Amount (₦)</label><input type="number" id="withdrawAmount" placeholder="Enter amount"></div>
+    <div class="error-text" id="withdrawError"></div>
+    <button class="btn btn-primary mt24" onclick="initiateWithdraw()">Withdraw</button>
+    <button class="btn btn-ghost mt16" onclick="closeSheet('withdrawSheet')">Cancel</button>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    ICONS (inline SVG strings, stroke = currentColor)
@@ -1585,7 +1605,9 @@ const ICON = {
   phone:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2" stroke-linecap="round"/></svg>`,
   lock:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg>`,
   copy:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a1 1 0 01-1-1V4a1 1 0 011-1h10a1 1 0 011 1v1"/></svg>`,
-  whatsapp:`<svg viewBox="0 0 24 24" fill="#fff" width="26" height="26"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.5A10 10 0 1012 2zm0 18.2a8.1 8.1 0 01-4.2-1.1l-.3-.2-3 .9.9-2.9-.2-.3A8.2 8.2 0 1112 20.2zm4.5-6.1c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.7.9-.3.2-.5.1a6.6 6.6 0 01-2-1.2 7.3 7.3 0 01-1.4-1.7c-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4c-.1-.1-.6-1.5-.8-2s-.5-.4-.6-.4h-.5a1 1 0 00-.7.3 3 3 0 00-1 2.3 5.2 5.2 0 001.1 2.8A11.9 11.9 0 0012.5 17c.5.2.9.3 1.3.4a3 3 0 002 .2c.3-.1 1.4-.6 1.5-1.1s.2-.9.1-1z"/></svg>`
+  whatsapp:`<svg viewBox="0 0 24 24" fill="#fff" width="26" height="26"><path d="M12 2a10 10 0 00-8.5 15.2L2 22l4.9-1.5A10 10 0 1012 2zm0 18.2a8.1 8.1 0 01-4.2-1.1l-.3-.2-3 .9.9-2.9-.2-.3A8.2 8.2 0 1112 20.2zm4.5-6.1c-.2-.1-1.4-.7-1.6-.8s-.4-.1-.5.1-.6.8-.7.9-.3.2-.5.1a6.6 6.6 0 01-2-1.2 7.3 7.3 0 01-1.4-1.7c-.1-.2 0-.4.1-.5l.4-.4.2-.4v-.4c-.1-.1-.6-1.5-.8-2s-.5-.4-.6-.4h-.5a1 1 0 00-.7.3 3 3 0 00-1 2.3 5.2 5.2 0 001.1 2.8A11.9 11.9 0 0012.5 17c.5.2.9.3 1.3.4a3 3 0 002 .2c.3-.1 1.4-.6 1.5-1.1s.2-.9.1-1z"/></svg>`,
+  bank:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-6 9 6M4 10v9M20 10v9M8 10v9M16 10v9M2 21h20" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
+  arrowDown:`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7 7 7-7" stroke-linecap="round" stroke-linejoin="round"/></svg>`
 };
 
 /* ============================================================
@@ -2244,7 +2266,9 @@ function txIcon(type){
   if(type==='cable') return ICON.tv;
   if(type==='electricity') return ICON.bolt;
   if(type==='wallet_funding' || type==='wallet_funding_v4' || type==='wallet_funding_dynamic' || type==='wallet_funding_static') return ICON.plus;
-  if(type==='admin_credit') return ICON.plus;
+  if(type==='admin_credit' || type==='p2p_received') return ICON.plus;
+  if(type==='withdrawal') return ICON.bank;
+  if(type==='p2p_sent' || type==='admin_debit') return ICON.arrowDown;
   return ICON.receipt;
 }
 function txBadge(status){
@@ -2275,6 +2299,8 @@ function txLabel(t){
   if(t.type==='wallet_funding_v4' || t.type==='wallet_funding_dynamic') return 'Wallet funding (transfer)';
   if(t.type==='wallet_funding_static') return 'Wallet funding (permanent account)';
   if(t.type==='admin_credit' || t.type==='admin_debit') return t.description || 'From WoodPay';
+  if(t.type==='withdrawal') return `Withdrawal to ${t.bankName||'bank'} — ${t.accountName||''}`;
+  if(t.type==='p2p_sent' || t.type==='p2p_received') return t.description || 'Wallet transfer';
   return 'Transaction';
 }
 function renderHistory(){ renderHistoryList(window.__TX_CACHE||[]); }
@@ -2329,6 +2355,13 @@ function txDetailLines(t){
     if(t.provider) lines.push(['Provider', (ISP_META[t.provider]||{}).label || t.provider]);
     if(t.accountId) lines.push(['Account ID', t.accountId]);
     if(t.planLabel) lines.push(['Plan', t.planLabel]);
+  }
+  if(t.type==='withdrawal'){
+    if(t.bankName) lines.push(['Bank', t.bankName]);
+    if(t.accountNumber) lines.push(['Account number', t.accountNumber]);
+    if(t.accountName) lines.push(['Account name', t.accountName]);
+    if(t.status==='pending') lines.push(['Status', 'Pending — paid out within 24 hours']);
+    if(t.status==='failed') lines.push(['Status', 'Declined — amount refunded to wallet']);
   }
   const customerName = t.providerExtra?.customerName;
   if(customerName) lines.push(['Verified name', customerName]);
@@ -4001,6 +4034,147 @@ async function submitP2PTransfer(phone, amount, pin, expectedName){
       return;
     }
     toast(`₦${amount} sent to ${data.recipientName}`, 'info');
+    if(window.playTransactionSound) window.playTransactionSound();
+  }catch(e){
+    hideLoader();
+    toast('Network error — please try again.', 'err');
+  }
+}
+
+/* ============================================================
+   WITHDRAW TO BANK
+   Manual-approval flow: the wallet is debited immediately (reserved) and
+   the request shows as "Pending" in history; an admin pays it manually
+   and approves within 24h, at which point the same history row flips to
+   "Successful" via the app's existing real-time transactions listener —
+   no page refresh needed. See netlify/functions/withdraw-request.js and
+   admin-approve-withdrawal.js for the server side.
+   ============================================================ */
+let _bankList = null; // cached after first load — bank list rarely changes
+let _resolvedWithdrawAccountName = null;
+let _withdrawAccountDebounce = null;
+
+async function loadBankList(){
+  if(_bankList) return _bankList;
+  try{
+    const res = await fetch('/.netlify/functions/list-banks');
+    const data = await res.json();
+    if(data.ok) _bankList = data.banks;
+    else _bankList = [];
+  }catch(e){ _bankList = []; }
+  return _bankList;
+}
+
+async function openWithdraw(){
+  document.getElementById('withdrawAccount').value = '';
+  document.getElementById('withdrawAmount').value = '';
+  document.getElementById('withdrawError').textContent = '';
+  document.getElementById('withdrawAccountPreview').textContent = '';
+  _resolvedWithdrawAccountName = null;
+  openSheet('withdrawSheet');
+
+  const sel = document.getElementById('withdrawBank');
+  sel.innerHTML = `<option value="">Loading banks…</option>`;
+  const banks = await loadBankList();
+  if(!banks.length){
+    sel.innerHTML = `<option value="">Could not load banks — try again</option>`;
+    return;
+  }
+  sel.innerHTML = `<option value="">Select your bank</option>` +
+    banks.map(b => `<option value="${b.code}">${b.name}</option>`).join('');
+}
+
+// Same "confirm the recipient's name before you commit" reassurance as
+// the WoodPay-to-WoodPay send money flow — just resolving against
+// Flutterwave's bank-account lookup instead of our own users collection.
+function onWithdrawBankOrAccountChange(){
+  const el = document.getElementById('withdrawAccountPreview');
+  _resolvedWithdrawAccountName = null;
+  clearTimeout(_withdrawAccountDebounce);
+  const bankCode = document.getElementById('withdrawBank').value;
+  const accountNumber = digitsOnly(document.getElementById('withdrawAccount').value);
+  if(!bankCode || accountNumber.length !== 10){ el.textContent = ''; return; }
+  el.textContent = 'Looking up…';
+  el.style.color = 'var(--text-mute)';
+  _withdrawAccountDebounce = setTimeout(async () => {
+    try{
+      const idToken = await CURRENT_USER.getIdToken();
+      const res = await fetch('/.netlify/functions/resolve-bank-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken, accountNumber, bankCode })
+      });
+      const data = await res.json();
+      // Guard against a stale response landing after the user changed
+      // the field — same pattern as onSendPhoneInput().
+      if(digitsOnly(document.getElementById('withdrawAccount').value) !== accountNumber ||
+         document.getElementById('withdrawBank').value !== bankCode) return;
+      if(data.ok){
+        _resolvedWithdrawAccountName = data.accountName;
+        el.textContent = `✓ ${data.accountName}`;
+        el.style.color = 'var(--gold-2)';
+      } else {
+        _resolvedWithdrawAccountName = null;
+        el.textContent = data.error || 'Could not verify this account.';
+        el.style.color = 'var(--danger)';
+      }
+    }catch(e){
+      el.textContent = '';
+    }
+  }, 500);
+}
+
+function initiateWithdraw(){
+  const bankSel = document.getElementById('withdrawBank');
+  const bankCode = bankSel.value;
+  const bankName = bankSel.options[bankSel.selectedIndex]?.text || '';
+  const accountNumber = digitsOnly(document.getElementById('withdrawAccount').value);
+  const amount = Number(document.getElementById('withdrawAmount').value);
+  const errEl = document.getElementById('withdrawError');
+  errEl.textContent = '';
+
+  if(!bankCode){ errEl.textContent = 'Select your bank.'; return; }
+  if(accountNumber.length !== 10){ errEl.textContent = 'Enter a valid 10-digit account number.'; return; }
+  if(!_resolvedWithdrawAccountName){ errEl.textContent = 'Enter a valid account number and wait for the name to confirm.'; return; }
+  if(!(amount > 0)){ errEl.textContent = 'Enter a valid amount.'; return; }
+  if(amount < 500){ errEl.textContent = 'Minimum withdrawal is ₦500.'; return; }
+  if(amount > (PROFILE.walletBalance||0)){ errEl.textContent = 'Insufficient wallet balance.'; return; }
+
+  const accountName = _resolvedWithdrawAccountName;
+  closeSheet('withdrawSheet');
+  requirePinThen((pin) => submitWithdraw({ bankCode, bankName, accountNumber, accountName, amount, pin }));
+}
+
+async function submitWithdraw({ bankCode, bankName, accountNumber, accountName, amount, pin }){
+  showLoader(`Requesting withdrawal…`);
+  try{
+    const idToken = await CURRENT_USER.getIdToken();
+    const res = await fetch('/.netlify/functions/withdraw-request', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken, uid: CURRENT_USER.uid, amount, pin, bankCode, bankName, accountNumber, accountName })
+    });
+    const data = await res.json();
+    hideLoader();
+    if(!data.ok){
+      const msg = data.error || 'Withdrawal request failed — please try again.';
+      toast(/[.!?]$/.test(msg) ? msg : msg + '.', 'err');
+      if(data.pinError === 'INVALID_PIN'){
+        document.getElementById('pinEnterInput').value = '';
+        document.getElementById('pinEnterError').textContent = 'Incorrect PIN. Please try again.';
+        document.getElementById('pinEnterError').style.display = 'block';
+        openSheet('pinEnterSheet');
+        _pendingPinAction = (newPin) => submitWithdraw({ bankCode, bankName, accountNumber, accountName, amount, pin: newPin });
+      }
+      return;
+    }
+    // Balance updates immediately (funds reserved); the transaction row
+    // itself will flip from Pending to Successful in real time via the
+    // existing transactions listener once an admin approves the payout —
+    // no extra polling code needed here.
+    PROFILE.walletBalance = data.newBalance;
+    document.getElementById('walletBal').textContent = naira(PROFILE.walletBalance);
+    toast(`Withdrawal of ₦${amount} requested — you'll be notified once it's paid, usually within 24 hours.`, 'ok');
     if(window.playTransactionSound) window.playTransactionSound();
   }catch(e){
     hideLoader();
