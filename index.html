@@ -174,12 +174,14 @@ html.light-mode {
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
+html{ overscroll-behavior-y:none; }
 body{
   background:var(--void);
   color:var(--text);
   font-family:var(--font-b);
   min-height:100vh;
   overflow-x:hidden;
+  overscroll-behavior-y:none;
   -webkit-font-smoothing:antialiased;
 }
 @media (prefers-reduced-motion: reduce){
@@ -485,6 +487,16 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
   background:linear-gradient(135deg,#25D366,#128C4A); display:flex;align-items:center;justify-content:center;
   box-shadow:0 8px 24px rgba(37,211,102,.4); cursor:pointer; }
 @media(min-width:521px){ .whatsapp-fab{ right:calc(50% - 260px + 16px); } }
+
+.fingerprint-btn{
+  width:72px; height:72px; border-radius:50%; margin:22px auto 0;
+  background:rgba(108,92,231,.1); border:1.5px solid var(--border);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  transition:.2s; animation:float 3s ease-in-out infinite;
+}
+.fingerprint-btn:active{ transform:scale(.92); background:rgba(108,92,231,.2); }
+.fingerprint-btn svg{ width:30px; height:30px; color:var(--indigo); }
+.fingerprint-hint{ text-align:center; font-size:12px; color:var(--text-mute); margin-top:10px; }
 
 .skeleton{ background:linear-gradient(90deg, rgba(255,255,255,.04), rgba(255,255,255,.09), rgba(255,255,255,.04)); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:10px; }
 @keyframes shimmer{ 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
@@ -855,6 +867,32 @@ body.sheet-open .chatbot-button{ display:none; }
       </div>
     </div>
     <div style="text-align:center;"><span class="back-link" onclick="doSignOut()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg> Sign out</span></div>
+  </section>
+
+  <!-- ============ APP LOCK (biometric / password re-entry) ============ -->
+  <section class="screen" id="screen-lock">
+    <div class="topbar" style="padding:0 0 20px;">
+      <div class="brand"><div class="mark">WP</div><div class="brand-name">Wood<b>Pay</b>VTU</div></div>
+    </div>
+    <div class="glass auth-card">
+      <p style="font-size:11px;font-weight:700;color:var(--indigo);text-transform:uppercase;letter-spacing:1px;margin:0 0 6px;">Welcome back</p>
+      <h2 style="font-family:var(--font-d);font-size:19px;margin:0 0 18px;">Unlock your account</h2>
+      <div class="field"><label>Email</label><input type="email" id="lockEmail" readonly style="opacity:.65;"></div>
+      <div class="field mb0" style="position:relative;">
+        <label>Password</label>
+        <input type="password" id="lockPass" placeholder="••••••••" autocomplete="current-password">
+        <span id="lockPassShow" onclick="togglePwVis('lockPass','lockPassShow')" style="position:absolute; right:14px; top:38px; font-size:12.5px; color:var(--gold-2); cursor:pointer; font-weight:600;">Show</span>
+      </div>
+      <div class="error-text" id="lockError"></div>
+      <button class="btn btn-primary mt24" onclick="unlockWithPassword()">Login</button>
+      <div id="lockFingerprintWrap" class="hide">
+        <div class="fingerprint-btn" onclick="unlockWithFingerprint()" title="Unlock with fingerprint">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 11c0 3.5-.5 6.5-2 9M8 20a20 20 0 001.5-7c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 1-.1 2-.3 3M12 6a6 6 0 016 6c0 1.5-.1 3-.5 4.5M6 18a17 17 0 001.5-6 4.5 4.5 0 019 0" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="fingerprint-hint">Tap to unlock with fingerprint</div>
+      </div>
+    </div>
+    <div style="text-align:center;"><span class="back-link" onclick="doSignOut()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg> Not you? Sign out</span></div>
   </section>
 
   <!-- ============ DASHBOARD ============ -->
@@ -1293,6 +1331,7 @@ body.sheet-open .chatbot-button{ display:none; }
       <div class="list-link"><div class="ll-l"><div class="ll-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2" stroke-linecap="round"/></svg></div><div><b>Phone number</b><span id="pfPhone">—</span></div></div></div>
       <div class="list-link" onclick="openChangePassword()"><div class="ll-l"><div class="ll-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 018 0v3"/></svg></div><div><b>Change password</b><span>Update your login password</span></div></div></div>
       <div class="list-link"><div class="ll-l"><div class="ll-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><b>Push Notifications</b><span id="pushToggleLabel">Get deals &amp; promos instantly</span></div></div><label class="toggle-switch"><input type="checkbox" id="pushToggle" onchange="handlePushToggle(this.checked)"><span class="toggle-slider"></span></label></div>
+      <div class="list-link"><div class="ll-l"><div class="ll-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 11c0 3.5-.5 6.5-2 9M8 20a20 20 0 001.5-7c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 1-.1 2-.3 3M12 6a6 6 0 016 6c0 1.5-.1 3-.5 4.5M6 18a17 17 0 001.5-6 4.5 4.5 0 019 0" stroke-linecap="round" stroke-linejoin="round"/></svg></div><div><b>Fingerprint login &amp; transfers</b><span id="bioToggleLabel">Use fingerprint instead of your password &amp; PIN</span></div></div><label class="toggle-switch"><input type="checkbox" id="bioToggle" onchange="handleBiometricToggle(this.checked)"><span class="toggle-slider"></span></label></div>
     </div>
     <button id="pwaInstallBtn" class="btn btn-ghost mt16" onclick="triggerInstall()" style="display:flex;width:100%;justify-content:center;gap:8px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><path d="M12 16l-4-4h3V4h2v8h3l-4 4z" stroke-linecap="round"/><path d="M4 20h16" stroke-linecap="round"/></svg> Install WoodPay App</button>
     <button class="btn btn-danger mt16" onclick="doSignOut()">Sign out</button>
@@ -1840,11 +1879,11 @@ let selection = {
 /* ============================================================
    NAVIGATION
    ============================================================ */
-const SCREENS = ['landing','auth','verify','dashboard','services','data','airtime','cable','electricity','resultchecker','rechargepin','betting','isp','history','notifications','referral','support','contact','profile'];
+const SCREENS = ['landing','auth','verify','lock','dashboard','services','data','airtime','cable','electricity','resultchecker','rechargepin','betting','isp','history','notifications','referral','support','contact','profile'];
 function go(name){
   SCREENS.forEach(s => document.getElementById('screen-'+s).classList.toggle('active', s===name));
-  document.getElementById('bottomNav').classList.toggle('hide', !CURRENT_USER || name==='landing' || name==='auth');
-  document.getElementById('topbarGuest').classList.toggle('hide', CURRENT_USER || name==='auth' || name==='verify');
+  document.getElementById('bottomNav').classList.toggle('hide', !CURRENT_USER || name==='landing' || name==='auth' || name==='lock');
+  document.getElementById('topbarGuest').classList.toggle('hide', CURRENT_USER || name==='auth' || name==='verify' || name==='lock');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.nav===name));
   window.scrollTo(0,0);
   if(name==='data') renderDataScreen();
@@ -1869,10 +1908,18 @@ function requireAuth(target){
   if(CURRENT_USER){ go(target); } else { go('auth'); setAuthTab('signup'); }
 }
 function setAuthTab(tab){
+  localStorage.setItem('wp_returning', '1');
   document.getElementById('tabSignin').classList.toggle('active', tab==='signin');
   document.getElementById('tabSignup').classList.toggle('active', tab==='signup');
   document.getElementById('formSignin').classList.toggle('hide', tab!=='signin');
   document.getElementById('formSignup').classList.toggle('hide', tab!=='signup');
+}
+function togglePwVis(inputId, linkId){
+  const input = document.getElementById(inputId);
+  const link = document.getElementById(linkId);
+  const showing = input.type === 'text';
+  input.type = showing ? 'password' : 'text';
+  link.textContent = showing ? 'Show' : 'Hide';
 }
 
 /* ============================================================
@@ -2048,6 +2095,37 @@ async function doSignIn(){
   }
 }
 
+// Re-proves identity for an already-signed-in Firebase session sitting on
+// the app-lock screen — via a fresh biometric prompt.
+async function unlockWithFingerprint(){
+  if(!CURRENT_USER || !biometricAvailableForThisAccount()) return;
+  const ok = await verifyBiometricPresenceOnly();
+  if(ok) enterApp(CURRENT_USER);
+  // Cancelled/failed — leave the lock screen up so they can type their
+  // password instead; no error shown, since cancelling isn't a mistake.
+}
+
+// Fallback for the lock screen: proves identity the old-fashioned way by
+// re-authenticating the already-signed-in user against their password.
+async function unlockWithPassword(){
+  const pass = document.getElementById('lockPass').value;
+  const errEl = document.getElementById('lockError');
+  errEl.style.display = 'none';
+  if(!pass){ errEl.textContent = 'Enter your password.'; errEl.style.display = 'block'; return; }
+  if(!CURRENT_USER){ errEl.textContent = 'Session expired — please sign in again.'; errEl.style.display = 'block'; return; }
+  showLoader('Unlocking…');
+  try{
+    const cred = FB.EmailAuthProvider.credential(CURRENT_USER.email, pass);
+    await FB.reauthenticateWithCredential(CURRENT_USER, cred);
+    hideLoader();
+    enterApp(CURRENT_USER);
+  }catch(e){
+    hideLoader();
+    errEl.textContent = friendlyAuthError(e) || 'Incorrect password.';
+    errEl.style.display = 'block';
+  }
+}
+
 function friendlyAuthError(e){
   const c = e.code||'';
   if(c.includes('email-already-in-use')) return 'That email is already registered — try signing in instead.';
@@ -2138,11 +2216,60 @@ async function fpConfirmReset(){
 
 let userUnsub = null;
 let _codeSentForUid = null; // tracks which uid we've already auto-sent a code for this session
+let _appUnlockedThisLoad = false; // once unlocked (biometric/password), stays unlocked for the rest of this page load
+
+// The part of sign-in that actually reveals the dashboard — split out so
+// the lock screen can call it too, after a successful unlock, instead of
+// only running right after Firebase auth resolves.
+function enterApp(user){
+  _appUnlockedThisLoad = true;
+  document.getElementById('topbarGuest').classList.add('hide');
+  // Live profile listener — wallet balance, referral earnings, and
+  // block status now stay in sync with Firestore in real time instead
+  // of a one-time snapshot. Covers: self purchases, admin adjustments,
+  // referral credits landing on this account, and wallet funding —
+  // all reflect within ~1s without a manual refresh or re-login.
+  // Gift / promo-unlocked celebration — triggered whenever a restricted
+  // promo flag (e.g. oneGigPromo) flips from off/missing to true on the
+  // user's live profile listener, typically because an admin just
+  // granted it. Defined inline here since it needs PROFILE's before/after.
+  userUnsub = FB.onSnapshot(FB.doc(FB.db,'users',user.uid), (snap)=>{
+    if(!snap.exists()){
+      PROFILE = { name:user.displayName||'', email:user.email, walletBalance:0, referralCode:genReferralCode(user.displayName) };
+      return;
+    }
+    const wasBlocked = PROFILE && PROFILE.blocked;
+    const prevProfile = PROFILE;
+    PROFILE = snap.data();
+    if(PROFILE.blocked && !wasBlocked){
+      toast('Your account has been suspended. Contact support on WhatsApp.', 'err');
+      FB.signOut(FB.auth);
+      return;
+    }
+    // Detect any restricted promo flag flipping false/missing -> true
+    Object.keys(GIFT_MESSAGES).forEach(key => {
+      const before = prevProfile ? !!prevProfile[key] : false;
+      const after = !!PROFILE[key];
+      if(after && !before) showGiftOverlay(key);
+    });
+    populateDashboard();
+    if(document.getElementById('screen-referral').classList.contains('active')) renderReferral();
+    if(document.getElementById('screen-profile').classList.contains('active')) renderProfile();
+    if(document.getElementById('screen-data').classList.contains('active')){ renderDataPlans(); renderPromoBanner(); }
+  }, (err)=>{ console.warn('profile listen error', err); });
+  go('dashboard');
+  updateGreeting();
+  triggerLoginConfetti();
+  listenTransactions();
+  startNotificationListener(user.uid);
+}
+
 waitFb().then(()=>{
   FB.onAuthStateChanged(FB.auth, async (user)=>{
     CURRENT_USER = user;
     if(userUnsub){ userUnsub(); userUnsub = null; }
     if(user){
+      localStorage.setItem('wp_returning', '1');
       // Reload to get the freshest emailVerified status (in case it was
       // set moments ago by email-verify.js, or checked from a new device).
       await user.reload().catch(()=>{});
@@ -2158,49 +2285,44 @@ waitFb().then(()=>{
         }
         return;
       }
-      document.getElementById('topbarGuest').classList.add('hide');
-      // Live profile listener — wallet balance, referral earnings, and
-      // block status now stay in sync with Firestore in real time instead
-      // of a one-time snapshot. Covers: self purchases, admin adjustments,
-      // referral credits landing on this account, and wallet funding —
-      // all reflect within ~1s without a manual refresh or re-login.
-      // Gift / promo-unlocked celebration — triggered whenever a restricted
-      // promo flag (e.g. oneGigPromo) flips from off/missing to true on the
-      // user's live profile listener, typically because an admin just
-      // granted it. Defined inline here since it needs PROFILE's before/after.
-      userUnsub = FB.onSnapshot(FB.doc(FB.db,'users',user.uid), (snap)=>{
-        if(!snap.exists()){
-          PROFILE = { name:user.displayName||'', email:user.email, walletBalance:0, referralCode:genReferralCode(user.displayName) };
-          return;
-        }
-        const wasBlocked = PROFILE && PROFILE.blocked;
-        const prevProfile = PROFILE;
-        PROFILE = snap.data();
-        if(PROFILE.blocked && !wasBlocked){
-          toast('Your account has been suspended. Contact support on WhatsApp.', 'err');
-          FB.signOut(FB.auth);
-          return;
-        }
-        // Detect any restricted promo flag flipping false/missing -> true
-        Object.keys(GIFT_MESSAGES).forEach(key => {
-          const before = prevProfile ? !!prevProfile[key] : false;
-          const after = !!PROFILE[key];
-          if(after && !before) showGiftOverlay(key);
-        });
-        populateDashboard();
-        if(document.getElementById('screen-referral').classList.contains('active')) renderReferral();
-        if(document.getElementById('screen-profile').classList.contains('active')) renderProfile();
-        if(document.getElementById('screen-data').classList.contains('active')){ renderDataPlans(); renderPromoBanner(); }
-      }, (err)=>{ console.warn('profile listen error', err); });
-      go('dashboard');
-      updateGreeting();
-      triggerLoginConfetti();
-      listenTransactions();
-      startNotificationListener(user.uid);
+      // App-lock gate: a persisted Firebase session on this device (e.g.
+      // reopening the installed PWA) is already "signed in", but if
+      // biometrics are enabled for this account we still want a fresh
+      // fingerprint (or password) check before showing the dashboard —
+      // same as any banking app's lock screen. Only gates the FIRST time
+      // per page load; live profile updates re-running this listener
+      // won't re-lock an already-unlocked session.
+      if(!_appUnlockedThisLoad && biometricAvailableForThisAccount()){
+        document.getElementById('topbarGuest').classList.add('hide');
+        document.getElementById('lockEmail').value = user.email;
+        document.getElementById('lockPass').value = '';
+        document.getElementById('lockError').style.display = 'none';
+        document.getElementById('lockFingerprintWrap').classList.remove('hide');
+        go('lock');
+        // Offer the fingerprint prompt immediately — user can dismiss it
+        // and type their password instead if they prefer.
+        unlockWithFingerprint();
+        return;
+      }
+      enterApp(user);
     } else {
       PROFILE = null;
+      _appUnlockedThisLoad = false;
       document.getElementById('topbarGuest').classList.remove('hide');
-      go('landing');
+      // Marketing landing page is only for brand-new visitors on the open
+      // web. Anyone who's used the app before, or is opening it installed
+      // as a PWA (standalone/fullscreen — meaning they already installed
+      // it, so they already know what it is), goes straight to login.
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+        || window.matchMedia('(display-mode: fullscreen)').matches
+        || window.navigator.standalone === true;
+      const hasVisitedBefore = localStorage.getItem('wp_returning') === '1';
+      if(isStandalone || hasVisitedBefore){
+        go('auth');
+        setAuthTab('signin');
+      } else {
+        go('landing');
+      }
       startNotificationListener(null);
     }
   });
@@ -4000,11 +4122,13 @@ function initiateSendMoney(){
   const amount = Number(document.getElementById('sendAmount').value);
   const errEl = document.getElementById('sendMoneyError');
   errEl.textContent = '';
+  errEl.style.display = 'none';
+  const showErr = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
 
-  if(phone.length !== 11){ errEl.textContent = 'Enter a valid 11-digit phone number.'; return; }
-  if(!_resolvedRecipientName){ errEl.textContent = 'Enter a valid WoodPay phone number and wait for the name to confirm.'; return; }
-  if(!(amount > 0)){ errEl.textContent = 'Enter a valid amount.'; return; }
-  if(amount > (PROFILE.walletBalance||0)){ errEl.textContent = 'Insufficient wallet balance.'; return; }
+  if(phone.length !== 11){ showErr('Enter a valid 11-digit phone number.'); return; }
+  if(!_resolvedRecipientName){ showErr('Enter a valid WoodPay phone number and wait for the name to confirm.'); return; }
+  if(!(amount > 0)){ showErr('Enter a valid amount.'); return; }
+  if(amount > (PROFILE.walletBalance||0)){ showErr('Insufficient wallet balance.'); return; }
 
   const recipientName = _resolvedRecipientName;
   closeSheet('sendMoneySheet');
@@ -4070,6 +4194,7 @@ async function openWithdraw(){
   document.getElementById('withdrawAccount').value = '';
   document.getElementById('withdrawAmount').value = '';
   document.getElementById('withdrawError').textContent = '';
+  document.getElementById('withdrawError').style.display = 'none';
   document.getElementById('withdrawAccountPreview').textContent = '';
   _resolvedWithdrawAccountName = null;
   openSheet('withdrawSheet');
@@ -4133,13 +4258,15 @@ function initiateWithdraw(){
   const amount = Number(document.getElementById('withdrawAmount').value);
   const errEl = document.getElementById('withdrawError');
   errEl.textContent = '';
+  errEl.style.display = 'none';
+  const showErr = (msg) => { errEl.textContent = msg; errEl.style.display = 'block'; };
 
-  if(!bankCode){ errEl.textContent = 'Select your bank.'; return; }
-  if(accountNumber.length !== 10){ errEl.textContent = 'Enter a valid 10-digit account number.'; return; }
-  if(!_resolvedWithdrawAccountName){ errEl.textContent = 'Enter a valid account number and wait for the name to confirm.'; return; }
-  if(!(amount > 0)){ errEl.textContent = 'Enter a valid amount.'; return; }
-  if(amount < 500){ errEl.textContent = 'Minimum withdrawal is ₦500.'; return; }
-  if(amount > (PROFILE.walletBalance||0)){ errEl.textContent = 'Insufficient wallet balance.'; return; }
+  if(!bankCode){ showErr('Select your bank.'); return; }
+  if(accountNumber.length !== 10){ showErr('Enter a valid 10-digit account number.'); return; }
+  if(!_resolvedWithdrawAccountName){ showErr('Enter a valid account number and wait for the name to confirm.'); return; }
+  if(!(amount > 0)){ showErr('Enter a valid amount.'); return; }
+  if(amount < 500){ showErr('Minimum withdrawal is ₦500.'); return; }
+  if(amount > (PROFILE.walletBalance||0)){ showErr('Insufficient wallet balance.'); return; }
 
   const accountName = _resolvedWithdrawAccountName;
   closeSheet('withdrawSheet');
@@ -4906,6 +5033,53 @@ function renderProfile(){
   document.getElementById('profileEmail').textContent = PROFILE.email||CURRENT_USER.email;
   document.getElementById('pfName').textContent = PROFILE.name||'—';
   document.getElementById('pfPhone').textContent = PROFILE.phone||'—';
+
+  const bioToggle = document.getElementById('bioToggle');
+  const bioLabel = document.getElementById('bioToggleLabel');
+  if(bioToggle){
+    const enabledHere = biometricAvailableForThisAccount();
+    bioToggle.checked = enabledHere;
+    bioLabel.textContent = enabledHere ? 'Enabled on this device' : 'Use fingerprint instead of your password & PIN';
+    isBiometricAvailable().then(avail => {
+      if(!avail && !enabledHere){
+        bioToggle.disabled = true;
+        bioLabel.textContent = 'Not supported on this device';
+      }
+    });
+  }
+}
+async function handleBiometricToggle(checked){
+  const toggle = document.getElementById('bioToggle');
+  const label = document.getElementById('bioToggleLabel');
+  if(checked){
+    toggle.checked = false; // don't show "on" until setup actually succeeds
+    const available = await isBiometricAvailable();
+    if(!available){
+      toast('This device has no fingerprint or face unlock set up.', 'err');
+      return;
+    }
+    // Reuses the same PIN gate as transactions — asks to create a PIN if
+    // none exists yet, or confirm the existing one — either way it hands
+    // back the plaintext PIN needed to encrypt and cache locally.
+    requirePinThen(async (pin) => {
+      try{
+        showLoader('Setting up fingerprint…');
+        await registerBiometric(pin);
+        hideLoader();
+        toggle.checked = true;
+        label.textContent = 'Enabled on this device';
+        toast('Fingerprint login & transfers enabled', 'ok');
+      }catch(e){
+        hideLoader();
+        toggle.checked = false;
+        toast(e.message || 'Could not enable fingerprint.', 'err');
+      }
+    });
+  } else {
+    await disableBiometric();
+    label.textContent = 'Use fingerprint instead of your password & PIN';
+    toast('Fingerprint disabled', 'info');
+  }
 }
 function openChangeName(){
   document.getElementById('nmNew').value = PROFILE?.name || CURRENT_USER?.displayName || '';
@@ -4952,11 +5126,215 @@ async function sha256Hex(str){
 }
 function _pinHashInput(pin){ return `${pin}:${CURRENT_USER.uid}`; }
 
-// Called right before any money moves. Shows "create a PIN" the first time,
-// or "enter your PIN" on every transaction after that. `action` runs only
-// once the correct PIN has been supplied.
-function requirePinThen(action){
+/* ============================================================
+   BIOMETRIC UNLOCK (WebAuthn — fingerprint / Face ID)
+   ============================================================
+   Two things this powers:
+     1. App-lock screen — reopening the PWA with an already-signed-in
+        Firebase session shows screen-lock instead of dropping straight
+        into the dashboard; a fingerprint tap unlocks it instead of
+        retyping the password.
+     2. Transaction PIN — requirePinThen() (send money, withdraw, etc.)
+        tries a fingerprint prompt first; success decrypts the user's PIN
+        locally and submits it through the exact same server-verified PIN
+        flow as manual entry, so nothing about the server-side security
+        model changes.
+
+   The platform authenticator (fingerprint/Face ID hardware) is what
+   actually gates every prompt — the OS itself demands a live biometric
+   match each time navigator.credentials.get() is called, and this code
+   never caches that result. What we store locally is a device-bound,
+   non-extractable AES-GCM key (kept in IndexedDB, unreadable even by
+   this same-origin JS as raw bytes) used only to decrypt the PIN after
+   a fresh biometric success. None of this touches server trust: the
+   server still independently re-verifies the PIN on every money-moving
+   request, exactly as it always has.
+   ============================================================ */
+
+function _b64urlToBuf(b64url){
+  const b64 = b64url.replace(/-/g,'+').replace(/_/g,'/');
+  const pad = b64.length % 4 ? '='.repeat(4 - (b64.length % 4)) : '';
+  const bin = atob(b64 + pad);
+  const buf = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+function _bufToB64url(buf){
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for(let i=0;i<bytes.length;i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+
+function _openSecureDB(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('wp_secure_db', 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('kv'); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function _idbGet(key){
+  const db = await _openSecureDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv','readonly');
+    const req = tx.objectStore('kv').get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function _idbSet(key, val){
+  const db = await _openSecureDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv','readwrite');
+    tx.objectStore('kv').put(val, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function _idbDelete(key){
+  const db = await _openSecureDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('kv','readwrite');
+    tx.objectStore('kv').delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function isBiometricAvailable(){
+  if(!window.PublicKeyCredential || !navigator.credentials) return false;
+  try{ return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
+  catch(e){ return false; }
+}
+
+// True only when THIS device has a registered credential for THIS signed-in account.
+function biometricAvailableForThisAccount(){
+  return !!(CURRENT_USER
+    && localStorage.getItem('wp_biometric_credId')
+    && localStorage.getItem('wp_biometric_uid') === CURRENT_USER.uid);
+}
+
+// Registers a platform authenticator credential for the current user and
+// caches their PIN locally, encrypted, so a fingerprint prompt can stand
+// in for typing it. Requires the PIN up front (either just-created or
+// just-confirmed) to do the encryption.
+async function registerBiometric(pin){
+  if(!CURRENT_USER) throw new Error('Not signed in.');
+  const available = await isBiometricAvailable();
+  if(!available) throw new Error('This device has no fingerprint or face unlock set up.');
+
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const cred = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: { name: 'WoodPayVTU' },
+      user: {
+        id: new TextEncoder().encode(CURRENT_USER.uid),
+        name: CURRENT_USER.email,
+        displayName: (PROFILE && PROFILE.name) || CURRENT_USER.email
+      },
+      pubKeyCredParams: [{ alg: -7, type: 'public-key' }, { alg: -257, type: 'public-key' }],
+      authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'preferred' },
+      timeout: 60000,
+      attestation: 'none'
+    }
+  }).catch(() => null);
+  if(!cred) throw new Error('Biometric setup was cancelled or not allowed.');
+
+  const aesKey = await crypto.subtle.generateKey({ name:'AES-GCM', length:256 }, false, ['encrypt','decrypt']);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt({ name:'AES-GCM', iv }, aesKey, new TextEncoder().encode(pin));
+
+  await _idbSet('aesKey', aesKey);
+  await _idbSet('pinCipher', { iv, ciphertext });
+  localStorage.setItem('wp_biometric_credId', _bufToB64url(cred.rawId));
+  localStorage.setItem('wp_biometric_uid', CURRENT_USER.uid);
+
+  try{
+    await FB.updateDoc(FB.doc(FB.db,'users',CURRENT_USER.uid), { biometricEnabled: true });
+    if(PROFILE) PROFILE.biometricEnabled = true;
+  }catch(e){ /* informational field only — never block on this */ }
+}
+
+async function disableBiometric(){
+  await _idbDelete('aesKey').catch(()=>{});
+  await _idbDelete('pinCipher').catch(()=>{});
+  localStorage.removeItem('wp_biometric_credId');
+  localStorage.removeItem('wp_biometric_uid');
+  if(CURRENT_USER){
+    try{ await FB.updateDoc(FB.doc(FB.db,'users',CURRENT_USER.uid), { biometricEnabled: false }); }catch(e){}
+    if(PROFILE) PROFILE.biometricEnabled = false;
+  }
+}
+
+// Prompts fingerprint/Face ID. Returns the decrypted PIN string on
+// success, or null on cancel/failure/mismatch — every call demands a
+// fresh, live biometric check from the OS, never a cached one.
+async function verifyBiometricAndGetPin(){
+  const credIdB64 = localStorage.getItem('wp_biometric_credId');
+  if(!credIdB64) return null;
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  try{
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ id: _b64urlToBuf(credIdB64), type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+    if(!assertion) return null;
+  }catch(e){
+    return null;
+  }
+  try{
+    const aesKey = await _idbGet('aesKey');
+    const cipher = await _idbGet('pinCipher');
+    if(!aesKey || !cipher) return null;
+    const plain = await crypto.subtle.decrypt({ name:'AES-GCM', iv: cipher.iv }, aesKey, cipher.ciphertext);
+    return new TextDecoder().decode(plain);
+  }catch(e){
+    return null;
+  }
+}
+
+// Same fingerprint prompt, used purely as an identity gate for unlocking
+// the app screen — no PIN involved, just "did the OS confirm this is you".
+async function verifyBiometricPresenceOnly(){
+  const credIdB64 = localStorage.getItem('wp_biometric_credId');
+  if(!credIdB64) return false;
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  try{
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ id: _b64urlToBuf(credIdB64), type: 'public-key' }],
+        userVerification: 'required',
+        timeout: 60000
+      }
+    });
+    return !!assertion;
+  }catch(e){
+    return false;
+  }
+}
+
+// Called right before any money moves. Tries fingerprint first if it's
+// enabled on this device; falls back to the PIN sheet (create/enter) if
+// biometrics aren't set up, fail, or are cancelled.
+async function requirePinThen(action){
   _pendingPinAction = action;
+  if(biometricAvailableForThisAccount()){
+    const pin = await verifyBiometricAndGetPin();
+    if(pin){
+      _pendingPinAction = null;
+      action(pin);
+      return;
+    }
+    // Fingerprint failed/cancelled — fall through to manual PIN entry
+    // below rather than dead-ending the transaction.
+  }
   if(PROFILE && PROFILE.pinHash){
     document.getElementById('pinEnterInput').value = '';
     document.getElementById('pinEnterError').style.display = 'none';
