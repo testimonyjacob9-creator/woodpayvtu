@@ -2040,7 +2040,7 @@ async function sendVerifyCode(uid, email, name){
   const now = Date.now();
   if(now - _lastVerifySend < 60000 && _lastVerifySend !== 0){
     toast('Please wait a moment before requesting another code.', 'info');
-    return;
+    return false;
   }
   _lastVerifySend = now;
   try{
@@ -2049,16 +2049,19 @@ async function sendVerifyCode(uid, email, name){
       body: JSON.stringify({ action:'send', uid, email, name })
     });
     const data = await res.json();
-    if(!data.ok){ console.error('Verify code send error:', data.error); }
+    if(!data.ok){ console.error('Verify code send error:', data.error); return false; }
+    return true;
   }catch(e){
     console.error('Verify code send fetch failed:', e);
+    return false;
   }
 }
 
-function resendVerifyCode(){
+async function resendVerifyCode(){
   if(!CURRENT_USER) return;
-  sendVerifyCode(CURRENT_USER.uid, CURRENT_USER.email, PROFILE?.name || CURRENT_USER.displayName || '');
-  toast('The email has been sent — check your email.', 'ok');
+  const success = await sendVerifyCode(CURRENT_USER.uid, CURRENT_USER.email, PROFILE?.name || CURRENT_USER.displayName || '');
+  if(success) toast('The email has been sent — check your email.', 'ok');
+  else toast('Could not send the email — please try again in a moment.', 'err');
 }
 
 async function confirmVerifyCode(){
