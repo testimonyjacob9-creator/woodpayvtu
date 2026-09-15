@@ -44,7 +44,12 @@ async function sendEmail(to, name, code) {
         htmlContent: html
       })
     });
-    return { ok: res.ok };
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '');
+      console.error(`email-verify: Brevo returned ${res.status}:`, errBody);
+      return { ok: false, error: `Brevo ${res.status}: ${errBody}` };
+    }
+    return { ok: true };
   } catch (e) {
     console.error('email-verify send error:', e.message);
     return { ok: false, error: e.message };
@@ -78,7 +83,23 @@ exports.handler = async (event) => {
 
     try {
       await db.collection('emailVerifyCodes').doc(uid).set({ code: newCode, expiresAt, email });
-      await sendEmail(email, name, newCode);
+      const sendResult = await sendEmail(email, name, newCode);
+      if (!sendResult.ok) {
+        console.error('email-verify: Brevo send failed:', sendResult.error);
+        return {
+          statusCode: 502,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ok: false, error: 'Could not send the verification email — please try again in a moment.' })
+        };
+      }
+      if (sendResult.skipped) {
+        console.error('email-verify: BREVO_API_KEY or BREVO_SENDER_EMAIL not set on this site — email was never sent.');
+        return {
+          statusCode: 500,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ok: false, error: 'Email sending isn\'t configured yet — contact support.' })
+        };
+      }
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
