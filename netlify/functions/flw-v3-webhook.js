@@ -48,6 +48,28 @@ const { sendAdminFailureAlert } = require('./_adminAlert');
 
 const FLW_WEBHOOK_SECRET_HASH = process.env.FLW_WEBHOOK_SECRET_HASH || '';
 
+// Flutterwave only allows ONE webhook URL per account (per Live/Test mode).
+// Olvra Boost runs on the same Flutterwave account as WoodPayVTU, so any
+// charge that isn't a WoodPay user's transfer might well be an Olvra Boost
+// one — forward it there instead of silently dropping it. Olvra's own
+// function does its own signature check and reference matching, so this is
+// just a pass-through; if it's not an Olvra charge either, Olvra's webhook
+// logs it as unmatched exactly like this one does.
+const OLVRA_BOOST_WEBHOOK_URL = 'https://olvraboost.netlify.app/.netlify/functions/flutterwave-webhook';
+
+async function forwardToOlvraBoost(rawBody, signature, reference) {
+  try {
+    const res = await fetch(OLVRA_BOOST_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'verif-hash': signature },
+      body: rawBody
+    });
+    console.log('flw-v3-webhook: forwarded unmatched charge to Olvra Boost', { reference, olvraStatus: res.status });
+  } catch (e) {
+    console.error('flw-v3-webhook: failed to forward to Olvra Boost', { reference, error: e.message });
+  }
+}
+
 // Must match FEE_RATE in create-virtual-account.js / create-permanent-account.js.
 // For dynamic accounts the customer pays amount+fee upfront (fee added on).
 // For a static/permanent account there's no "requested amount" ahead of
@@ -68,12 +90,7 @@ function extractDestinationAccountNumber(data) {
   return candidates.find(v => typeof v === 'string' && v.length > 0) || null;
 }
 
-async function handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount, chargeId) {
-  if (status !== 'successful') {
-    console.warn('flw-v3-webhook: no matching pending transaction and status is not successful', { reference, status });
-    return { statusCode: 200, body: 'No matching transaction' };
-  }
-
+async function handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount, chargeId, rawBody, signature) {
   const destinationAccountNumber = extractDestinationAccountNumber(data);
 
   // Primary match: the reused static-account creation reference (tx_ref).
@@ -91,9 +108,19 @@ async function handlePossibleStaticAccountTransfer(db, payload, data, reference,
       .get();
   }
 
+  // Checked BEFORE the status check on purpose — we need to know whether
+  // this is even a WoodPay user before deciding whether to forward it
+  // elsewhere. A non-successful charge for an unmatched reference should
+  // still be forwarded (Olvra's webhook makes its own call on status).
   if (userQuery.empty) {
-    console.warn('flw-v3-webhook: no user found for reference / destination account', { reference, destinationAccountNumber, fullPayload: JSON.stringify(data) });
-    return { statusCode: 200, body: 'No matching user for static transfer' };
+    console.warn('flw-v3-webhook: no WoodPay user found for reference / destination account — forwarding to Olvra Boost', { reference, destinationAccountNumber });
+    await forwardToOlvraBoost(rawBody, signature, reference);
+    return { statusCode: 200, body: 'No matching WoodPay user — forwarded to Olvra Boost' };
+  }
+
+  if (status !== 'successful') {
+    console.warn('flw-v3-webhook: matched WoodPay static account but status is not successful', { reference, status });
+    return { statusCode: 200, body: 'Matched WoodPay user but status not successful' };
   }
 
   const userDoc = userQuery.docs[0];
@@ -236,7 +263,7 @@ exports.handler = async (event) => {
       .get();
 
     if (txQuery.empty) {
-      return await handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount, chargeId);
+      return await handlePossibleStaticAccountTransfer(db, payload, data, reference, status, amount, chargeId, rawBody, signature);
     }
 
     const txDoc = txQuery.docs[0];
