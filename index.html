@@ -5834,6 +5834,13 @@ const CHATBOT_FAQ = {
 let chatHistory = [];
 let pendingChatAttachment = null; // { base64, name, mime }
 
+// Bumped on every Home/reset so in-flight async work (a transaction fetch,
+// an escalation email) that resolves after the user has already left that
+// screen just no-ops instead of dropping a stale bubble into the fresh
+// conversation. Async chat functions capture this at the start and check
+// it again before touching the DOM.
+let __CHAT_GEN = 0;
+
 function toggleChatbot(){
   document.getElementById('chatbotWidget').classList.toggle('hide');
   document.getElementById('chatbotButton').classList.toggle('active');
@@ -5854,6 +5861,94 @@ function sendQuickMessage(message){
 function chatQuickNav(screen){
   toggleChatbot();
   go(screen);
+}
+
+// Clears everything about the CURRENT conversation — flow, selected
+// transaction, pending action, in-progress attachment — without touching
+// the user's session or WoodPay account in any way.
+function resetChatState(){
+  __CHAT_GEN++;
+  __CHAT_TX_LIST = [];
+  __CHAT_TX_CURSOR = null;
+  pendingChatAttachment = null;
+  renderChatAttachChip();
+  const input = document.getElementById('chatInput');
+  if(input) input.value = '';
+  document.getElementById('typingIndicator')?.remove();
+  chatHistory = [];
+  try{ localStorage.removeItem('woodpay-chat-history'); }catch(e){}
+}
+
+// Redraws the Olives home/welcome screen with the main menu — the one
+// screen every flow can always get back to.
+function renderChatHome(){
+  const messagesDiv = document.getElementById('chatMessages');
+  if(!messagesDiv) return;
+  messagesDiv.innerHTML = `
+    <div class="chatbot-message bot">
+      <span>Hi, I'm Olives 🫒 I can help with wallet funding, transactions, withdrawals, referrals, and connecting you to our support team. Ask me anything, or pick an option below.</span>
+    </div>
+    <div class="chatbot-quick-actions" id="chatMainMenuActions">
+      <button class="quick-btn" onclick="chatOpenFundWallet()">💰 Fund Wallet</button>
+      <button class="quick-btn" onclick="chatMenuShowTransactions()">📋 My Transactions</button>
+      <button class="quick-btn" onclick="chatMenuCheckTransaction()">🔍 Check Transaction</button>
+      <button class="quick-btn" onclick="chatOpenWithdraw()">🏦 Withdraw</button>
+      <button class="quick-btn" onclick="chatOpenReferrals()">🤝 Referrals</button>
+      <button class="quick-btn" onclick="chatMenuTalkToSupport()">💬 Talk to Support</button>
+    </div>`;
+  messagesDiv.scrollTop = 0;
+}
+
+// The permanent "Home" action — always visible in the header, works from
+// inside any flow, and never requires closing/reopening Olives.
+function chatGoHome(){
+  resetChatState();
+  renderChatHome();
+}
+
+function removeChatMainMenu(){
+  document.getElementById('chatMainMenuActions')?.remove();
+}
+
+// --- Main-menu actions -------------------------------------------------
+// Fund Wallet / Withdraw / Referrals are real actions, not FAQ text, so
+// they take the user straight to the existing screen/sheet instead of
+// making them read instructions first — same reasoning chatQuickNav
+// already uses for "My transactions".
+function chatOpenFundWallet(){
+  removeChatMainMenu();
+  toggleChatbot();
+  openFundWallet();
+}
+function chatOpenWithdraw(){
+  removeChatMainMenu();
+  toggleChatbot();
+  openWithdraw();
+}
+function chatOpenReferrals(){
+  removeChatMainMenu();
+  toggleChatbot();
+  go('referral');
+}
+function chatMenuShowTransactions(){
+  removeChatMainMenu();
+  chatShowTransactions();
+}
+function chatMenuCheckTransaction(){
+  removeChatMainMenu();
+  addChatMessage('Which transaction would you like me to check?', 'bot');
+  chatShowTransactions();
+}
+// Shared by the main-menu button and the "talk to a human"/"contact
+// support" text-matches in sendChatMessage, so there's one place that
+// decides what happens when the user asks for a person.
+function chatTalkToSupport(reference, status){
+  addChatMessage('Sure — connecting you with our support team.', 'bot');
+  chatHumanAgent(reference || null, status || null);
+}
+function chatMenuTalkToSupport(){
+  removeChatMainMenu();
+  chatTalkToSupport(null, null);
 }
 
 /* ============================================================
@@ -5904,6 +5999,7 @@ function renderChatTxList(){
 
 async function chatLoadMoreTransactions(){
   if(!CURRENT_USER || !__CHAT_TX_LIST.length) return;
+  const gen = __CHAT_GEN;
   showTypingIndicator();
   try{
     const lastItem = __CHAT_TX_LIST[__CHAT_TX_LIST.length - 1];
@@ -5920,6 +6016,7 @@ async function chatLoadMoreTransactions(){
     const snap = await FB.getDocs(q);
     const more = [];
     snap.forEach(d => more.push({id:d.id, ...d.data()}));
+    if(gen !== __CHAT_GEN) return; // user hit Home while this was loading
     document.getElementById('typingIndicator')?.remove();
     __CHAT_TX_LIST = __CHAT_TX_LIST.concat(more);
     // Remove the old list bubble (with its now-stale "Load more" button) and redraw.
@@ -5931,12 +6028,14 @@ async function chatLoadMoreTransactions(){
       renderChatTxList();
     }
   }catch(e){
+    if(gen !== __CHAT_GEN) return;
     document.getElementById('typingIndicator')?.remove();
     addChatMessage("Couldn't load more right now — please try again in a moment.", 'bot');
   }
 }
 
 async function chatSelectTransaction(txId){
+  const gen = __CHAT_GEN;
   showTypingIndicator();
   let t = null;
   try{
@@ -5948,6 +6047,7 @@ async function chatSelectTransaction(txId){
       t = { id: snap.id, ...snap.data() };
     }
   }catch(e){ /* fall through to cache below */ }
+  if(gen !== __CHAT_GEN) return; // user hit Home while this was loading
   if(!t) t = __CHAT_TX_LIST.find(x => x.id === txId) || null;
   document.getElementById('typingIndicator')?.remove();
   if(!t){
@@ -5962,11 +6062,19 @@ function chatCheckStatusAgain(txId){
   chatSelectTransaction(txId);
 }
 
+// Back from a transaction's detail view to the list it came from — reuses
+// the already-loaded __CHAT_TX_LIST rather than re-fetching.
+function chatBackToTxList(){
+  if(!__CHAT_TX_LIST.length){ chatShowTransactions(); return; }
+  renderChatTxList();
+}
+
 function renderChatTxDetail(t){
   const messagesDiv = document.getElementById('chatMessages');
   const wrap = document.createElement('div');
   wrap.className = 'chatbot-message bot';
   const statusWord = t.status === 'success' ? 'Successful' : t.status === 'failed' ? 'Failed' : t.status === 'refunded' ? 'Refunded' : 'Pending';
+  const hasList = __CHAT_TX_LIST.length > 0;
   wrap.innerHTML = `<span style="display:block; padding:0;">
     <div style="padding:10px 12px 8px;">
       <b>${txLabel(t)}</b>
@@ -5979,6 +6087,7 @@ function renderChatTxDetail(t){
     <div style="display:flex; gap:6px; padding:0 12px 10px; flex-wrap:wrap;">
       ${t.status!=='success' ? `<button class="quick-btn" onclick="chatCheckStatusAgain('${t.id}')">Check status again</button>` : ''}
       <button class="quick-btn" onclick="chatHumanAgent('${escapeHtml(t.txRef||t.id)}','${statusWord}')">Talk to a human agent</button>
+      ${hasList ? `<button class="quick-btn" onclick="chatBackToTxList()">⬅ Back to transactions</button>` : ''}
     </div>
   </span>`;
   messagesDiv.appendChild(wrap);
@@ -6055,6 +6164,8 @@ function sendChatMessage(){
   const attachment = pendingChatAttachment;
   if(!message && !attachment) return;
 
+  const gen = __CHAT_GEN;
+
   // Add user message to chat (with a thumbnail if a screenshot was attached)
   addChatMessage(message || '(screenshot attached)', 'user', attachment);
   input.value = '';
@@ -6069,7 +6180,7 @@ function sendChatMessage(){
   // A screenshot means the issue needs human eyes — skip FAQ matching and
   // go straight to support, same as tapping "Email this to support" would.
   if(attachment){
-    setTimeout(() => escalateToSupport(message || 'Screenshot attached — see attached image.', attachment), 500);
+    setTimeout(() => { if(gen !== __CHAT_GEN) return; escalateToSupport(message || 'Screenshot attached — see attached image.', attachment); }, 500);
     return;
   }
 
@@ -6084,16 +6195,18 @@ function sendChatMessage(){
   // transaction" quick action into showing the list instead of its
   // intended FAQ answer — caught during the verification pass, fixed here.
   if(/\bmy transactions\b|\btransaction history\b|\b(show|check|view|list)\b.*\bmy transactions\b/.test(q)){
-    setTimeout(() => { document.getElementById('typingIndicator')?.remove(); chatShowTransactions(); }, 400);
+    setTimeout(() => { if(gen !== __CHAT_GEN) return; document.getElementById('typingIndicator')?.remove(); chatShowTransactions(); }, 400);
     return;
   }
   if(/\b(human|agent|talk to (someone|support)|connect me to support|talk to support)\b/.test(q)){
-    setTimeout(() => { document.getElementById('typingIndicator')?.remove(); addChatMessage("Sure — connecting you with our support team.", 'bot'); chatHumanAgent(null, null); }, 400);
+    setTimeout(() => { if(gen !== __CHAT_GEN) return; document.getElementById('typingIndicator')?.remove(); chatTalkToSupport(null, null); }, 400);
     return;
   }
 
   // Get bot response
   setTimeout(() => {
+    if(gen !== __CHAT_GEN) return;
+    document.getElementById('typingIndicator')?.remove();
     const response = getChatbotResponse(message);
     addChatMessage(response, 'bot');
     chatHistory.push({role: 'bot', content: response, timestamp: new Date().toISOString()});
@@ -6176,6 +6289,7 @@ function appendEscalateAction(lastUserMessage){
 // `contactMessages` either way, and best-effort emailed with replyTo set
 // to the user's own address so support can just hit reply.
 async function escalateToSupport(message, attachment){
+  const gen = __CHAT_GEN;
   showTypingIndicator();
   const user = typeof FB !== 'undefined' && FB.auth.currentUser;
   const userEmail = user?.email || (typeof PROFILE !== 'undefined' && PROFILE.email) || 'unknown@user.com';
@@ -6192,6 +6306,7 @@ async function escalateToSupport(message, attachment){
       })
     });
     const ok = res.ok;
+    if(gen !== __CHAT_GEN) return; // user hit Home while this was sending
     document.getElementById('typingIndicator')?.remove();
     const confirmMsg = ok
       ? `✅ Forwarded to our support team — they'll reply to ${userEmail} directly. Average response time: 2-4 hours.`
@@ -6200,6 +6315,7 @@ async function escalateToSupport(message, attachment){
     chatHistory.push({role: 'bot', content: confirmMsg, timestamp: new Date().toISOString()});
     saveChatHistory();
   }catch(e){
+    if(gen !== __CHAT_GEN) return;
     document.getElementById('typingIndicator')?.remove();
     addChatMessage('⚠️ Could not send automatically. Please WhatsApp us at +234 904 677 2152 or email vtusupport@gmail.com.', 'bot');
   }
@@ -6250,6 +6366,15 @@ window.sendChatMessage = sendChatMessage;
 window.handleChatFileSelect = handleChatFileSelect;
 window.removeChatAttachment = removeChatAttachment;
 window.escalateToSupport = escalateToSupport;
+window.chatGoHome = chatGoHome;
+window.chatOpenFundWallet = chatOpenFundWallet;
+window.chatOpenWithdraw = chatOpenWithdraw;
+window.chatOpenReferrals = chatOpenReferrals;
+window.chatMenuShowTransactions = chatMenuShowTransactions;
+window.chatMenuCheckTransaction = chatMenuCheckTransaction;
+window.chatMenuTalkToSupport = chatMenuTalkToSupport;
+window.chatTalkToSupport = chatTalkToSupport;
+window.chatBackToTxList = chatBackToTxList;
 
 /* ============================================================
    THEME TOGGLE — Light/Dark Mode
@@ -6870,20 +6995,23 @@ if('serviceWorker' in navigator){
           <p style="font-size:11px; margin:2px 0 0; color:var(--text-mute);">WoodPay support · Usually replies instantly</p>
         </div>
       </div>
-      <button class="icon-btn" onclick="toggleChatbot()" style="width:32px; height:32px; flex:none;" aria-label="Close chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg></button>
+      <div style="display:flex; gap:4px; flex:none;">
+        <button class="icon-btn" onclick="chatGoHome()" style="width:32px; height:32px; flex:none;" title="Main menu" aria-label="Return to Olives home"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6H9v6H5a1 1 0 01-1-1v-9z" stroke-linejoin="round"/></svg></button>
+        <button class="icon-btn" onclick="toggleChatbot()" style="width:32px; height:32px; flex:none;" aria-label="Close chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg></button>
+      </div>
     </div>
     
     <div class="chatbot-messages" id="chatMessages">
       <div class="chatbot-message bot">
-        <span>Hi, I'm Olives 🫒 Ask me about WoodPay, or drop a screenshot if something's not working and I'll pass it straight to our team.</span>
+        <span>Hi, I'm Olives 🫒 I can help with wallet funding, transactions, withdrawals, referrals, and connecting you to our support team. Ask me anything, or pick an option below.</span>
       </div>
-      <div class="chatbot-quick-actions">
-        <button class="quick-btn" onclick="sendQuickMessage('How do I fund my wallet?')">Fund wallet</button>
-        <button class="quick-btn" onclick="chatShowTransactions()">My transactions</button>
-        <button class="quick-btn" onclick="sendQuickMessage('How do I withdraw?')">Withdraw</button>
-        <button class="quick-btn" onclick="sendQuickMessage('Why is my transaction pending?')">Pending transaction</button>
-        <button class="quick-btn" onclick="sendQuickMessage('How does referral work?')">Referrals</button>
-        <button class="quick-btn" onclick="sendQuickMessage('Contact support')">Contact support</button>
+      <div class="chatbot-quick-actions" id="chatMainMenuActions">
+        <button class="quick-btn" onclick="chatOpenFundWallet()">💰 Fund Wallet</button>
+        <button class="quick-btn" onclick="chatMenuShowTransactions()">📋 My Transactions</button>
+        <button class="quick-btn" onclick="chatMenuCheckTransaction()">🔍 Check Transaction</button>
+        <button class="quick-btn" onclick="chatOpenWithdraw()">🏦 Withdraw</button>
+        <button class="quick-btn" onclick="chatOpenReferrals()">🤝 Referrals</button>
+        <button class="quick-btn" onclick="chatMenuTalkToSupport()">💬 Talk to Support</button>
       </div>
     </div>
 
