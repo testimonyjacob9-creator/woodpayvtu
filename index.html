@@ -6077,7 +6077,13 @@ function sendChatMessage(){
   // text — handle them before the keyword matcher gets a chance to answer
   // with a generic paragraph instead.
   const q = (message||'').toLowerCase();
-  if(/my transactions?|transaction history|show.*transactions?|check.*transactions?/.test(q)){
+  // Narrow and specific on purpose — must name "transactions" (plural) or
+  // "transaction history" as a genuine browse-my-list request. A looser
+  // version of this also matched "why is my transaction pending?"
+  // (singular "transaction"), which hijacked the existing "Pending
+  // transaction" quick action into showing the list instead of its
+  // intended FAQ answer — caught during the verification pass, fixed here.
+  if(/\bmy transactions\b|\btransaction history\b|\b(show|check|view|list)\b.*\bmy transactions\b/.test(q)){
     setTimeout(() => { document.getElementById('typingIndicator')?.remove(); chatShowTransactions(); }, 400);
     return;
   }
