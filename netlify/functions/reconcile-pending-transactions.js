@@ -26,7 +26,7 @@ const BIGISUB_BASE = 'https://api.bigisub.ng/';
 const BIGISUB_TOKEN = process.env.BIGISUB_TOKEN || '';
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || '';
-const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'vtusurpport@gmail.com';
+const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'vtusupport@gmail.com';
 
 const STUCK_AFTER_MS = 3 * 60 * 1000;         // ignore anything younger than this — still likely in-flight
 const MANUAL_REVIEW_AFTER_MS = 30 * 60 * 1000; // only nag admin about un-confirmable ones once they're this old

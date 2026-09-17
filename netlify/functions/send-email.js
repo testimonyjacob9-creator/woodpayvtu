@@ -28,9 +28,9 @@
 // names (RESEND_API_KEY / RESEND_FROM), which were never set, so every
 // email silently no-op'd while callers still reported success.
 //   BREVO_API_KEY       - your Brevo API key
-//   BREVO_SENDER_EMAIL  - verified sender address, e.g. vtusurpport@gmail.com
+//   BREVO_SENDER_EMAIL  - verified sender address, e.g. vtusupport@gmail.com
 //   ADMIN_NOTIFY_EMAIL  - inbox that should receive contact-form messages
-//                        (defaults to vtusurpport@gmail.com below — the
+//                        (defaults to vtusupport@gmail.com below — the
 //                        address already shown to users in the in-app FAQ)
 // Without BREVO_API_KEY set, contact messages still land in Firestore —
 // you just won't get an email ping, which is why checking the admin
@@ -41,7 +41,7 @@ const { sendAdminFailureAlert } = require('./_adminAlert');
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || '';
-const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'vtusurpport@gmail.com';
+const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'vtusupport@gmail.com';
 
 async function sendViaBrevo({ to, replyTo, subject, html, attachment }) {
   if (!BREVO_API_KEY || !BREVO_SENDER_EMAIL) return { ok: false, skipped: true, reason: 'BREVO_API_KEY or BREVO_SENDER_EMAIL not set' };

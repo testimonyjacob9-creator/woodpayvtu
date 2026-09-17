@@ -653,6 +653,18 @@ async function enterDashboard(){
   // can't read it from here. This function uses the Admin SDK server-side
   // to check on our behalf. If anything goes wrong, fail SAFE toward
   // subadmin (more restricted), never toward owner.
+  //
+  // SECURITY FIX: this used to only branch on data.role === 'owner', so
+  // ANY successfully signed-in Firebase user — including an ordinary
+  // WoodPay customer, since this is the same Firebase project as the
+  // customer app — fell through to 'subadmin' and was shown the dashboard,
+  // because data.isAdmin (false for a non-admin) was never actually
+  // checked. The client-side portal passcode does not fix this: it's a
+  // plain string in this file's own source, visible to anyone who views
+  // it, so it only stops casual visitors, not someone reading the page
+  // source. Real authorization must be data.isAdmin === true — a genuine
+  // "not an admin at all" now signs the account back out and shows an
+  // error, instead of quietly granting subadmin-level UI access.
   try {
     const idToken = await FB.auth.currentUser.getIdToken();
     const res = await fetch('/.netlify/functions/get-admin-role', {
@@ -661,9 +673,31 @@ async function enterDashboard(){
       body: JSON.stringify({ idToken })
     });
     const data = await res.json();
-    ADMIN_ROLE = (data.ok && data.role === 'owner') ? 'owner' : 'subadmin';
+    if (!data.ok || !data.isAdmin) {
+      // Not in the admins/{uid} allowlist at all — reject, don't downgrade.
+      sessionStorage.removeItem('wp_admin_ok');
+      sessionOK = false;
+      document.getElementById('adminShell').classList.remove('show');
+      await FB.signOut(FB.auth);
+      const err = document.getElementById('gateError');
+      document.getElementById('gate').style.display = '';
+      err.textContent = 'This account is not authorized for admin access.';
+      err.style.display = 'block';
+      return;
+    }
+    ADMIN_ROLE = data.role === 'owner' ? 'owner' : 'subadmin';
   } catch (e) {
-    ADMIN_ROLE = 'subadmin';
+    // Network/lookup failure — fail closed, not open. We can't confirm
+    // admin status, so don't leave the dashboard showing.
+    sessionStorage.removeItem('wp_admin_ok');
+    sessionOK = false;
+    document.getElementById('adminShell').classList.remove('show');
+    await FB.signOut(FB.auth).catch(()=>{});
+    const err = document.getElementById('gateError');
+    document.getElementById('gate').style.display = '';
+    err.textContent = 'Could not verify admin access. Please try signing in again.';
+    err.style.display = 'block';
+    return;
   }
 
   const settlementNavItems = document.querySelectorAll('[data-tab="settlement"]');

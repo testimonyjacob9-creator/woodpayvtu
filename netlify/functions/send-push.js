@@ -15,7 +15,7 @@ const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 // original hardcoded values so nothing breaks if they're not set yet.
 const VAPID_PUBLIC  = process.env.VAPID_PUBLIC_KEY  || 'BJDn0ER_blc2Ga4onqhSEfEdO-GtO0QtrTwtW7BDDzNB-lMgeAJXUOh6xctoA5nqpit42hF4m1g8NK1XUuydmrQ';
 const VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || 'RVpf4kLdZCWo_BkdSYa3WzBfixIRRHO_NOERvMdqVZA';
-const VAPID_SUBJECT = 'mailto:vtusurpport@gmail.com';
+const VAPID_SUBJECT = 'mailto:vtusupport@gmail.com';
 
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
 

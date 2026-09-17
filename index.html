@@ -426,6 +426,15 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 .type-tabs::-webkit-scrollbar{ display:none; }
 .type-tab{ flex:0 0 auto; padding:8px 14px; border-radius:20px; font-size:12.5px; font-weight:600; cursor:pointer; border:1.5px solid var(--border); color:var(--text-dim); background:var(--glass); white-space:nowrap; }
 .type-tab.sel{ border-color:var(--blue); background:rgba(79,124,255,.12); color:var(--text); }
+.hist-search{ display:flex; align-items:center; gap:10px; padding:13px 15px; border-radius:14px; background:rgba(255,255,255,.10); border:1px solid var(--border); margin-bottom:12px; color:var(--text-mute); }
+.hist-search input{ flex:1; min-width:0; background:none; border:none; outline:none; color:var(--text); font-size:14px; font-family:inherit; }
+.hist-search input::placeholder{ color:var(--text-mute); }
+.hist-more-row{ display:flex; align-items:center; justify-content:space-between; margin:2px 4px 4px; }
+.hist-filters-panel{ padding:14px; margin:10px 0 4px; border-radius:14px; background:var(--glass); border:1px solid var(--border); animation:filterOpen .18s ease; }
+@keyframes filterOpen{ from{ opacity:0; transform:translateY(-6px); } to{ opacity:1; transform:translateY(0); } }
+.hist-filters-panel select{ width:100%; padding:13px 14px; border-radius:12px; background:rgba(255,255,255,.10); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:13.5px; cursor:pointer; }
+.hist-filters-panel input[type="date"]{ width:100%; padding:12px 12px; border-radius:12px; background:rgba(255,255,255,.10); border:1px solid var(--border); color:var(--text); font-family:inherit; font-size:12.5px; }
+@media (prefers-reduced-motion: reduce){ .hist-filters-panel{ animation:none; } }
 
 .sticky-pay{ position:sticky; bottom:78px; padding-top:14px; z-index:5; }
 .summary-line{ display:flex; justify-content:space-between; font-size:13.5px; padding:6px 2px; color:var(--text-dim); }
@@ -503,7 +512,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 
 /* ========== CHATBOT WIDGET ========== */
 .chatbot-button{
-  position:fixed; bottom:80px; right:20px; z-index:80; width:56px; height:56px; border-radius:50%;
+  position:fixed; bottom:calc(80px + env(safe-area-inset-bottom)); right:20px; z-index:80; width:56px; height:56px; border-radius:50%;
   background:linear-gradient(135deg, var(--yellow-primary), var(--blue));
   display:flex; align-items:center; justify-content:center; cursor:pointer;
   box-shadow:0 4px 20px rgba(255,215,0,.3);
@@ -514,25 +523,27 @@ body.sheet-open .chatbot-button{ display:none; }
 @keyframes float{ 0%,100%{transform:translateY(0);} 50%{transform:translateY(-8px);} }
 
 .chatbot-widget{
-  position:fixed; bottom:100px; right:20px; z-index:99; width:320px; height:400px;
+  position:fixed; bottom:calc(100px + env(safe-area-inset-bottom)); right:20px; z-index:99; width:320px; height:min(460px, 62vh);
   background:var(--panel); border:1px solid var(--border); border-radius:var(--radius-lg);
   display:flex; flex-direction:column; box-shadow:0 10px 50px rgba(0,0,0,.4);
-  animation:slideUp .3s ease-out;
+  animation:slideUp .25s ease-out; transform-origin:bottom right;
 }
 .chatbot-widget.bottom-position{
   bottom:20px; right:20px; left:auto;
 }
-@keyframes slideUp{ from{transform:translateY(20px); opacity:0;} to{transform:translateY(0); opacity:1;} }
+@keyframes slideUp{ from{transform:translateY(16px) scale(.97); opacity:0;} to{transform:translateY(0) scale(1); opacity:1;} }
 
 .chatbot-header{
-  padding:12px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:flex-start;
+  padding:12px 14px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:10px;
   background:linear-gradient(135deg, rgba(255,215,0,.08), rgba(79,124,255,.08));
 }
+.chatbot-header-id{ display:flex; align-items:center; gap:10px; min-width:0; }
+.chatbot-avatar{ width:32px; height:32px; border-radius:50%; flex:none; display:flex; align-items:center; justify-content:center; font-size:16px; background:var(--glass); border:1px solid var(--border); }
 .chatbot-header b{ display:block; font-size:13px; margin-bottom:2px; }
 .chatbot-header span{ font-size:11px; color:var(--text-dim); }
 
 .chatbot-messages{
-  flex:1; overflow-y:auto; padding:12px; display:flex; flex-direction:column; gap:10px; font-size:13px;
+  flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; padding:12px; display:flex; flex-direction:column; gap:10px; font-size:13px;
 }
 .chatbot-message{
   display:flex; gap:6px; animation:slideIn .2s ease-out;
@@ -542,15 +553,15 @@ body.sheet-open .chatbot-button{ display:none; }
 
 .chatbot-message.user{ align-self:flex-end; flex-direction:row-reverse; }
 .chatbot-message.user span{
-  background:var(--blue); color:white; padding:8px 12px; border-radius:12px 12px 2px 12px;
-  font-size:12px; word-wrap:break-word;
+  background:var(--blue); color:white; padding:9px 12px; border-radius:14px 14px 3px 14px;
+  font-size:12.5px; word-wrap:break-word; line-height:1.42;
 }
 .chatbot-message.bot span{
-  background:var(--glass); color:var(--text); padding:8px 12px; border-radius:12px 12px 12px 2px;
-  font-size:12px; word-wrap:break-word; line-height:1.3;
+  background:var(--glass); color:var(--text); padding:9px 12px; border-radius:14px 14px 14px 3px;
+  font-size:12.5px; word-wrap:break-word; line-height:1.42;
 }
 .chatbot-message.bot.thinking span{
-  display:inline-block; padding:8px 12px;
+  display:inline-block; padding:10px 14px;
 }
 .loading-dots{ display:inline-block; }
 .loading-dots span{ display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--text-mute); margin:0 2px; animation:bounce .6s infinite; }
@@ -562,18 +573,19 @@ body.sheet-open .chatbot-button{ display:none; }
   display:grid; grid-template-columns:1fr 1fr; gap:6px; padding:0 6px 6px;
 }
 .quick-btn{
-  border:1px solid var(--border); background:var(--glass); color:var(--text-dim); padding:7px 8px;
-  border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; transition:.2s;
+  border:1px solid var(--border); background:var(--glass); color:var(--text-dim); padding:8px 8px;
+  border-radius:10px; font-size:11px; font-weight:600; cursor:pointer; transition:.2s; min-height:34px;
 }
 .quick-btn:hover{ background:var(--glass-hi); color:var(--text); border-color:var(--border-hi); }
+.quick-btn:active{ transform:scale(.97); }
 
 .chatbot-input-area{
   padding:10px; border-top:1px solid var(--border); display:flex; gap:6px; align-items:center;
-  background:rgba(255,255,255,.02);
+  background:rgba(255,255,255,.02); padding-bottom:calc(10px + env(safe-area-inset-bottom));
 }
 .chatbot-input{
-  flex:1; padding:8px 10px; border:1px solid var(--border); border-radius:8px;
-  background:var(--panel-2); color:var(--text); font-size:12px; font-family:inherit;
+  flex:1; padding:9px 10px; border:1px solid var(--border); border-radius:10px;
+  background:var(--panel-2); color:var(--text); font-size:13px; font-family:inherit; min-height:38px;
 }
 .chatbot-input:focus{ border-color:var(--blue); outline:none; }
 .chat-attach-chip{
@@ -584,11 +596,28 @@ body.sheet-open .chatbot-button{ display:none; }
 .chat-attach-chip .caption{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .chat-attach-chip .remove{ cursor:pointer; color:var(--text-mute); font-weight:700; padding:0 2px; }
 .chatbot-message.user img.chat-shot-thumb{ display:block; max-width:140px; border-radius:10px; margin-top:6px; }
+.chat-tx-list{ display:flex; flex-direction:column; }
+.chat-tx-row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 12px; cursor:pointer; border-top:1px solid var(--border); transition:.15s; }
+.chat-tx-row:first-child{ border-top:none; }
+.chat-tx-row:hover{ background:rgba(255,255,255,.04); }
+.chat-tx-row:active{ background:rgba(255,255,255,.07); }
+.chat-tx-row-mid{ display:flex; flex-direction:column; gap:2px; min-width:0; }
+.chat-tx-row-mid b{ font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:150px; }
+.chat-tx-row-mid span{ font-size:10.5px; color:var(--text-mute); }
+.chat-tx-row-amt{ display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:none; }
+.chat-tx-row-amt b{ font-size:12px; }
 
 @media(max-width:480px){
-  .chatbot-widget{ width:calc(100vw - 32px); max-width:320px; height:360px; bottom:100px; }
+  .chatbot-widget{ width:calc(100vw - 24px); max-width:400px; height:min(70vh, 520px); right:12px; bottom:calc(88px + env(safe-area-inset-bottom)); }
+  .chatbot-button{ right:16px; }
   .chatbot-messages{ padding:10px; }
-  .chatbot-quick-actions{ grid-template-columns:1fr; }
+  .chatbot-quick-actions{ grid-template-columns:1fr 1fr; }
+}
+@media (prefers-reduced-motion: reduce){
+  .chatbot-button{ animation:none; }
+  .chatbot-widget{ animation:none; }
+  .chatbot-message{ animation:none; }
+  .loading-dots span{ animation:none; opacity:.6; }
 }
 
 /* ============ Notifications ============ */
@@ -632,8 +661,9 @@ body.sheet-open .chatbot-button{ display:none; }
 .notif-title{ font-weight:600; font-size:14px; margin-bottom:4px; color:var(--text); }
 .notif-body{ font-size:13px; color:var(--text-dim); line-height:1.4; margin-bottom:8px; }
 .notif-time{ font-size:11px; color:var(--text-mute); }
-.notif-close{ cursor:pointer; color:var(--text-mute); font-size:18px; flex-shrink:0; transition:.2s; }
-.notif-close:hover{ color:var(--text); }
+.notif-close{ cursor:pointer; color:var(--text-mute); font-size:15px; flex-shrink:0; transition:.2s; width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:50%; margin:-6px -6px 0 0; }
+.notif-close:hover{ color:var(--text); background:rgba(255,255,255,.08); }
+@media (prefers-reduced-motion: reduce){ .notification-item{ animation:none; } }
 
 .notification-badge{
   position:absolute; top:-2px; right:-2px; background:var(--danger); color:white;
@@ -1004,7 +1034,7 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ BUY DATA ============ -->
   <section class="screen" id="screen-data">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Buy Data</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Buy Data</h2></div>
     <div id="buyAgainCard"></div>
     <div class="net-grid" id="dataNetGrid"></div>
     <div id="dataRateBar"></div>
@@ -1021,7 +1051,7 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ BUY AIRTIME ============ -->
   <section class="screen" id="screen-airtime">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Buy Airtime</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Buy Airtime</h2></div>
     <div class="net-grid" id="airtimeNetGrid"></div>
     <div id="airtimeRateBar"></div>
     <div class="field"><label>Phone number</label><input type="tel" id="airtimePhone" placeholder="08065702702" maxlength="11"></div>
@@ -1036,7 +1066,7 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ CABLE TV ============ -->
   <section class="screen" id="screen-cable">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Cable TV</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Cable TV</h2></div>
     <div class="net-grid" id="cableNetGrid"></div>
     <div class="field"><label>Smartcard / IUC number</label><input type="text" id="cableCard" placeholder="Enter smartcard number"></div>
     <div class="eyebrow" style="margin-bottom:10px;">Select a package</div>
@@ -1049,7 +1079,7 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ ELECTRICITY ============ -->
   <section class="screen" id="screen-electricity">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Electricity</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Electricity</h2></div>
     <div class="field"><label>Distribution company</label>
       <select id="discoSelect"></select>
     </div>
@@ -1071,7 +1101,7 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ RESULT CHECKER ============ -->
   <section class="screen" id="screen-resultchecker">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Result Checker</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Result Checker</h2></div>
     <div class="eyebrow" style="margin-bottom:10px;">Exam type</div>
     <div class="glass" id="rcExamDropdown" onclick="document.getElementById('rcExamGrid').scrollIntoView({behavior:'smooth', block:'nearest'})" style="display:flex; align-items:center; justify-content:space-between; padding:15px 16px; margin-bottom:14px; cursor:pointer;">
       <span id="rcExamDropdownLabel" style="color:var(--text-mute); font-size:14px;">Select exam type</span>
@@ -1095,7 +1125,7 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ RECHARGE PIN ============ -->
   <section class="screen" id="screen-rechargepin">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Recharge Pin</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Recharge Pin</h2></div>
     <p class="hint" style="margin:2px 4px 16px;">Bulk airtime PINs for printing &amp; resale — buy in bulk, print or share the PIN, and load any phone by dialing it in.</p>
     <div class="net-grid" id="rpNetGrid"></div>
     <div class="eyebrow" style="margin-bottom:10px;">Select denomination</div>
@@ -1121,7 +1151,7 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ BETTING ============ -->
   <section class="screen" id="screen-betting">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Betting Wallet</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Betting Wallet</h2></div>
     <div class="eyebrow" style="margin-bottom:10px;">Select platform</div>
     <div id="btLoadState" class="hint mb0"></div>
     <div class="net-grid" style="grid-template-columns:repeat(3,1fr);" id="btBillerGrid"></div>
@@ -1136,7 +1166,7 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ ISP ============ -->
   <section class="screen" id="screen-isp">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>ISP Top-up</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>ISP Top-up</h2></div>
     <div class="net-grid" style="grid-template-columns:repeat(2,1fr);" id="ispProvGrid"></div>
     <div class="field" id="ispAccountField" style="display:none;"><label id="ispAccountLabel">Account ID</label><input type="text" id="ispAccountId" placeholder="Enter your account/router ID"></div>
     <div class="eyebrow" style="margin-bottom:10px;">Select plan</div>
@@ -1150,7 +1180,53 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ HISTORY ============ -->
   <section class="screen" id="screen-history">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Transaction history</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Transaction history</h2></div>
+
+    <!-- Search -->
+    <div class="hist-search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="17" height="17"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg>
+      <input type="text" id="histSearch" placeholder="Search by reference, phone, meter…" oninput="onHistoryFilterChange()">
+      <svg id="histSearchClear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="16" height="16" class="hide" onclick="clearHistorySearch()" style="cursor:pointer; flex:none;"><path d="M6 6l12 12M18 6L6 18" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- Status pills -->
+    <div class="type-tabs" id="histStatusTabs">
+      <div class="type-tab sel" data-status="all" onclick="setHistoryStatus('all')">All</div>
+      <div class="type-tab" data-status="success" onclick="setHistoryStatus('success')">Successful</div>
+      <div class="type-tab" data-status="pending" onclick="setHistoryStatus('pending')">Pending</div>
+      <div class="type-tab" data-status="failed" onclick="setHistoryStatus('failed')">Failed</div>
+    </div>
+
+    <!-- More filters (collapsed by default) -->
+    <div class="hist-more-row">
+      <span class="back-link" style="margin-top:0;" onclick="toggleHistoryFilters()"><span id="histFiltersToggleLabel">More filters</span> <svg id="histFiltersChevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" style="transition:transform .2s;"><path d="M6 9l6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="back-link hide" id="histClearFiltersBtn" style="margin-top:0;" onclick="clearHistoryFilters()">Clear filters</span>
+    </div>
+    <div class="hist-filters-panel hide" id="histFiltersPanel">
+      <div class="field" style="margin-bottom:12px;">
+        <label>Service</label>
+        <select id="histServiceFilter" onchange="onHistoryFilterChange()">
+          <option value="all">All services</option>
+          <option value="data">Data</option>
+          <option value="airtime">Airtime</option>
+          <option value="cable">Cable TV</option>
+          <option value="electricity">Electricity</option>
+          <option value="resultchecker">Result checker</option>
+          <option value="rechargepin">Recharge pin</option>
+          <option value="betting">Betting</option>
+          <option value="isp">ISP top-up</option>
+          <option value="wallet_funding_group">Wallet funding</option>
+          <option value="withdrawal">Withdrawal</option>
+          <option value="p2p">Wallet transfer</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <div class="field" style="margin-bottom:0; flex:1;"><label>From</label><input type="date" id="histDateFrom" onchange="onHistoryFilterChange()"></div>
+        <div class="field" style="margin-bottom:0; flex:1;"><label>To</label><input type="date" id="histDateTo" onchange="onHistoryFilterChange()"></div>
+      </div>
+    </div>
+
+    <div class="hint" id="histResultCount" style="margin:2px 4px 10px;"></div>
     <div class="glass" id="historyWrap" style="padding:2px 4px; min-height:120px;">
       <div class="empty" id="historyEmpty"><div class="ei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h12v18l-2-1-2 1-2-1-2 1-2-1-2 1V3z"/><path d="M9 8h6M9 12h6" stroke-linecap="round"/></svg></div>No transactions yet</div>
     </div>
@@ -1159,7 +1235,7 @@ body.sheet-open .chatbot-button{ display:none; }
   <!-- ============ NOTIFICATIONS ============ -->
   <section class="screen" id="screen-notifications">
     <div class="screen-head">
-      <span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <h2>Notifications</h2>
       <span class="back-link" style="margin-left:auto; font-size:12.5px;" id="notifMarkAllBtn" onclick="markAllNotificationsRead()">Mark all read</span>
     </div>
@@ -1168,7 +1244,7 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ REFERRAL ============ -->
   <section class="screen" id="screen-referral">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Refer & Earn 🤝</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Refer & Earn 🤝</h2></div>
     
     <!-- Earnings Card -->
     <div class="glass" style="padding:28px 22px; text-align:center; background:linear-gradient(160deg, rgba(255,215,0,.14), rgba(79,124,255,.08));">
@@ -1257,11 +1333,11 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ SUPPORT ============ -->
   <section class="screen" id="screen-support">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Get Support</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Get Support</h2></div>
     <p style="color:var(--text-mute); font-size:13px; margin-bottom:20px; padding:0 20px;">Choose how you'd like to reach us:</p>
     
     <div style="padding:0 20px; display:flex; flex-direction:column; gap:12px;">
-      <button class="btn btn-ghost" style="width:100%; justify-content:flex-start; text-align:left; padding:16px;" onclick="window.location.href='mailto:vtusurpport@gmail.com'"><span style="font-size:20px;">✉️</span><div style="flex:1; padding-left:12px;"><b>Email Support</b><div style="font-size:12px; color:var(--text-mute);">vtusurpport@gmail.com</div></div></button>
+      <button class="btn btn-ghost" style="width:100%; justify-content:flex-start; text-align:left; padding:16px;" onclick="window.location.href='mailto:vtusupport@gmail.com'"><span style="font-size:20px;">✉️</span><div style="flex:1; padding-left:12px;"><b>Email Support</b><div style="font-size:12px; color:var(--text-mute);">vtusupport@gmail.com</div></div></button>
       <button class="btn btn-ghost" style="width:100%; justify-content:flex-start; text-align:left; padding:16px;" onclick="openContactForm()"><span style="font-size:20px;">📝</span><div style="flex:1; padding-left:12px;"><b>Contact Form</b><div style="font-size:12px; color:var(--text-mute);">Send us a message</div></div></button>
       <button class="btn btn-ghost" style="width:100%; justify-content:flex-start; text-align:left; padding:16px;" onclick="openChatBot()"><span style="font-size:20px;">💬</span><div style="flex:1; padding-left:12px;"><b>Chat Support</b><div style="font-size:12px; color:var(--text-mute);">Talk to our chatbot</div></div></button>
     </div>
@@ -1269,14 +1345,14 @@ body.sheet-open .chatbot-button{ display:none; }
 
   <!-- ============ CONTACT ============ -->
   <section class="screen" id="screen-contact">
-    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Contact Us</h2></div>
+    <div class="screen-head"><span class="icon-btn" onclick="go('dashboard')" role="button" tabindex="0" aria-label="Back"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg></span><h2>Contact Us</h2></div>
     
     <div style="padding:20px;">
       <!-- Quick Contact Methods -->
       <div style="margin-bottom:24px;">
         <h3 style="font-size:14px; font-weight:700; margin-bottom:12px; color:var(--text);">Quick Contact</h3>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
-          <div style="background:var(--glass); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; text-align:center; cursor:pointer; transition:.2s;" onclick="window.location.href='mailto:vtusurpport@gmail.com'">
+          <div style="background:var(--glass); border:1px solid var(--border); border-radius:var(--radius-sm); padding:12px; text-align:center; cursor:pointer; transition:.2s;" onclick="window.location.href='mailto:vtusupport@gmail.com'">
             <div style="font-size:22px; margin-bottom:6px;">✉️</div>
             <div style="font-size:11px; color:var(--text-dim);">Email</div>
           </div>
@@ -1301,7 +1377,7 @@ body.sheet-open .chatbot-button{ display:none; }
         <div style="background:var(--glass); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px;">
           <div style="margin-bottom:12px;">
             <div style="font-size:11px; color:var(--text-mute); margin-bottom:4px;">EMAIL</div>
-            <div style="font-size:13px; color:var(--text);">vtusurpport@gmail.com</div>
+            <div style="font-size:13px; color:var(--text);">vtusupport@gmail.com</div>
           </div>
           <div style="margin-bottom:12px;">
             <div style="font-size:11px; color:var(--text-mute); margin-bottom:4px;">PHONE / WHATSAPP</div>
@@ -1686,7 +1762,7 @@ import {
 import {
   getFirestore, doc, setDoc, getDoc, updateDoc, addDoc, deleteDoc, collection,
   query, where, orderBy, limit, getDocs, serverTimestamp, increment, onSnapshot,
-  Timestamp
+  Timestamp, startAfter
 } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -1707,7 +1783,7 @@ window.FB = {
   createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged,
   updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider,
   doc, setDoc, getDoc, updateDoc, addDoc, deleteDoc, collection, query, where, orderBy, limit,
-  getDocs, serverTimestamp, increment, onSnapshot, Timestamp
+  getDocs, serverTimestamp, increment, onSnapshot, Timestamp, startAfter
 };
 window.dispatchEvent(new Event('fb-ready'));
 </script>
@@ -1851,6 +1927,14 @@ function rpMarkupPct(qty){
 function markupPrice(buy, pct){ return Math.round((Number(buy||0) * (1 + pct)) / 5) * 5; }
 
 function naira(n){ return Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+// Escapes any string before it's dropped into an innerHTML template — used
+// wherever a value could originate from user input (names typed at signup,
+// bank/account names, withdrawal notification text) rather than a fixed
+// internal label, so a crafted string can never execute as markup.
+function escapeHtml(str){
+  if(str === null || str === undefined) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
 function digitsOnly(v){ return String(v||'').replace(/\D/g, ''); }
 function genRef(prefix){ return prefix + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2,7).toUpperCase(); }
 function genReferralCode(name){ return (name||'WP').replace(/[^a-zA-Z]/g,'').slice(0,4).toUpperCase() + Math.floor(1000+Math.random()*9000); }
@@ -2458,16 +2542,97 @@ function txLabel(t){
   if(t.type==='wallet_funding') return 'Wallet funding';
   if(t.type==='wallet_funding_v4' || t.type==='wallet_funding_dynamic') return 'Wallet funding (transfer)';
   if(t.type==='wallet_funding_static') return 'Wallet funding (permanent account)';
-  if(t.type==='admin_credit' || t.type==='admin_debit') return t.description || 'From WoodPay';
-  if(t.type==='withdrawal') return `Withdrawal to ${t.bankName||'bank'} — ${t.accountName||''}`;
-  if(t.type==='p2p_sent' || t.type==='p2p_received') return t.description || 'Wallet transfer';
+  if(t.type==='admin_credit' || t.type==='admin_debit') return escapeHtml(t.description) || 'From WoodPay';
+  if(t.type==='withdrawal') return `Withdrawal to ${escapeHtml(t.bankName)||'bank'} — ${escapeHtml(t.accountName)||''}`;
+  if(t.type==='p2p_sent' || t.type==='p2p_received') return escapeHtml(t.description) || 'Wallet transfer';
   return 'Transaction';
 }
 function renderHistory(){ renderHistoryList(window.__TX_CACHE||[]); }
+
+/* ============================================================
+   TRANSACTION HISTORY FILTERS — search / status / service / date.
+   Filters run client-side over window.__TX_CACHE (the live 50-item
+   Firestore listener result); nothing here touches the query itself.
+   ============================================================ */
+const HIST_SERVICE_GROUPS = {
+  wallet_funding_group: ['wallet_funding','wallet_funding_v4','wallet_funding_dynamic','wallet_funding_static','admin_credit'],
+  p2p: ['p2p_sent','p2p_received','admin_debit']
+};
+let __HIST_FILTERS = { status:'all', service:'all', from:'', to:'', search:'' };
+let __histSearchDebounce = null;
+
+function onHistoryFilterChange(){
+  clearTimeout(__histSearchDebounce);
+  __histSearchDebounce = setTimeout(()=>{
+    __HIST_FILTERS.search = (document.getElementById('histSearch').value||'').trim().toLowerCase();
+    __HIST_FILTERS.service = document.getElementById('histServiceFilter').value;
+    __HIST_FILTERS.from = document.getElementById('histDateFrom').value;
+    __HIST_FILTERS.to = document.getElementById('histDateTo').value;
+    document.getElementById('histSearchClear').classList.toggle('hide', !__HIST_FILTERS.search);
+    renderHistory();
+  }, 150);
+}
+function setHistoryStatus(status){
+  __HIST_FILTERS.status = status;
+  document.querySelectorAll('#histStatusTabs .type-tab').forEach(el => el.classList.toggle('sel', el.dataset.status===status));
+  renderHistory();
+}
+function clearHistorySearch(){
+  document.getElementById('histSearch').value = '';
+  onHistoryFilterChange();
+}
+function toggleHistoryFilters(){
+  const panel = document.getElementById('histFiltersPanel');
+  const chevron = document.getElementById('histFiltersChevron');
+  const open = panel.classList.toggle('hide') === false;
+  chevron.style.transform = open ? 'rotate(180deg)' : 'rotate(0deg)';
+}
+function clearHistoryFilters(){
+  document.getElementById('histServiceFilter').value = 'all';
+  document.getElementById('histDateFrom').value = '';
+  document.getElementById('histDateTo').value = '';
+  onHistoryFilterChange();
+  document.getElementById('histClearFiltersBtn').classList.add('hide');
+}
+function historyFiltersActive(){
+  return __HIST_FILTERS.service !== 'all' || !!__HIST_FILTERS.from || !!__HIST_FILTERS.to;
+}
+function applyHistoryFilters(items){
+  const f = __HIST_FILTERS;
+  return items.filter(t => {
+    if(f.status !== 'all' && (t.status||'pending') !== f.status) return false;
+    if(f.service !== 'all'){
+      const group = HIST_SERVICE_GROUPS[f.service];
+      if(group){ if(!group.includes(t.type)) return false; }
+      else if(t.type !== f.service) return false;
+    }
+    if(f.from || f.to){
+      const d = t.createdAt?.toDate ? t.createdAt.toDate() : null;
+      if(!d) return false;
+      const dayStr = d.toISOString().slice(0,10);
+      if(f.from && dayStr < f.from) return false;
+      if(f.to && dayStr > f.to) return false;
+    }
+    if(f.search){
+      const haystack = [txLabel(t), t.phone, t.meterNumber, t.smartcard, t.accountId, t.customerId, t.bankName, t.accountName, t.txRef, t.id]
+        .filter(Boolean).join(' ').toLowerCase();
+      if(!haystack.includes(f.search)) return false;
+    }
+    return true;
+  });
+}
 function renderHistoryList(items){
   const wrap = document.getElementById('historyWrap');
+  const countEl = document.getElementById('histResultCount');
+  const filtersOn = historyFiltersActive() || __HIST_FILTERS.status!=='all' || !!__HIST_FILTERS.search;
+  document.getElementById('histClearFiltersBtn')?.classList.toggle('hide', !historyFiltersActive());
+
+  const filtered = applyHistoryFilters(items);
+  if(countEl) countEl.textContent = items.length ? `${filtered.length} of ${items.length} transaction${items.length===1?'':'s'}` : '';
+
   if(!items.length){ wrap.innerHTML = `<div class="empty"><div class="ei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 3h12v18l-2-1-2 1-2-1-2 1-2-1-2 1V3z"/><path d="M9 8h6M9 12h6" stroke-linecap="round"/></svg></div>No transactions yet</div>`; return; }
-  wrap.innerHTML = items.map(t => `
+  if(!filtered.length){ wrap.innerHTML = `<div class="empty"><div class="ei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3" stroke-linecap="round"/></svg></div>No transactions match these filters${filtersOn ? '<br><span class="back-link" style="margin-top:10px; display:inline-flex;" onclick="clearHistorySearch(); clearHistoryFilters(); setHistoryStatus(\'all\');">Clear all filters</span>' : ''}</div>`; return; }
+  wrap.innerHTML = filtered.map(t => `
     <div class="tx-row" onclick="openTxReceipt('${t.id}')" style="cursor:pointer;">
       <div class="tx-icon" style="background:rgba(255,255,255,.05); color:var(--text-dim);">${txIcon(t.type)}</div>
       <div class="tx-mid"><b>${txLabel(t)}</b><span>${fmtDate(t.createdAt)}</span></div>
@@ -2517,14 +2682,14 @@ function txDetailLines(t){
     if(t.planLabel) lines.push(['Plan', t.planLabel]);
   }
   if(t.type==='withdrawal'){
-    if(t.bankName) lines.push(['Bank', t.bankName]);
-    if(t.accountNumber) lines.push(['Account number', t.accountNumber]);
-    if(t.accountName) lines.push(['Account name', t.accountName]);
+    if(t.bankName) lines.push(['Bank', escapeHtml(t.bankName)]);
+    if(t.accountNumber) lines.push(['Account number', escapeHtml(t.accountNumber)]);
+    if(t.accountName) lines.push(['Account name', escapeHtml(t.accountName)]);
     if(t.status==='pending') lines.push(['Status', 'Pending — paid out within 24 hours']);
     if(t.status==='failed') lines.push(['Status', 'Declined — amount refunded to wallet']);
   }
   const customerName = t.providerExtra?.customerName;
-  if(customerName) lines.push(['Verified name', customerName]);
+  if(customerName) lines.push(['Verified name', escapeHtml(customerName)]);
   return lines;
 }
 
@@ -2560,6 +2725,7 @@ function renderTxReceipt(t){
   const detailLines = txDetailLines(t).map(([label,val]) =>
     `<div class="summary-line"><span>${label}</span><b>${val}</b></div>`).join('');
 
+  window.__LAST_RECEIPT_TX = t;
   inner.innerHTML = `
     <div class="sheet-handle"></div>
     <div class="result-card">
@@ -2567,7 +2733,7 @@ function renderTxReceipt(t){
       <h3 style="font-size:20px;">${statusMeta.title}</h3>
       <p style="margin-top:8px;">${statusMeta.sub}</p>
       <div class="glass" style="text-align:left; padding:16px; margin-top:22px;">
-        <div class="summary-line"><span>Reference</span><b class="mono" style="font-size:12.5px;">${t.txRef||t.id}</b></div>
+        <div class="summary-line" style="align-items:center;"><span>Reference</span><span style="display:flex; align-items:center; gap:6px;"><b class="mono" style="font-size:12.5px;">${t.txRef||t.id}</b><svg onclick="copyTxReference()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" width="14" height="14" style="cursor:pointer; color:var(--text-mute); flex:none;"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a2 2 0 012-2h10"/></svg></span></div>
         <div class="summary-line"><span>Service</span><b>${txLabel(t)}</b></div>
         <div class="summary-line"><span>Amount</span><b>₦${naira(t.amount)}</b></div>
         <div class="summary-line"><span>Status</span><b>${txBadge(status)}</b></div>
@@ -2576,9 +2742,29 @@ function renderTxReceipt(t){
       </div>
       ${tokenBlock}
       ${pinsBlock}
-      ${status !== 'success' ? `<button class="btn btn-ghost mt16" onclick="closeSheet('txReceiptSheet'); go('contact');">Need help? Contact support</button>` : ''}
+      <div style="display:flex; gap:10px; margin-top:16px;">
+        <button class="btn btn-ghost" style="flex:1;" onclick="shareTxReceipt()">Share receipt</button>
+        ${status !== 'success' ? `<button class="btn btn-ghost" style="flex:1;" onclick="closeSheet('txReceiptSheet'); go('contact');">Get help</button>` : ''}
+      </div>
       <button class="btn btn-primary mt16" onclick="closeSheet('txReceiptSheet')">Done</button>
     </div>`;
+}
+function copyTxReference(){
+  const t = window.__LAST_RECEIPT_TX;
+  if(!t) return;
+  navigator.clipboard.writeText(t.txRef||t.id).then(()=> toast('Reference copied', 'ok'));
+}
+function shareTxReceipt(){
+  const t = window.__LAST_RECEIPT_TX;
+  if(!t) return;
+  const status = t.status || 'pending';
+  const statusLabel = status==='success' ? 'Successful' : status==='failed' ? 'Failed' : 'Pending';
+  const text = `WoodPay Receipt\n${txLabel(t)}\nAmount: ₦${naira(t.amount)}\nStatus: ${statusLabel}\nDate: ${fmtDate(t.createdAt)}\nReference: ${t.txRef||t.id}`;
+  if(navigator.share){
+    navigator.share({ title:'WoodPay Receipt', text }).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(text).then(()=> toast('Receipt copied — paste it anywhere', 'ok'));
+  }
 }
 
 /* ============================================================
@@ -3687,6 +3873,10 @@ async function handleFlutterwaveComplete(response, ref, payload){
   if(verify.ok){
     // Play notification sound for payment received
     if(window.playNotificationSound) window.playNotificationSound();
+    // Carried through so wallet-credit.js can independently re-verify this
+    // exact Flutterwave charge server-side before crediting — see the
+    // SECURITY note above wallet-credit's wallet_funding branch below.
+    payload._flwTransactionId = response.transaction_id;
     await processDelivery(payload, ref);
   } else {
     // Play error sound for payment verification failure
@@ -4948,15 +5138,18 @@ processDelivery = async function(payload, paymentRef){
   if(payload.type==='wallet_funding'){
     showLoader('Confirming payment…');
     try{
-      // Credit happens server-side — wallet-credit verifies the user's ID token
-      // before writing, so a fake browser call cannot inflate the balance.
+      // Credit happens server-side — wallet-credit independently re-verifies
+      // this exact charge with Flutterwave (and checks it hasn't been
+      // credited before) rather than trusting delta/paymentRef from the
+      // browser. See the SECURITY comment in wallet-credit.js.
       const idToken = await CURRENT_USER.getIdToken();
       const res = await fetch('/.netlify/functions/wallet-credit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           idToken, uid: CURRENT_USER.uid, delta: payload.amount,
-          reason: 'Wallet funding via Flutterwave', type: 'wallet_funding', paymentRef
+          reason: 'Wallet funding via Flutterwave', type: 'wallet_funding',
+          paymentRef, transactionId: payload._flwTransactionId
         })
       });
       const data = await res.json();
@@ -5593,43 +5786,47 @@ async function changePassword(){
    ============================================================ */
 const CHATBOT_FAQ = {
   'how do i buy data': {
-    answer: '📱 To buy data:\n1. Go to Dashboard → Data\n2. Select your network (MTN, Airtel, etc)\n3. Choose a plan and enter your phone number\n4. Tap "Pay now"\n5. Complete payment (wallet or card)\n6. Data arrives in seconds!\n\nNeed help with a specific network?',
+    answer: 'To buy data:\n1. Go to Dashboard → Data\n2. Select your network (MTN, Airtel, Glo, 9mobile)\n3. Choose a plan and enter your phone number\n4. Tap "Pay now" and confirm\n\nData usually arrives within seconds. Need help with a specific network?',
     tags: ['data', 'buy', 'purchase', 'network']
   },
   'how do i buy airtime': {
-    answer: '☎️ To buy airtime:\n1. Go to Dashboard → Airtime\n2. Select your network\n3. Enter the amount (₦100 - ₦50,000)\n4. Tap "Pay now"\n5. Confirm payment\n6. Airtime lands instantly!\n\nProblems with airtime?',
+    answer: 'To buy airtime:\n1. Go to Dashboard → Airtime\n2. Select your network\n3. Enter the amount\n4. Tap "Pay now" and confirm\n\nIt lands instantly in most cases. Having trouble with a specific top-up?',
     tags: ['airtime', 'buy', 'phone', 'credit']
   },
   'transaction issue': {
-    answer: '❌ Sorry you\'re having issues! Here are common fixes:\n\n✓ Check your transaction history (Dashboard → History)\n✓ Verify your phone number is correct\n✓ Ensure wallet has enough balance\n✓ Try a different payment method\n✓ Check if your account is verified\n\nStill stuck? I can help escalate to support. What exactly happened?',
+    answer: 'Sorry you\'re running into trouble. A few things to check first:\n- Your transaction history (Dashboard → History) for the actual status\n- That the phone number or meter you entered is correct\n- That your wallet had enough balance at the time\n\nStill stuck? Tell me what happened and I can pass it to our team.',
     tags: ['transaction', 'failed', 'error', 'problem', 'issue', 'stuck']
   },
   'how does referral work': {
-    answer: '🤝 Earn money through referrals!\n\n✓ Share your referral code with friends\n✓ They create an account using your code\n✓ For every transaction above ₦1,000 they make, you get ₦29\n✓ Earnings appear instantly in your wallet\n✓ Unlimited referrals = unlimited earnings!\n\nFind your referral code in Dashboard → Referrals',
+    answer: 'Here\'s how referrals work:\n- Share your referral code with friends\n- They sign up using your code\n- When they make a transaction above ₦1,000, you earn ₦29 instantly\n- No cap on how many people you refer\n\nYou\'ll find your code under Dashboard → Referrals.',
     tags: ['referral', 'earn', 'money', 'code', 'friend', 'reward']
   },
   'how do i reset my password': {
-    answer: '🔐 Forgot your password? No problem!\n\n1. On Sign In screen, tap "Forgot password?"\n2. Enter your email address\n3. Click the reset link in your email\n4. Create a new password (6+ characters)\n5. Sign in with your new password\n\nDidn\'t receive the email? Check your spam folder or contact support.',
+    answer: 'To reset your password:\n1. On the Sign In screen, tap "Forgot password?"\n2. Enter your email address\n3. Open the reset link we send you\n4. Set a new password (6+ characters)\n\nDidn\'t get the email? Check spam, or contact support.',
     tags: ['password', 'reset', 'forgot', 'login', 'email']
   },
   'how do i verify my email': {
-    answer: '✉️ Email verification is required for security:\n\n1. Sign up with your email\n2. We send a 6-digit code to your email\n3. Enter the code in the verification screen\n4. Your account is now active!\n\nNo code received? Tap "Resend code" or check spam folder.',
+    answer: 'Email verification is required for account security:\n1. Sign up with your email\n2. We send a 6-digit code to that address\n3. Enter it on the verification screen\n\nNo code received? Tap "Resend code" or check spam.',
     tags: ['verify', 'email', 'code', 'verification', 'account']
   },
   'what is a transaction pin': {
-    answer: '🔑 Transaction PIN is a 4-digit code for security:\n\n✓ Protects your wallet from unauthorized purchases\n✓ You create it during your first purchase\n✓ Required for every transaction\n✓ Can be reset if forgotten\n\nKeep it secret! Don\'t share with anyone, not even WoodPay staff.',
+    answer: 'Your transaction PIN is a 4-digit code that protects your wallet from unauthorized purchases. You set it during your first purchase, and it\'s required for every transaction after that. Keep it private — WoodPay staff will never ask you for it.',
     tags: ['pin', 'transaction', 'security', 'code', '4-digit']
   },
   'how do i fund my wallet': {
-    answer: '💰 Fund your wallet to buy faster:\n\n1. Go to Dashboard → Wallet Card → "Fund wallet"\n2. Enter amount (₦100 minimum)\n3. Choose payment method (card or Flutterwave)\n4. Complete payment\n5. Money appears instantly in your wallet\n\nWallet balance = no delays, instant delivery!',
+    answer: 'To fund your wallet:\n1. Go to Dashboard → "Fund wallet"\n2. Enter an amount\n3. Pay by card, transfer, or your permanent account\n\nFunding by card or transfer usually reflects instantly.',
     tags: ['fund', 'wallet', 'money', 'balance', 'payment']
   },
+  'how do i withdraw': {
+    answer: 'To withdraw from your wallet:\n1. Go to Dashboard → "Withdraw"\n2. Enter the amount and your bank details\n3. Confirm\n\nWithdrawals are usually paid out within 24 hours. If one is declined, the amount is refunded straight back to your wallet.',
+    tags: ['withdraw', 'withdrawal', 'bank', 'cash out', 'payout']
+  },
   'why is my transaction pending': {
-    answer: '⏳ Pending means your transaction is being processed:\n\n✓ Usually completes within 2-5 minutes\n✓ Check your phone for the service (data/airtime may already be there!)\n✓ Don\'t make another purchase - wait for this to complete\n✓ Check Transaction History for updates\n\nStuck after 10 minutes? Contact support and provide your transaction reference.',
+    answer: 'Pending means it\'s still being processed:\n- Most transactions complete within a few minutes\n- Check Transaction History for live updates — no need to retry\n- If it\'s still pending after 10+ minutes, contact support with the reference number',
     tags: ['pending', 'transaction', 'processing', 'wait', 'slow']
   },
   'contact support': {
-    answer: '📞 How would you like to reach our support team?\n\n✉️ Email: vtusurpport@gmail.com\n💬 WhatsApp: +234 904 677 2152\n📧 Use the contact form in the app (tap Contact Us on login screen)\n\nAverage response time: 2-4 hours',
+    answer: 'You can reach our support team here:\n- Email: vtusupport@gmail.com\n- WhatsApp: +234 904 677 2152\n- The contact form in the app (Support → Contact Form)\n\nAverage response time is 2–4 hours.',
     tags: ['support', 'contact', 'help', 'assistance', 'ticket']
   }
 };
@@ -5649,6 +5846,167 @@ function toggleChatbot(){
 function sendQuickMessage(message){
   document.getElementById('chatInput').value = message;
   sendChatMessage();
+}
+
+// For quick actions that are really navigation ("My transactions") rather
+// than a question — closes the widget and takes the user straight there
+// instead of answering in chat, since that's the more useful outcome.
+function chatQuickNav(screen){
+  toggleChatbot();
+  go(screen);
+}
+
+/* ============================================================
+   OLIVES — TRANSACTION-AWARE SUPPORT
+   Reuses the SAME live listener/cache index.html already keeps for the
+   History screen (window.__TX_CACHE, from listenTransactions() — a
+   Firestore query filtered to where('userId','==',CURRENT_USER.uid)).
+   Nothing here queries by an arbitrary reference the user types, and
+   nothing here is scoped by anything other than the signed-in uid, so
+   there's no path for one user to pull up another user's transaction
+   from chat. "Check status again" re-reads the same document by its
+   Firestore doc ID (which the user could only have if it was already in
+   their own cache) and re-verifies userId server-side-equivalent (client
+   SDK read still governed by Firestore rules) before displaying it.
+   ============================================================ */
+let __CHAT_TX_LIST = [];      // this chat session's working list (cache + any loaded-more pages)
+let __CHAT_TX_CURSOR = null;  // last doc snapshot, for startAfter pagination
+
+function chatShowTransactions(){
+  __CHAT_TX_LIST = (window.__TX_CACHE || []).slice();
+  __CHAT_TX_CURSOR = null; // fresh cache read each time chat asks for this, so "load more" starts from a known position
+  renderChatTxList();
+}
+
+function renderChatTxList(){
+  const messagesDiv = document.getElementById('chatMessages');
+  if(!__CHAT_TX_LIST.length){
+    addChatMessage("You don't have any transactions yet — once you make a purchase or fund your wallet, they'll show up here.", 'bot');
+    return;
+  }
+  const wrap = document.createElement('div');
+  wrap.className = 'chatbot-message bot';
+  const canLoadMore = __CHAT_TX_LIST.length % 50 === 0; // cache/page came back full — there may be more
+  wrap.innerHTML = `<span style="display:block; padding:0;">
+    <b style="display:block; padding:9px 12px 4px;">Your recent transactions</b>
+    <div class="chat-tx-list">
+      ${__CHAT_TX_LIST.map(t => `
+        <div class="chat-tx-row" onclick="chatSelectTransaction('${t.id}')">
+          <div class="chat-tx-row-mid"><b>${txLabel(t)}</b><span>${fmtDate(t.createdAt)}</span></div>
+          <div class="chat-tx-row-amt"><b>₦${naira(t.amount)}</b>${txBadge(t.status)}</div>
+        </div>`).join('')}
+    </div>
+    ${canLoadMore ? `<button class="quick-btn" style="margin:8px 12px 10px; width:calc(100% - 24px);" onclick="chatLoadMoreTransactions()">Load more</button>` : ''}
+  </span>`;
+  messagesDiv.appendChild(wrap);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+async function chatLoadMoreTransactions(){
+  if(!CURRENT_USER || !__CHAT_TX_LIST.length) return;
+  showTypingIndicator();
+  try{
+    const lastItem = __CHAT_TX_LIST[__CHAT_TX_LIST.length - 1];
+    // Need the actual doc snapshot for startAfter — re-fetch it by ID once
+    // rather than keeping every snapshot around in memory.
+    const lastDocSnap = await FB.getDoc(FB.doc(FB.db, 'transactions', lastItem.id));
+    const q = FB.query(
+      FB.collection(FB.db,'transactions'),
+      FB.where('userId','==',CURRENT_USER.uid),
+      FB.orderBy('createdAt','desc'),
+      FB.startAfter(lastDocSnap),
+      FB.limit(50)
+    );
+    const snap = await FB.getDocs(q);
+    const more = [];
+    snap.forEach(d => more.push({id:d.id, ...d.data()}));
+    document.getElementById('typingIndicator')?.remove();
+    __CHAT_TX_LIST = __CHAT_TX_LIST.concat(more);
+    // Remove the old list bubble (with its now-stale "Load more" button) and redraw.
+    const oldLists = document.querySelectorAll('#chatMessages .chat-tx-list');
+    if(oldLists.length) oldLists[oldLists.length-1].closest('.chatbot-message')?.remove();
+    if(!more.length){
+      addChatMessage("That's all your transactions.", 'bot');
+    } else {
+      renderChatTxList();
+    }
+  }catch(e){
+    document.getElementById('typingIndicator')?.remove();
+    addChatMessage("Couldn't load more right now — please try again in a moment.", 'bot');
+  }
+}
+
+async function chatSelectTransaction(txId){
+  showTypingIndicator();
+  let t = null;
+  try{
+    // Fresh read rather than trusting the in-memory copy, so status reflects
+    // anything that's changed since the list was rendered (e.g. the 20-minute
+    // pending-transaction reconcile job, or a webhook that landed just now).
+    const snap = await FB.getDoc(FB.doc(FB.db, 'transactions', txId));
+    if(snap.exists() && snap.data().userId === CURRENT_USER.uid){
+      t = { id: snap.id, ...snap.data() };
+    }
+  }catch(e){ /* fall through to cache below */ }
+  if(!t) t = __CHAT_TX_LIST.find(x => x.id === txId) || null;
+  document.getElementById('typingIndicator')?.remove();
+  if(!t){
+    addChatMessage("I couldn't find that transaction — it may be too old to load here. Check Transaction History in the app, or I can connect you to support.", 'bot');
+    appendChatHumanAgentAction(null);
+    return;
+  }
+  renderChatTxDetail(t);
+}
+
+function chatCheckStatusAgain(txId){
+  chatSelectTransaction(txId);
+}
+
+function renderChatTxDetail(t){
+  const messagesDiv = document.getElementById('chatMessages');
+  const wrap = document.createElement('div');
+  wrap.className = 'chatbot-message bot';
+  const statusWord = t.status === 'success' ? 'Successful' : t.status === 'failed' ? 'Failed' : t.status === 'refunded' ? 'Refunded' : 'Pending';
+  wrap.innerHTML = `<span style="display:block; padding:0;">
+    <div style="padding:10px 12px 8px;">
+      <b>${txLabel(t)}</b>
+      <div class="summary-line" style="margin-top:8px;"><span>Amount</span><b>₦${naira(t.amount)}</b></div>
+      <div class="summary-line"><span>Status</span><b>${txBadge(t.status)}</b></div>
+      <div class="summary-line"><span>Date</span><b>${fmtDate(t.createdAt)}</b></div>
+      <div class="summary-line"><span>Reference</span><b class="mono" style="font-size:11.5px;">${escapeHtml(t.txRef||t.id)}</b></div>
+      ${t.status==='pending' ? '<p style="font-size:11.5px; color:var(--text-mute); margin:8px 0 0;">Most pending transactions clear within a few minutes. If this is still pending after a while, our team can look into it directly.</p>' : ''}
+    </div>
+    <div style="display:flex; gap:6px; padding:0 12px 10px; flex-wrap:wrap;">
+      ${t.status!=='success' ? `<button class="quick-btn" onclick="chatCheckStatusAgain('${t.id}')">Check status again</button>` : ''}
+      <button class="quick-btn" onclick="chatHumanAgent('${escapeHtml(t.txRef||t.id)}','${statusWord}')">Talk to a human agent</button>
+    </div>
+  </span>`;
+  messagesDiv.appendChild(wrap);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function appendChatHumanAgentAction(tx){
+  const messagesDiv = document.getElementById('chatMessages');
+  const wrap = document.createElement('div');
+  wrap.className = 'chatbot-quick-actions';
+  wrap.style.gridTemplateColumns = '1fr';
+  const ref = tx ? (tx.txRef || tx.id) : '';
+  const status = tx ? (tx.status || 'pending') : '';
+  wrap.innerHTML = `<button class="quick-btn" onclick="this.parentElement.remove(); chatHumanAgent(${JSON.stringify(ref)}, ${JSON.stringify(status)});">Talk to a human agent</button>`;
+  messagesDiv.appendChild(wrap);
+  messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+// Opens WhatsApp with a prefilled message. Number and message wording are
+// as specified for this feature — kept separate from the +234 904 677 2152
+// number used elsewhere in Support/Contact/the FAQ answers, since that's
+// existing content this task didn't ask to change.
+function chatHumanAgent(reference, status){
+  const message = reference
+    ? `Hello WoodPay Support, I need help with transaction ${reference}. Olives showed the current status as ${status || 'unresolved'}. Please assist me.`
+    : `Hello WoodPay Support, I need help with my WoodPay account. Olives could not resolve my issue. Please assist me.`;
+  const url = `https://wa.me/2347065702702?text=${encodeURIComponent(message)}`;
+  window.open(url, '_blank', 'noopener');
 }
 
 function handleChatInput(e){
@@ -5715,6 +6073,19 @@ function sendChatMessage(){
     return;
   }
 
+  // Transaction lookups and human-agent requests are real actions, not FAQ
+  // text — handle them before the keyword matcher gets a chance to answer
+  // with a generic paragraph instead.
+  const q = (message||'').toLowerCase();
+  if(/my transactions?|transaction history|show.*transactions?|check.*transactions?/.test(q)){
+    setTimeout(() => { document.getElementById('typingIndicator')?.remove(); chatShowTransactions(); }, 400);
+    return;
+  }
+  if(/\b(human|agent|talk to (someone|support)|connect me to support|talk to support)\b/.test(q)){
+    setTimeout(() => { document.getElementById('typingIndicator')?.remove(); addChatMessage("Sure — connecting you with our support team.", 'bot'); chatHumanAgent(null, null); }, 400);
+    return;
+  }
+
   // Get bot response
   setTimeout(() => {
     const response = getChatbotResponse(message);
@@ -5739,19 +6110,19 @@ function getChatbotResponse(userMessage){
   
   // General responses for common patterns
   if(query.includes('hello') || query.includes('hi') || query.includes('hey')){
-    return '👋 Hey there! I\'m here to help. You can ask me about:\n\n• How to buy data/airtime\n• Transaction issues\n• Wallet & payments\n• Referrals\n• Account security\n• Verification\n\nWhat do you need help with?';
+    return 'Hey! I can help with data/airtime purchases, wallet funding, withdrawals, transaction status, and referrals. What do you need?';
   }
   
   if(query.includes('thank') || query.includes('thanks') || query.includes('appreciate')){
-    return '😊 Happy to help! Feel free to ask anytime. You can also contact our support team at vtusurpport@gmail.com or WhatsApp +234 904 677 2152';
+    return 'Happy to help! You can also reach our support team at vtusupport@gmail.com or WhatsApp +234 904 677 2152 anytime.';
   }
   
   if(query.includes('problem') || query.includes('issue') || query.includes('help') || query.includes('stuck')){
-    return '😟 I\'m sorry you\'re having trouble! Let me help:\n\n1. What service are you trying to use? (Data, Airtime, Cable, etc)\n2. What error message did you see?\n3. When did it happen?\n\nOr tap "Email this to support" below and I\'ll forward it straight to our team.';
+    return 'Let\'s sort it out. Could you tell me:\n1. Which service you were using\n2. What happened or what error you saw\n\nOr tap "Email this to support" below and our team will pick it up directly.';
   }
   
   // Default response with escalation option
-  return '🤔 I\'m not sure about that specific question — but tap "Email this to support" below and our team will pick it up directly. You can also ask me about data, airtime, transactions, referrals, or account issues.';
+  return 'I\'m not sure about that one, but tap "Email this to support" below and our team will take it from there. You can also ask me about data, airtime, wallet funding, withdrawals, or referrals.';
 }
 
 function addChatMessage(message, role, attachment){
@@ -5818,13 +6189,13 @@ async function escalateToSupport(message, attachment){
     document.getElementById('typingIndicator')?.remove();
     const confirmMsg = ok
       ? `✅ Forwarded to our support team — they'll reply to ${userEmail} directly. Average response time: 2-4 hours.`
-      : '⚠️ Could not send automatically. Please WhatsApp us at +234 904 677 2152 or email vtusurpport@gmail.com.';
+      : '⚠️ Could not send automatically. Please WhatsApp us at +234 904 677 2152 or email vtusupport@gmail.com.';
     addChatMessage(confirmMsg, 'bot');
     chatHistory.push({role: 'bot', content: confirmMsg, timestamp: new Date().toISOString()});
     saveChatHistory();
   }catch(e){
     document.getElementById('typingIndicator')?.remove();
-    addChatMessage('⚠️ Could not send automatically. Please WhatsApp us at +234 904 677 2152 or email vtusurpport@gmail.com.', 'bot');
+    addChatMessage('⚠️ Could not send automatically. Please WhatsApp us at +234 904 677 2152 or email vtusupport@gmail.com.', 'bot');
   }
 }
 
@@ -6007,21 +6378,21 @@ function startNotificationListener(uid){
 function updateNotificationCenter(){
   const list = document.getElementById('notificationList');
   if(!list) return;
-  
+
   if(notificationQueue.length === 0){
-    list.innerHTML = '<div style="text-align:center; padding:40px 20px; color:var(--text-mute);">No notifications yet</div>';
+    list.innerHTML = `<div class="empty"><div class="ei"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" stroke-linecap="round" stroke-linejoin="round"/></svg></div>No notifications yet</div>`;
     return;
   }
-  
+
   list.innerHTML = notificationQueue.map(n => `
-    <div class="notification-item ${n.type}${n.read ? '' : ' unread'}" onclick="markNotificationRead('${n.id}')">
-      <div class="notif-icon">${getNotificationIcon(n.type)}</div>
+    <div class="notification-item ${n.type}${n.read ? '' : ' unread'}" onclick="markNotificationRead('${n.id}')" role="button" tabindex="0" aria-label="${n.read ? '' : 'Unread: '}${escapeHtml(n.title)}">
+      <div class="notif-icon" aria-hidden="true">${getNotificationIcon(n.type)}</div>
       <div class="notif-content">
-        <div class="notif-title">${n.title}</div>
-        <div class="notif-body">${n.body}</div>
+        <div class="notif-title">${escapeHtml(n.title)}</div>
+        <div class="notif-body">${escapeHtml(n.body)}</div>
         <div class="notif-time">${formatTime(n.timestamp)}</div>
       </div>
-      <div class="notif-close" onclick="event.stopPropagation(); removeNotification('${n.id}')">✕</div>
+      <div class="notif-close" onclick="event.stopPropagation(); removeNotification('${n.id}')" role="button" aria-label="Dismiss notification">✕</div>
     </div>
   `).join('');
 }
@@ -6480,37 +6851,42 @@ if('serviceWorker' in navigator){
   </div>
 
   <!-- ============ CHATBOT WIDGET ============ -->
-  <div id="chatbotButton" class="chatbot-button" onclick="toggleChatbot()" title="Chat with Olives">
+  <div id="chatbotButton" class="chatbot-button" onclick="toggleChatbot()" title="Chat with Olives" role="button" aria-label="Open Olives support chat">
     <span id="chatbotIcon">💬</span>
   </div>
 
-  <div id="chatbotWidget" class="chatbot-widget hide">
+  <div id="chatbotWidget" class="chatbot-widget hide" role="dialog" aria-label="Olives support chat">
     <div class="chatbot-header">
-      <div>
-        <b>Olives</b>
-        <p style="font-size:11px; margin:2px 0 0; color:var(--text-mute);">WoodPay support · Always here to help</p>
+      <div class="chatbot-header-id">
+        <div class="chatbot-avatar" aria-hidden="true">🫒</div>
+        <div style="min-width:0;">
+          <b>Olives</b>
+          <p style="font-size:11px; margin:2px 0 0; color:var(--text-mute);">WoodPay support · Usually replies instantly</p>
+        </div>
       </div>
-      <button class="icon-btn" onclick="toggleChatbot()" style="width:32px; height:32px;"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg></button>
+      <button class="icon-btn" onclick="toggleChatbot()" style="width:32px; height:32px; flex:none;" aria-label="Close chat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12" stroke-linecap="round"/></svg></button>
     </div>
     
     <div class="chatbot-messages" id="chatMessages">
       <div class="chatbot-message bot">
-        <span>👋 Hi, I'm Olives! Ask me anything about WoodPay — or drop a screenshot if something's not working and I'll pass it straight to our team.</span>
+        <span>Hi, I'm Olives 🫒 Ask me about WoodPay, or drop a screenshot if something's not working and I'll pass it straight to our team.</span>
       </div>
       <div class="chatbot-quick-actions">
-        <button class="quick-btn" onclick="sendQuickMessage('How do I buy data?')">📱 Buy Data</button>
-        <button class="quick-btn" onclick="sendQuickMessage('I have a transaction issue')">❌ Transaction Issue</button>
-        <button class="quick-btn" onclick="sendQuickMessage('How does referral work?')">🤝 Referrals</button>
-        <button class="quick-btn" onclick="sendQuickMessage('Contact support')">📞 Contact Support</button>
+        <button class="quick-btn" onclick="sendQuickMessage('How do I fund my wallet?')">Fund wallet</button>
+        <button class="quick-btn" onclick="chatShowTransactions()">My transactions</button>
+        <button class="quick-btn" onclick="sendQuickMessage('How do I withdraw?')">Withdraw</button>
+        <button class="quick-btn" onclick="sendQuickMessage('Why is my transaction pending?')">Pending transaction</button>
+        <button class="quick-btn" onclick="sendQuickMessage('How does referral work?')">Referrals</button>
+        <button class="quick-btn" onclick="sendQuickMessage('Contact support')">Contact support</button>
       </div>
     </div>
 
     <div id="chatAttachChip"></div>
     <div class="chatbot-input-area">
       <input type="file" id="chatFileInput" accept="image/*" style="display:none;" onchange="handleChatFileSelect(event)">
-      <button class="icon-btn" onclick="document.getElementById('chatFileInput').click()" style="width:32px; height:32px; flex-shrink:0;" title="Attach a screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-      <input type="text" id="chatInput" placeholder="Type your question..." class="chatbot-input" onkeypress="handleChatInput(event)">
-      <button class="icon-btn" onclick="sendChatMessage()" style="width:36px; height:36px; flex-shrink:0;"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 16.5a1 1 0 01-1.41 1.41l-7.77-7.77a1 1 0 011.41-1.41l7.77 7.77zM4 10a6 6 0 1112 0 6 6 0 01-12 0z"/></svg></button>
+      <button class="icon-btn" onclick="document.getElementById('chatFileInput').click()" style="width:32px; height:32px; flex-shrink:0;" title="Attach a screenshot" aria-label="Attach a screenshot"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a5 5 0 01-7.07-7.07l9.19-9.19a3.5 3.5 0 014.95 4.95l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <input type="text" id="chatInput" placeholder="Type your question…" class="chatbot-input" onkeypress="handleChatInput(event)" aria-label="Message Olives">
+      <button class="icon-btn" onclick="sendChatMessage()" style="width:36px; height:36px; flex-shrink:0;" aria-label="Send message"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 16.5a1 1 0 01-1.41 1.41l-7.77-7.77a1 1 0 011.41-1.41l7.77 7.77zM4 10a6 6 0 1112 0 6 6 0 01-12 0z"/></svg></button>
     </div>
   </div>
 

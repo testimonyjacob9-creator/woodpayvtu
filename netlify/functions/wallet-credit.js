@@ -7,13 +7,32 @@
 //   delta > 0 = credit, delta < 0 = debit
 //
 // Body (wallet funding via Flutterwave):
-//   { idToken, uid, delta, reason, type: 'wallet_funding', paymentRef }
+//   { idToken, uid, delta, reason, type: 'wallet_funding', paymentRef, transactionId }
 //
 // Returns: { ok, newBalance } or { ok: false, error, pinError? }
-
+//
+// SECURITY FIX (audit finding, see chat): the self-service wallet_funding
+// branch used to trust `delta` and `paymentRef` from the request body with
+// no server-side check that a real Flutterwave payment had happened —
+// idToken verification only proves WHO is calling, not that they paid.
+// Any signed-in user could POST here directly (bypassing the UI entirely)
+// with an arbitrary delta and a made-up paymentRef and mint free wallet
+// balance. This is now closed two ways for that branch specifically:
+//   1. The charge is independently re-verified against Flutterwave's
+//      /transactions/:id/verify endpoint (same call verify-payment.js
+//      makes) — status, amount and tx_ref must all match what's claimed.
+//   2. The funding transaction is written under a deterministic doc ID
+//      derived from paymentRef, and checked for existence inside the same
+//      Firestore transaction that credits the balance — so replaying a
+//      real, previously-verified paymentRef a second time is rejected
+//      instead of crediting twice.
+// Admin-initiated credits/debits (isVerifiedAdmin) and self-service debits
+// (PIN-gated) are unchanged.
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 const crypto = require('crypto');
 const { notifyUser } = require('./_notify');
+
+const FLW_SECRET_KEY = process.env.FLW_SECRET_KEY || '';
 
 // Must exactly match the client's hashing scheme in index.html:
 //   sha256Hex(`${pin}:${uid}`)  — see _pinHashInput() / submitCreatePin()
@@ -21,6 +40,27 @@ const { notifyUser } = require('./_notify');
 // every PIN check fail server-side regardless of what the user entered.
 function hashPin(pin, uid) {
   return crypto.createHash('sha256').update(`${pin}:${uid}`).digest('hex');
+}
+
+// Re-verifies a card charge directly with Flutterwave — mirrors
+// verify-payment.js's logic so wallet-credit never has to trust the
+// client's word that a payment succeeded.
+async function verifyFlutterwaveCharge(transactionId, expectedAmount, expectedTxRef) {
+  if (!FLW_SECRET_KEY) return { ok: false, error: 'Payment verification not configured. Contact support.' };
+  try {
+    const res = await fetch(`https://api.flutterwave.com/v3/transactions/${transactionId}/verify`, {
+      headers: { 'Authorization': `Bearer ${FLW_SECRET_KEY}` }
+    });
+    const data = await res.json();
+    if (!res.ok || data.status !== 'success') return { ok: false, error: data.message || 'Verification failed' };
+    const tx = data.data;
+    if (expectedAmount && Math.abs(tx.amount - Number(expectedAmount)) > 1) return { ok: false, error: 'Amount mismatch — possible fraud attempt.' };
+    if (expectedTxRef && tx.tx_ref !== expectedTxRef) return { ok: false, error: 'Transaction reference mismatch.' };
+    if (tx.status !== 'successful') return { ok: false, error: `Payment status: ${tx.status}` };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: 'Could not reach verification server. Contact support if you were charged.' };
+  }
 }
 
 exports.handler = async (event) => {
@@ -36,7 +76,7 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body); }
   catch (e) { return { statusCode: 400, body: JSON.stringify({ error: 'Invalid JSON' }) }; }
 
-  const { idToken, uid, delta, reason, pin, type, paymentRef } = body;
+  const { idToken, uid, delta, reason, pin, type, paymentRef, transactionId } = body;
 
   if (!idToken || !uid || delta === undefined || delta === null) {
     return { statusCode: 400, body: JSON.stringify({ ok: false, error: 'Missing required fields' }) };
@@ -77,12 +117,38 @@ exports.handler = async (event) => {
     isVerifiedAdmin = true;
   }
 
+  // Self-service wallet funding via card: independently confirm the charge
+  // with Flutterwave before touching any balance. See the SECURITY note
+  // at the top of this file.
+  let fundingDocId = null;
+  if (isSelfService && type === 'wallet_funding') {
+    if (!paymentRef || !transactionId) {
+      return { statusCode: 400, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: 'Missing payment reference.' }) };
+    }
+    const verify = await verifyFlutterwaveCharge(transactionId, delta, paymentRef);
+    if (!verify.ok) {
+      return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ok: false, error: verify.error }) };
+    }
+    // Deterministic ID from the verified paymentRef, so a replay of the
+    // same real payment lands on the same doc instead of a new one.
+    const safeRef = String(paymentRef).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 120);
+    fundingDocId = `wfund_${safeRef}`;
+  }
+
   const userRef = db.collection('users').doc(uid);
 
   try {
     let newBalance;
 
     await db.runTransaction(async (tx) => {
+      // Idempotency check — must run before any writes in this transaction.
+      if (fundingDocId) {
+        const existing = await tx.get(db.collection('transactions').doc(fundingDocId));
+        if (existing.exists) {
+          throw Object.assign(new Error('This payment has already been credited to your wallet.'), { alreadyCredited: true });
+        }
+      }
+
       const userSnap = await tx.get(userRef);
       if (!userSnap.exists) throw new Error('User not found.');
 
@@ -119,19 +185,21 @@ exports.handler = async (event) => {
 
       // Write a transaction record so the balance change actually shows up
       // in the user's history — not just a silently different number.
-      // Self-service wallet funding (Flutterwave) gets its own record here;
-      // any other admin-initiated edit (plain credit/debit from admin.html's
+      // Self-service wallet funding (Flutterwave) gets its own record here,
+      // at the deterministic ID computed above once verified; any other
+      // admin-initiated edit (plain credit/debit from admin.html's
       // editWallet, which sends no type/paymentRef) needs one too, since
       // index.html's txLabel() already renders admin_credit/admin_debit as
       // "From WoodPay" — it was just never being written.
-      if (type === 'wallet_funding' && paymentRef) {
-        const txRef = db.collection('transactions').doc();
+      if (type === 'wallet_funding' && fundingDocId) {
+        const txRef = db.collection('transactions').doc(fundingDocId);
         tx.set(txRef, {
           userId: uid,
           type: 'wallet_funding',
           amount: Number(delta),
           status: 'success',
           paymentRef: paymentRef || null,
+          flwTransactionId: transactionId || null,
           reason: reason || 'Wallet funding',
           createdAt: admin.firestore.FieldValue.serverTimestamp()
         });
@@ -169,7 +237,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ok: false, error: e.message, pinError: e.pinError || null })
+      body: JSON.stringify({ ok: false, error: e.message, pinError: e.pinError || null, alreadyCredited: e.alreadyCredited || false })
     };
   }
 };

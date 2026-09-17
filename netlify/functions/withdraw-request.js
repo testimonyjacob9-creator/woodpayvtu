@@ -34,7 +34,7 @@ const { notifyUser } = require('./_notify');
 
 const BREVO_API_KEY = process.env.BREVO_API_KEY || '';
 const BREVO_SENDER_EMAIL = process.env.BREVO_SENDER_EMAIL || '';
-const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'vtusurpport@gmail.com';
+const ADMIN_NOTIFY_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'vtusupport@gmail.com';
 
 // Same withdrawal minimum a bank transfer app would enforce — protects
 // against a spam of near-zero withdrawal requests cluttering the admin

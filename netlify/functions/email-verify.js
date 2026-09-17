@@ -8,7 +8,7 @@
 //
 // Env vars needed:
 //   BREVO_API_KEY      - Brevo (formerly Sendinblue) API key
-//   BREVO_SENDER_EMAIL - verified sender address, e.g. vtusurpport@gmail.com
+//   BREVO_SENDER_EMAIL - verified sender address, e.g. vtusupport@gmail.com
 
 const { admin, ADMIN_INIT_ERROR } = require('./_firebaseAdmin');
 
