@@ -2754,17 +2754,335 @@ function copyTxReference(){
   if(!t) return;
   navigator.clipboard.writeText(t.txRef||t.id).then(()=> toast('Reference copied', 'ok'));
 }
-function shareTxReceipt(){
-  const t = window.__LAST_RECEIPT_TX;
-  if(!t) return;
+function shareReceiptText(t){
   const status = t.status || 'pending';
   const statusLabel = status==='success' ? 'Successful' : status==='failed' ? 'Failed' : 'Pending';
-  const text = `WoodPay Receipt\n${txLabel(t)}\nAmount: ₦${naira(t.amount)}\nStatus: ${statusLabel}\nDate: ${fmtDate(t.createdAt)}\nReference: ${t.txRef||t.id}`;
-  if(navigator.share){
-    navigator.share({ title:'WoodPay Receipt', text }).catch(()=>{});
-  } else {
-    navigator.clipboard.writeText(text).then(()=> toast('Receipt copied — paste it anywhere', 'ok'));
+  return `WoodPay Receipt\n${txLabel(t)}\nAmount: ₦${naira(t.amount)}\nStatus: ${statusLabel}\nDate: ${fmtDate(t.createdAt)}\nReference: ${t.txRef||t.id}`;
+}
+async function shareTxReceipt(){
+  const t = window.__LAST_RECEIPT_TX;
+  if(!t) return;
+  const text = shareReceiptText(t);
+
+  // Try the branded image card first — this is what makes a shared
+  // receipt look like WoodPay instead of a plain text bubble. Any
+  // failure here (unsupported canvas, font load timeout, share API
+  // quirks) falls all the way back to the old plain-text share, so
+  // "Share receipt" never just does nothing.
+  try{
+    showLoader('Preparing receipt…');
+    const blob = await buildReceiptImage(t);
+    hideLoader();
+    const filename = `woodpay-receipt-${String(t.txRef||t.id||'tx').replace(/[^a-zA-Z0-9]/g,'').slice(0,16)}.png`;
+    const file = new File([blob], filename, { type:'image/png' });
+
+    if(navigator.canShare && navigator.canShare({ files:[file] })){
+      await navigator.share({ files:[file], title:'WoodPay Receipt', text });
+      return;
+    }
+    if(navigator.share){
+      // Some browsers (older Safari) support share() but not the files
+      // capability check — still worth a try before falling back further.
+      try{
+        await navigator.share({ files:[file], title:'WoodPay Receipt', text });
+        return;
+      }catch(e){ /* fall through to download */ }
+    }
+    // No share-with-files support at all (most desktop browsers) —
+    // download the branded image directly instead of losing the design.
+    downloadBlob(blob, filename);
+    toast('Receipt image saved — share it from your downloads', 'ok');
+  }catch(err){
+    hideLoader();
+    console.error('shareTxReceipt: image generation/share failed, using text fallback:', err.message);
+    if(navigator.share){
+      navigator.share({ title:'WoodPay Receipt', text }).catch(()=>{});
+    } else {
+      navigator.clipboard.writeText(text).then(()=> toast('Receipt copied — paste it anywhere', 'ok'));
+    }
   }
+}
+function downloadBlob(blob, filename){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=> URL.revokeObjectURL(url), 4000);
+}
+
+/* ============================================================
+   RECEIPT IMAGE CARD — renders the shared-transaction receipt as a
+   branded PNG (dark void bg, aurora glow, gold WoodPay mark, IBM Plex
+   Mono figures) instead of the plain text share that used to be the
+   only option. Pure Canvas 2D, no external libs, matches the design
+   tokens in :root exactly so it never drifts out of sync with the app.
+   ============================================================ */
+const RECEIPT_FONTS = [
+  '600 13px "Space Grotesk"', '700 20px "Space Grotesk"', '700 26px "Space Grotesk"',
+  '600 13px "Inter"', '500 14px "Inter"', '600 14.5px "Inter"', '400 14px "Inter"', '400 11.5px "Inter"',
+  '700 44px "IBM Plex Mono"', '600 13.5px "IBM Plex Mono"'
+];
+function ensureReceiptFontsLoaded(){
+  if(!document.fonts || !document.fonts.load) return Promise.resolve();
+  return Promise.all(RECEIPT_FONTS.map(f => document.fonts.load(f, 'WoodPay 0123456789').catch(()=>{})))
+    .then(() => document.fonts.ready.catch(()=>{}));
+}
+function roundRectPath(ctx, x, y, w, h, r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.arcTo(x+w, y, x+w, y+h, r);
+  ctx.arcTo(x+w, y+h, x, y+h, r);
+  ctx.arcTo(x, y+h, x, y, r);
+  ctx.arcTo(x, y, x+w, y, r);
+  ctx.closePath();
+}
+function drawAuroraBlob(ctx, cx, cy, radius, color){
+  const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, radius);
+  g.addColorStop(0, color);
+  g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(cx, cy, radius, 0, Math.PI*2);
+  ctx.fill();
+}
+function drawBrandMark(ctx, x, y, size){
+  roundRectPath(ctx, x, y, size, size, size*0.29);
+  const g = ctx.createLinearGradient(x, y, x+size, y+size);
+  g.addColorStop(0, '#111114'); g.addColorStop(1, '#000000');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.strokeStyle = 'rgba(217,178,92,.5)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.font = `700 ${Math.round(size*0.36)}px "Space Grotesk", sans-serif`;
+  ctx.fillStyle = '#D9B25C';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('WP', x+size/2, y+size/2+1);
+  ctx.textAlign = 'left';
+}
+function drawStatusIcon(ctx, cx, cy, status, color){
+  ctx.save();
+  ctx.strokeStyle = color; ctx.lineWidth = 4.5;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const r = 20;
+  if(status === 'success'){
+    ctx.beginPath();
+    ctx.moveTo(cx-r*0.55, cy+r*0.05);
+    ctx.lineTo(cx-r*0.12, cy+r*0.5);
+    ctx.lineTo(cx+r*0.62, cy-r*0.45);
+    ctx.stroke();
+  } else if(status === 'failed'){
+    ctx.beginPath();
+    ctx.moveTo(cx-r*0.5, cy-r*0.5); ctx.lineTo(cx+r*0.5, cy+r*0.5);
+    ctx.moveTo(cx+r*0.5, cy-r*0.5); ctx.lineTo(cx-r*0.5, cy+r*0.5);
+    ctx.stroke();
+  } else {
+    ctx.beginPath(); ctx.arc(cx, cy, r*0.75, 0, Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy-r*0.4); ctx.lineTo(cx, cy); ctx.lineTo(cx+r*0.35, cy+r*0.3); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawPerforatedDivider(ctx, x, y, w){
+  ctx.save();
+  ctx.strokeStyle = 'rgba(255,255,255,.16)';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([6, 7]);
+  ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x+w, y); ctx.stroke();
+  ctx.restore();
+}
+function fitText(ctx, text, maxWidth){
+  if(ctx.measureText(text).width <= maxWidth) return text;
+  let t = text;
+  while(t.length > 1 && ctx.measureText(t+'…').width > maxWidth){ t = t.slice(0, -1); }
+  return t + '…';
+}
+function wrapText(ctx, text, cx, y, maxWidth, lineHeight){
+  if(!text) return y;
+  const words = text.split(' ');
+  let line = '', lines = [];
+  for(const w of words){
+    const test = line ? line+' '+w : w;
+    if(ctx.measureText(test).width > maxWidth && line){ lines.push(line); line = w; }
+    else line = test;
+  }
+  if(line) lines.push(line);
+  lines.forEach((l, i) => ctx.fillText(l, cx, y + i*lineHeight));
+  return y + (lines.length-1)*lineHeight;
+}
+// Same field set as txDetailLines(t), used for the on-screen sheet — but
+// unescaped, since this feeds canvas fillText (not innerHTML), and
+// escapeHtml()'d entities like "&amp;" would otherwise render literally.
+function receiptRows(t){
+  const status = t.status || 'pending';
+  const rows = [
+    ['Reference', t.txRef || t.id || ''],
+    ['Service', txLabel(t)],
+    ['Status', status==='success' ? 'Successful' : status==='failed' ? 'Failed' : 'Pending'],
+    ['Date', fmtDate(t.createdAt)]
+  ];
+  txDetailLines(t).forEach(([label, val]) => rows.push([label, unescapeHtmlEntities(val)]));
+  return rows;
+}
+function unescapeHtmlEntities(str){
+  return String(str||'').replace(/&amp;|&lt;|&gt;|&quot;|&#39;/g, m => ({'&amp;':'&','&lt;':'<','&gt;':'>','&quot;':'"','&#39;':"'"}[m]));
+}
+// Pure layout math shared by the sizing pass and the drawing pass below —
+// computed ONCE from the same inputs, so the canvas is always sized to
+// exactly what gets drawn into it (no hand-guessed height that can drift
+// out of sync with the real content and clip or leave a blank gap).
+function computeReceiptLayout(W, padX, rowH, subLines, rowCount){
+  const L = {};
+  L.headerY = 56;
+  let y = L.headerY + 78;
+  L.iconCY = y + 48;
+  y = L.iconCY + 48 + 40;
+  L.titleY = y;
+  y += 28;
+  L.subY = y;
+  y += (subLines - 1) * 20; // wrapText returns the LAST line's y, i.e. start + (lines-1)*lineHeight
+  L.amountY = y + 44;
+  y = L.amountY + 44;
+  L.dividerY = y;
+  y += 34;
+  L.cardTop = y;
+  L.rowsBlockH = rowCount * rowH + 16;
+  y = L.cardTop + L.rowsBlockH + 40;
+  L.footerLine1Y = y;
+  L.footerLine2Y = y + 20;
+  L.height = L.footerLine2Y + 40;
+  return L;
+}
+async function buildReceiptImage(t){
+  await ensureReceiptFontsLoaded();
+  const status = t.status || 'pending';
+  const statusMeta = {
+    success: { color:'#3ADC97', glow:'rgba(58,220,151,.22)', title:'Payment successful', sub:'Your order has been delivered.' },
+    failed:  { color:'#FF5C7C', glow:'rgba(255,92,124,.22)', title:'Delivery failed', sub:('Refunded to your wallet.' + (t.reason ? ' Reason: '+t.reason : '')) },
+    pending: { color:'#FFB454', glow:'rgba(255,180,84,.22)', title:'Still confirming', sub:"We're confirming this with the network." }
+  }[status] || { color:'#9AA1B7', glow:'rgba(255,255,255,.1)', title:'Pending', sub:'' };
+
+  const rows = receiptRows(t);
+  const scale = 2;
+  const W = 720, padX = 48, rowH = 54;
+
+  // Measure the subtitle's wrapped line count up front so the layout
+  // (and therefore the canvas height) accounts for 1-line vs 2-line subs.
+  const measureCanvas = document.createElement('canvas');
+  const mctx = measureCanvas.getContext('2d');
+  mctx.font = '400 14px "Inter", sans-serif';
+  const subLines = wrapLineCount(mctx, statusMeta.sub, W - padX*2);
+
+  const L = computeReceiptLayout(W, padX, rowH, subLines, rows.length);
+  const H = L.height;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(W*scale); canvas.height = Math.round(H*scale);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+
+  // Background
+  const bgGrad = ctx.createLinearGradient(0, 0, 0, H);
+  bgGrad.addColorStop(0, '#0b0d16'); bgGrad.addColorStop(1, '#06070c');
+  ctx.fillStyle = bgGrad; ctx.fillRect(0, 0, W, H);
+
+  // Ambient aurora glow, matching the app's signature background
+  drawAuroraBlob(ctx, W*0.1, 30, 220, 'rgba(108,92,231,.30)');
+  drawAuroraBlob(ctx, W*0.95, H*0.22, 200, 'rgba(79,124,255,.24)');
+  drawAuroraBlob(ctx, W*0.15, H*0.92, 220, 'rgba(34,211,238,.16)');
+
+  // Header: brand mark + wordmark, "RECEIPT" tag top-right
+  drawBrandMark(ctx, padX, L.headerY, 44);
+  ctx.textBaseline = 'middle';
+  ctx.font = '700 20px "Space Grotesk", sans-serif';
+  ctx.fillStyle = '#F3F4F9';
+  ctx.fillText('Wood', padX+58, L.headerY+22);
+  const woodW = ctx.measureText('Wood').width;
+  ctx.fillStyle = '#D9B25C';
+  ctx.fillText('Pay', padX+58+woodW, L.headerY+22);
+  const payW = ctx.measureText('Pay').width;
+  ctx.fillStyle = '#5B6178';
+  ctx.font = '600 13px "Space Grotesk", sans-serif';
+  ctx.fillText('VTU', padX+58+woodW+payW+4, L.headerY+22);
+
+  ctx.textAlign = 'right';
+  ctx.font = '600 12px "Inter", sans-serif';
+  ctx.fillStyle = '#5B6178';
+  ctx.fillText('R E C E I P T', W-padX, L.headerY+22);
+  ctx.textAlign = 'left';
+
+  // Status icon
+  ctx.beginPath(); ctx.arc(W/2, L.iconCY, 48, 0, Math.PI*2);
+  ctx.fillStyle = statusMeta.glow; ctx.fill();
+  drawStatusIcon(ctx, W/2, L.iconCY, status, statusMeta.color);
+
+  // Title + subtitle
+  ctx.textAlign = 'center';
+  ctx.font = '700 26px "Space Grotesk", sans-serif';
+  ctx.fillStyle = '#F3F4F9';
+  ctx.fillText(statusMeta.title, W/2, L.titleY);
+
+  ctx.font = '400 14px "Inter", sans-serif';
+  ctx.fillStyle = '#9AA1B7';
+  wrapText(ctx, statusMeta.sub, W/2, L.subY, W-padX*2, 20);
+
+  // Amount
+  ctx.font = '700 44px "IBM Plex Mono", monospace';
+  ctx.fillStyle = '#F3F4F9';
+  ctx.fillText('₦'+naira(t.amount), W/2, L.amountY);
+
+  // Perforated divider
+  ctx.textAlign = 'left';
+  drawPerforatedDivider(ctx, padX, L.dividerY, W-padX*2);
+
+  // Detail rows, inside a glass card
+  const cardTop = L.cardTop;
+  roundRectPath(ctx, padX-20, cardTop-16, W-(padX-20)*2, L.rowsBlockH+16, 20);
+  ctx.fillStyle = 'rgba(255,255,255,.045)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = 1; ctx.stroke();
+
+  rows.forEach(([label, val], i) => {
+    const ry = cardTop + i*rowH + rowH/2;
+    ctx.textAlign = 'left';
+    ctx.font = '500 14px "Inter", sans-serif';
+    ctx.fillStyle = '#9AA1B7';
+    ctx.fillText(label, padX, ry);
+
+    ctx.textAlign = 'right';
+    const isMono = /reference|number|smartcard|meter|id/i.test(label);
+    ctx.font = isMono ? '600 13.5px "IBM Plex Mono", monospace' : '600 14.5px "Inter", sans-serif';
+    ctx.fillStyle = '#F3F4F9';
+    ctx.fillText(fitText(ctx, String(val), W-padX*2-130), W-padX, ry);
+
+    if(i < rows.length-1){
+      ctx.strokeStyle = 'rgba(255,255,255,.06)'; ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padX, cardTop + (i+1)*rowH);
+      ctx.lineTo(W-padX, cardTop + (i+1)*rowH);
+      ctx.stroke();
+    }
+  });
+
+  // Footer
+  ctx.textAlign = 'center';
+  ctx.font = '600 13px "Space Grotesk", sans-serif';
+  ctx.fillStyle = '#5B6178';
+  ctx.fillText('woodpay.netlify.app', W/2, L.footerLine1Y);
+  ctx.font = '400 11.5px "Inter", sans-serif';
+  ctx.fillStyle = '#3f4457';
+  ctx.fillText('Instant data, airtime, cable TV & electricity', W/2, L.footerLine2Y);
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('canvas.toBlob returned null')), 'image/png');
+  });
+}
+function wrapLineCount(ctx, text, maxWidth){
+  if(!text) return 1;
+  const words = text.split(' ');
+  let line = '', lines = 0;
+  for(const w of words){
+    const test = line ? line+' '+w : w;
+    if(ctx.measureText(test).width > maxWidth && line){ lines++; line = w; }
+    else line = test;
+  }
+  if(line) lines++;
+  return lines || 1;
 }
 
 /* ============================================================
