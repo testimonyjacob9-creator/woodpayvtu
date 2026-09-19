@@ -421,6 +421,17 @@ canvas{ width:100% !important; }
 
   <!-- ---- SETTINGS ---- -->
   <div class="tab-panel hide" id="panel-settings">
+    <div class="glass panel" style="border:1px solid rgba(255,92,124,.35);">
+      <div class="panel-head"><h2>🚧 Maintenance mode</h2></div>
+      <p style="font-size:12.5px; color:var(--text-mute); margin:0 0 14px;">Locks the entire app behind a "We're down for maintenance" screen for every visitor, the instant you flip this — including anyone already using it. This dashboard stays reachable either way. Use for deploys/incidents, not for routine tweaks.</p>
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:6px 2px 14px;">
+        <div><b style="display:block; font-size:14.5px;">App is live</b><span id="maintenanceStateLabel" style="font-size:12.5px; color:var(--text-mute);">Users can use WoodPay normally</span></div>
+        <div class="switch" id="maintenanceSwitch" onclick="toggleMaintenance()"></div>
+      </div>
+      <div class="field"><label>Message shown to users</label><textarea id="maintenanceMessageInput" rows="2" style="width:100%; padding:13px 14px; border-radius:12px; background:rgba(255,255,255,.035); border:1px solid var(--border); color:var(--text); font-size:14.5px; font-family:inherit;" placeholder="We're making a few improvements behind the scenes. We'll be back shortly — thanks for your patience."></textarea></div>
+      <button class="btn btn-ghost" style="width:100%;" onclick="saveMaintenanceMessage()">Save message</button>
+      <div id="maintenanceStatus" style="margin-top:8px;font-size:13px;color:#aaa;"></div>
+    </div>
     <div class="glass panel">
       <div class="panel-head"><h2>1GB Daily promo pricing</h2></div>
       <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 2px;">
@@ -526,7 +537,7 @@ canvas{ width:100% !important; }
         </div>
       </div>
     </div>
-    <div class="notice info">ℹ️ <div>To let this dashboard actually toggle <span class="mono">settings/promo</span> and read all users/transactions, update your Firestore rules to check an admin allowlist — full rule set provided in chat.</div></div>
+    <div class="notice info">ℹ️ <div>To let this dashboard actually toggle <span class="mono">settings/promo</span> and <span class="mono">settings/app</span> (maintenance mode) and read all users/transactions, update your Firestore rules to check an admin allowlist — full rule set provided in chat.</div></div>
   </div>
 </div>
 
@@ -1104,6 +1115,7 @@ function loadAllData(){
 
     fetchBigisubBalance();
     loadPromoSetting();
+    loadMaintenanceSetting();
     loadSettlementHistory();
   });
 }
@@ -1289,6 +1301,42 @@ async function manualRefund(txId, amount, uid){
     toast('Refund processed', 'ok');
     loadAllData();
   }catch(e){ toast('Refund failed — check Firestore admin rules.', 'err'); }
+}
+
+async function loadMaintenanceSetting(){
+  try{
+    const snap = await FB.getDoc(FB.doc(FB.db,'settings','app'));
+    const data = snap.exists() ? snap.data() : {};
+    const on = !!data.maintenanceMode;
+    document.getElementById('maintenanceSwitch').classList.toggle('on', on);
+    document.getElementById('maintenanceStateLabel').textContent = on
+      ? 'App is locked — users see the maintenance screen'
+      : 'Users can use WoodPay normally';
+    document.getElementById('maintenanceMessageInput').value = data.maintenanceMessage || '';
+  }catch(e){ /* settings/app doc may not exist yet */ }
+}
+async function toggleMaintenance(){
+  const sw = document.getElementById('maintenanceSwitch');
+  const newState = !sw.classList.contains('on');
+  if(newState && !confirm('This immediately locks EVERY user out of WoodPay, including anyone mid-transaction. Continue?')) return;
+  try{
+    await FB.setDoc(FB.doc(FB.db,'settings','app'), { maintenanceMode:newState, maintenanceUpdatedAt: FB.serverTimestamp() }, {merge:true});
+    sw.classList.toggle('on', newState);
+    document.getElementById('maintenanceStateLabel').textContent = newState
+      ? 'App is locked — users see the maintenance screen'
+      : 'Users can use WoodPay normally';
+    toast(newState ? 'Maintenance mode ON — app is locked for all users' : 'Maintenance mode OFF — app is live again', newState ? 'err' : 'ok');
+  }catch(e){ toast('Could not update — check Firestore rules for settings/app.', 'err'); }
+}
+async function saveMaintenanceMessage(){
+  const text = document.getElementById('maintenanceMessageInput').value.trim();
+  const statusEl = document.getElementById('maintenanceStatus');
+  if(!text){ statusEl.textContent = '⚠️ Enter a message first.'; return; }
+  try{
+    await FB.setDoc(FB.doc(FB.db,'settings','app'), { maintenanceMessage:text }, {merge:true});
+    statusEl.textContent = '✅ Message saved.';
+    toast('Maintenance message saved', 'ok');
+  }catch(e){ statusEl.textContent = '❌ Could not save — check Firestore rules.'; }
 }
 
 async function loadPromoSetting(){

@@ -467,6 +467,7 @@ p{ color:var(--text-dim); line-height:1.55; margin:0; }
 
 .loader-overlay{ position:fixed; inset:0; z-index:200; background:rgba(3,4,8,.8); backdrop-filter:blur(4px); display:none; align-items:center; justify-content:center; flex-direction:column; gap:16px; }
 .loader-overlay.show{ display:flex; }
+body.maintenance-lock{ overflow:hidden; }
 .spinner{ width:38px;height:38px; border-radius:50%; border:3px solid rgba(255,255,255,.12); border-top-color:var(--blue); animation:spin .8s linear infinite; }
 @keyframes spin{ to{transform:rotate(360deg);} }
 .loader-overlay span{ font-size:13.5px; color:var(--text-dim); font-weight:600; }
@@ -753,6 +754,24 @@ body.sheet-open .chatbot-button{ display:none; }
 <div class="loader-overlay" id="loaderOverlay">
   <div class="spinner"></div>
   <span id="loaderText">Processing…</span>
+</div>
+
+<!-- ============ MAINTENANCE MODE — full-screen block, admin-controlled ============
+     Hidden by default. Toggled on/off live from admin.html (settings/app doc,
+     `maintenanceMode` field) via the onSnapshot listener in loadMaintenanceState().
+     z-index sits above everything, including the loader, so flipping it on
+     mid-session immediately locks out anyone still using the app. -->
+<div id="maintenanceScreen" class="hide" style="position:fixed; inset:0; z-index:9999; background:linear-gradient(180deg,#0b0d16,#06070c); display:flex; align-items:center; justify-content:center; padding:28px;">
+  <div class="aurora" style="position:absolute;"><i></i></div>
+  <div class="glass" style="position:relative; z-index:1; max-width:400px; width:100%; padding:36px 28px; text-align:center;">
+    <div style="width:56px;height:56px;border-radius:16px;margin:0 auto 20px;display:flex;align-items:center;justify-content:center;background:linear-gradient(160deg,#111,#000);border:1px solid rgba(217,178,92,.5);font-family:var(--font-d);font-weight:700;color:var(--gold);font-size:19px;box-shadow:0 0 24px rgba(217,178,92,.22);">WP</div>
+    <div style="width:52px;height:52px;border-radius:50%;margin:0 auto 18px;display:flex;align-items:center;justify-content:center;background:rgba(255,180,84,.14);">
+      <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="var(--warn)" stroke-width="1.8"><path d="M14.7 6.3a4 4 0 01-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 015.4-5.4l-2.8 2.8-2-2 2.8-2.8z"/></svg>
+    </div>
+    <h2 style="font-size:20px;">We're down for maintenance</h2>
+    <p id="maintenanceMsg" style="margin-top:10px; font-size:14px;">We're making a few improvements behind the scenes. We'll be back shortly — thanks for your patience.</p>
+    <p style="margin-top:18px; font-size:12px; color:var(--text-mute);">Need urgent help? WhatsApp <span class="mono">+234 904 677 2152</span></p>
+  </div>
 </div>
 
 <div class="app" id="app">
@@ -2448,7 +2467,22 @@ waitFb().then(()=>{
     }
   });
   loadPromoState();
+  loadMaintenanceState();
 });
+
+async function loadMaintenanceState(){
+  try{
+    FB.onSnapshot(FB.doc(FB.db,'settings','app'), (snap)=>{
+      const data = snap.exists() ? snap.data() : {};
+      const on = !!data.maintenanceMode;
+      document.getElementById('maintenanceScreen').classList.toggle('hide', !on);
+      document.body.classList.toggle('maintenance-lock', on);
+      if(on && data.maintenanceMessage){
+        document.getElementById('maintenanceMsg').textContent = data.maintenanceMessage;
+      }
+    }, (err)=>{ console.warn('maintenance settings listen error', err); });
+  }catch(e){ /* settings/app doc may not exist yet — app stays open by default */ }
+}
 
 async function loadPromoState(){
   try{
